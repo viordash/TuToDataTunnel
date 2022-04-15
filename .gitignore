@@ -1,0 +1,13 @@
+.vs
+~logs
+**/bin
+**/obj
+packages/*
+**/node_modules
+**.user
+**.orig
+xunit-*.xml
+*.suo
+**/packages/
+Garbage/
+**/MigrationBackup/
