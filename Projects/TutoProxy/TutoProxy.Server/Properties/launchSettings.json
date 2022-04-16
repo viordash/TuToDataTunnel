@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "TutoProxy.Server": {
+      "commandName": "Project",
+      "commandLineArgs": "1234 80,81,443,700-900 test --verbose",
+      "hotReloadEnabled": false
+    }
+  }
+}
