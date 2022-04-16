@@ -6,7 +6,22 @@ using TutoProxy.Server.CommandLine;
 class Program {
     public static async Task<int> Main(string[] args) {
         var hostArg = new Argument<string>("host", "Local host address");
-        var postArg = new Argument<PortsArgument?>(name: "ports", parse: PortsArgument.ToParseArgument(), description: "Listened port (80,81,443,700-900)");
+        var postArg = new Argument<PortsArgument?>(
+                name: "ports",
+                parse: (result) => {
+                    if(result.Tokens.Count != 1) {
+                        result.ErrorMessage = "Ports can only be parsed with single token";
+                        return default;
+                    }
+                    try {
+                        return PortsArgument.Parse(result.Tokens[0].Value);
+                    } catch(ArgumentException exception) {
+                        result.ErrorMessage = exception.GetBaseException().Message;
+                        return default;
+                    }
+                },
+                description: "Listened port (80,81,443,700-900)"
+                );
 
         var testArg = new Argument<string>("test");
         var verboseOpt = new Option<bool>("--verbose", "Show the verbose logs");
