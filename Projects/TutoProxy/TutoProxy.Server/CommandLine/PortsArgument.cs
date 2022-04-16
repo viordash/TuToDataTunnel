@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.CommandLine;
+using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("TutoProxy.Server.Tests")]
 namespace TutoProxy.Server.CommandLine {
@@ -7,6 +8,25 @@ namespace TutoProxy.Server.CommandLine {
 
         public override string ToString() {
             return String.Join(',', Ports.Select(x => x.ToString()).ToArray());
+        }
+
+        public static Option<PortsArgument?> CreateOption(string name) {
+            return new Option<PortsArgument?>(
+                     name: name,
+                     parseArgument: (result) => {
+                         if(result.Tokens.Count != 1) {
+                             result.ErrorMessage = "Ports can only be parsed with single token";
+                             return default;
+                         }
+                         try {
+                             return PortsArgument.Parse(result.Tokens[0].Value);
+                         } catch(ArgumentException exception) {
+                             result.ErrorMessage = exception.GetBaseException().Message;
+                             return default;
+                         }
+                     },
+                     description: $"Listened ports, format like '{name}=80,81,443,700-900'"
+             );
         }
 
         public static PortsArgument Parse(string value) {
