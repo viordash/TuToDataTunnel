@@ -32,7 +32,7 @@ namespace TutoProxy.Server.CommandLine {
             public bool Verbose { get; set; }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
-                if(Host == null || (Tcp == null && Udp == null)) {
+                if(string.IsNullOrEmpty(Host) || (Tcp == null && Udp == null)) {
                     return -1;
                 }
 

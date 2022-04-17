@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TuToProxy.Core", "TuToProxy
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TuToProxy.Core.Tests", "TuToProxy.Core.Tests\TuToProxy.Core.Tests.csproj", "{74E925B0-3373-4B4E-83D7-84830FF88842}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TutoProxy.Client", "TutoProxy.Client\TutoProxy.Client.csproj", "{05208C1D-DEB4-4C07-8852-23939399A816}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{74E925B0-3373-4B4E-83D7-84830FF88842}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{74E925B0-3373-4B4E-83D7-84830FF88842}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{74E925B0-3373-4B4E-83D7-84830FF88842}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05208C1D-DEB4-4C07-8852-23939399A816}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05208C1D-DEB4-4C07-8852-23939399A816}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05208C1D-DEB4-4C07-8852-23939399A816}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05208C1D-DEB4-4C07-8852-23939399A816}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
