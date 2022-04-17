@@ -1,6 +1,5 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.CommandLine.Parsing;
 using System.Reflection;
 
 namespace TutoProxy.Server.CommandLine {
@@ -14,8 +13,12 @@ namespace TutoProxy.Server.CommandLine {
             Add(udpOption);
             Add(new Option<bool>("--verbose", "Show the verbose logs"));
             AddValidator((result) => {
-                if(!result.Children.Any(x => x.GetValueForOption(tcpOption) != null || x.GetValueForOption(udpOption) != null)) {
-                    result.ErrorMessage = "tcp or udp options requried";
+                try {
+                    if(!result.Children.Any(x => x.GetValueForOption(tcpOption) != null || x.GetValueForOption(udpOption) != null)) {
+                        result.ErrorMessage = "tcp or udp options requried";
+                    }
+                } catch(InvalidOperationException) {
+                    result.ErrorMessage = "not valid";
                 }
             });
         }
