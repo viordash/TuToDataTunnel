@@ -1,6 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Reflection;
+using TutoProxy.Core.CommandLine;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {

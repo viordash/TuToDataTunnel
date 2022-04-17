@@ -1,9 +1,9 @@
 using System;
 using System.CommandLine.Parsing;
 using NUnit.Framework;
-using TutoProxy.Server.CommandLine;
+using TutoProxy.Core.CommandLine;
 
-namespace TutoProxy.Server.Tests {
+namespace TuToProxy.Core.Tests.CommandLineTests {
     public class PortsArgumentTests {
         [SetUp]
         public void Setup() {

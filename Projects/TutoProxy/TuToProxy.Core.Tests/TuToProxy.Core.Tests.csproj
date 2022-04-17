@@ -15,11 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TutoProxy.Server\TutoProxy.Server.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="CommandLineTests\" />
+    <ProjectReference Include="..\TuToProxy.Core\TuToProxy.Core.csproj" />
   </ItemGroup>
 
 </Project>

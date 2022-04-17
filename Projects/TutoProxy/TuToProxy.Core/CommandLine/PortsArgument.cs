@@ -2,12 +2,13 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("TutoProxy.Server.Tests")]
-namespace TutoProxy.Server.CommandLine {
-    internal class PortsArgument {
+[assembly: InternalsVisibleTo("TutoProxy.Core.Tests")]
+namespace TutoProxy.Core.CommandLine {
+    public class PortsArgument {
         public List<int> Ports { get; set; } = new List<int>();
 
         public override string ToString() {
-            return String.Join(',', Ports.Select(x => x.ToString()).ToArray());
+            return string.Join(',', Ports.Select(x => x.ToString()).ToArray());
         }
 
         public static Option<PortsArgument?> CreateOption(string name) {
