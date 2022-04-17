@@ -32,8 +32,8 @@ namespace TutoProxy.Server.CommandLine {
                     return -1;
                 }
 
-                Console.WriteLine("{0} {1}", Assembly.GetExecutingAssembly().GetName().Name, Assembly.GetExecutingAssembly().GetName().Version);
-                Console.WriteLine("Прокси сервер TuTo, хост {0}, tcp-порты {1}, udp-порты {2}", Host, Tcp, Udp);
+                Log.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
+                Log.Information($"Прокси сервер TuTo, хост {Host}, tcp-порты {Tcp}, udp-порты {Udp}");
 
                 Console.WriteLine($"The value for host is: {Host}");
                 Console.WriteLine($"The value for test is: {Test}");
