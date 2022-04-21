@@ -1,7 +1,12 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Reflection;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using TutoProxy.Core.CommandLine;
+using TutoProxy.Server.Hubs;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -44,6 +49,13 @@ namespace TutoProxy.Server.CommandLine {
                 Console.WriteLine($"The value for tcpPorts is: {Tcp}");
                 Console.WriteLine($"The value for udpPorts is: {Udp}");
                 Console.WriteLine($"The value for verbose is: {Verbose}");
+
+                var builder = WebApplication.CreateBuilder();
+
+                builder.Services.AddSignalR();
+                var app = builder.Build();
+                app.MapHub<ChatHub>("/chatHub");
+                await app.RunAsync("http://127.0.0.1:8088");
 
                 return 0;
             }

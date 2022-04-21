@@ -2,8 +2,12 @@
 using System.CommandLine.Builder;
 using System.CommandLine.Hosting;
 using System.CommandLine.Parsing;
+using System.Diagnostics;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Server.CommandLine;
+using TutoProxy.Server.Hubs;
 
 class Program {
     public static async Task<int> Main(string[] args) {
@@ -14,16 +18,14 @@ class Program {
 
         var runner = new CommandLineBuilder(new AppRootCommand())
             .UseHost(_ => {
-                    return new HostBuilder();
-                }, (builder) => builder
-                .ConfigureServices((_, services) => {
+                return new HostBuilder();
+            }, (builder) => {
+                builder.UseCommandHandler<AppRootCommand, AppRootCommand.Handler>();
 
-                })
-                .UseCommandHandler<AppRootCommand, AppRootCommand.Handler>()
-             )
-
+            })
             .UseDefaults()
             .Build();
         return await runner.InvokeAsync(args);
     }
+
 }

@@ -1,7 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Reflection;
-using TutoProxy.Core.CommandLine;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -11,6 +11,7 @@ namespace TutoProxy.Server.CommandLine {
 
         public new class Handler : ICommandHandler {
             public string? Server { get; set; }
+            HubConnection? connection;
 
             public async Task<int> InvokeAsync(InvocationContext context) {
                 if(string.IsNullOrEmpty(Server)) {
@@ -20,6 +21,26 @@ namespace TutoProxy.Server.CommandLine {
                 Log.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
                 Log.Information($"Прокси клиент TuTo, сервер {Server}");
 
+                connection = new HubConnectionBuilder()
+                    .WithUrl("http://127.0.0.1:8088/ChatHub")
+                    .Build();
+
+                connection.On<string, string>("ReceiveMessage", (user, message) => {
+                    Log.Information($"{user}: {message}");
+                });
+
+                await connection.StartAsync();
+                Log.Information("Connection started");
+
+
+                Console.WriteLine("Введите свой псевдоним");
+                var nickName = Console.ReadLine();
+                Console.WriteLine("Вы подключены к чату под именем {0}", nickName);
+                while(true) {
+                    var line = Console.ReadLine();
+                    if(line == "quit") { break; }
+                    await connection.InvokeAsync("SendMessage", nickName, line);
+                }
                 return 0;
             }
         }

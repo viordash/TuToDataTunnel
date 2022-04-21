@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="6.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\TuToProxy.Core\TuToProxy.Core.csproj" />
   </ItemGroup>
 
