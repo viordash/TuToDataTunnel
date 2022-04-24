@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace TutoProxy.Server {
+namespace TuToProxy.Core.ServiceProvider {
     public class ServiceProviderFactory : IServiceProviderFactory<IServiceCollection> {
         static ServiceProviderFactory? instance;
         public static IServiceProviderFactory<IServiceCollection> Instance {

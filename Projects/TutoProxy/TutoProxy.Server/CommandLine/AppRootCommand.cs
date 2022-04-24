@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Core.CommandLine;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
+using TuToProxy.Core.ServiceProvider;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -75,7 +76,6 @@ namespace TutoProxy.Server.CommandLine {
                 builder.Services.AddSignalR();
                 var app = builder.Build();
                 app.MapHub<ChatHub>("/chatHub");
-
                 await app.RunAsync("http://127.0.0.1:8088");
                 return 0;
             }

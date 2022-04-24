@@ -13,15 +13,12 @@ class Program {
                 .CreateLogger();
 
         var runner = new CommandLineBuilder(new AppRootCommand())
-            .UseHost(_ => {
-                return new HostBuilder();
-            }, (builder) => builder
-            .ConfigureServices((_, services) => {
+            .UseHost(_ => new HostBuilder(), builder => builder
+                .UseCommandHandler<AppRootCommand, AppRootCommand.Handler>()
+                .ConfigureServices((_, services) => {
 
-            })
-            .UseCommandHandler<AppRootCommand, AppRootCommand.Handler>()
-             )
-
+                })
+            )
             .UseDefaults()
             .Build();
         return await runner.InvokeAsync(args);

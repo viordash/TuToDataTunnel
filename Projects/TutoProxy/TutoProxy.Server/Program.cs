@@ -4,9 +4,9 @@ using System.CommandLine.Hosting;
 using System.CommandLine.Parsing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using TutoProxy.Server;
 using TutoProxy.Server.CommandLine;
 using TutoProxy.Server.Services;
+using TuToProxy.Core.ServiceProvider;
 
 class Program {
     public static async Task<int> Main(string[] args) {
