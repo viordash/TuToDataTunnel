@@ -1,12 +1,11 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Reflection;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using TutoProxy.Core.CommandLine;
 using TutoProxy.Server.Hubs;
+using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -30,33 +29,54 @@ namespace TutoProxy.Server.CommandLine {
         }
 
         public new class Handler : ICommandHandler {
+            readonly IServiceProvider serviceProvider;
+            readonly ILogger logger;
+            readonly IDataTransferService dataTransferService;
+
             public string? Host { get; set; }
             public string? Test { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
             public bool Verbose { get; set; }
 
+            public Handler(
+                IServiceProvider serviceProvider,
+                ILogger logger,
+                IDataTransferService dataTransferService) {
+                Guard.NotNull(serviceProvider, nameof(serviceProvider));
+                Guard.NotNull(logger, nameof(logger));
+                Guard.NotNull(dataTransferService, nameof(dataTransferService));
+                this.serviceProvider = serviceProvider;
+                this.logger = logger;
+                this.dataTransferService = dataTransferService;
+            }
+
             public async Task<int> InvokeAsync(InvocationContext context) {
                 if(string.IsNullOrEmpty(Host) || (Tcp == null && Udp == null)) {
                     return -1;
                 }
 
-                Log.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                Log.Information($"Прокси сервер TuTo, хост {Host}, tcp-порты {Tcp}, udp-порты {Udp}");
+                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
+                logger.Information($"Прокси сервер TuTo, хост {Host}, tcp-порты {Tcp}, udp-порты {Udp}");
 
-                Console.WriteLine($"The value for host is: {Host}");
-                Console.WriteLine($"The value for test is: {Test}");
-                Console.WriteLine($"The value for tcpPorts is: {Tcp}");
-                Console.WriteLine($"The value for udpPorts is: {Udp}");
-                Console.WriteLine($"The value for verbose is: {Verbose}");
+                logger.Information($"The value for host is: {Host}");
+                logger.Information($"The value for test is: {Test}");
+                logger.Information($"The value for tcpPorts is: {Tcp}");
+                logger.Information($"The value for udpPorts is: {Udp}");
+                logger.Information($"The value for verbose is: {Verbose}");
 
                 var builder = WebApplication.CreateBuilder();
+
+                builder.Host.UseServiceProviderFactory(context => {
+                    var factory = ServiceProviderFactory.Instance;
+                    return ServiceProviderFactory.Instance;
+                });
 
                 builder.Services.AddSignalR();
                 var app = builder.Build();
                 app.MapHub<ChatHub>("/chatHub");
-                await app.RunAsync("http://127.0.0.1:8088");
 
+                await app.RunAsync("http://127.0.0.1:8088");
                 return 0;
             }
         }

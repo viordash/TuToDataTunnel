@@ -2,29 +2,32 @@
 using System.CommandLine.Builder;
 using System.CommandLine.Hosting;
 using System.CommandLine.Parsing;
-using System.Diagnostics;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using TutoProxy.Server;
 using TutoProxy.Server.CommandLine;
-using TutoProxy.Server.Hubs;
+using TutoProxy.Server.Services;
 
 class Program {
     public static async Task<int> Main(string[] args) {
-        Log.Logger = new LoggerConfiguration()
-                .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}{Exception}")
-                .WriteTo.File("log-.txt", rollingInterval: RollingInterval.Day)
-                .CreateLogger();
-
         var runner = new CommandLineBuilder(new AppRootCommand())
-            .UseHost(_ => {
-                return new HostBuilder();
-            }, (builder) => {
-                builder.UseCommandHandler<AppRootCommand, AppRootCommand.Handler>();
-
-            })
+            .UseHost(_ => new HostBuilder(), builder => builder
+                .UseCommandHandler<AppRootCommand, AppRootCommand.Handler>()
+                .UseSerilog((_, config) => config
+                    .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}{Exception}")
+                    .WriteTo.File("log-.txt", rollingInterval: RollingInterval.Day)
+                )
+                .UseServiceProviderFactory(context => {
+                    var factory = ServiceProviderFactory.Instance;
+                    return ServiceProviderFactory.Instance;
+                })
+                .ConfigureServices((h, services) => {
+                    services.AddSingleton<IDataTransferService, DataTransferService>();
+                })
+            )
             .UseDefaults()
             .Build();
+
         return await runner.InvokeAsync(args);
     }
 
