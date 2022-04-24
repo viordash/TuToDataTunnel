@@ -10,32 +10,44 @@ namespace TutoProxy.Server.CommandLine {
         }
 
         public new class Handler : ICommandHandler {
+            readonly IServiceProvider serviceProvider;
+            readonly ILogger logger;
+
             public string? Server { get; set; }
             HubConnection? connection;
+
+            public Handler(
+                IServiceProvider serviceProvider,
+                ILogger logger) {
+                Guard.NotNull(serviceProvider, nameof(serviceProvider));
+                Guard.NotNull(logger, nameof(logger));
+                this.serviceProvider = serviceProvider;
+                this.logger = logger;
+            }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
                 if(string.IsNullOrEmpty(Server)) {
                     return -1;
                 }
 
-                Log.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                Log.Information($"Прокси клиент TuTo, сервер {Server}");
+                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
+                logger.Information($"Прокси клиент TuTo, сервер {Server}");
 
                 connection = new HubConnectionBuilder()
                     .WithUrl("http://127.0.0.1:8088/ChatHub")
                     .Build();
 
                 connection.On<string, string>("ReceiveMessage", (user, message) => {
-                    Log.Information($"{user}: {message}");
+                    logger.Information($"{user}: {message}");
                 });
 
                 await connection.StartAsync();
-                Log.Information("Connection started");
+                logger.Information("Connection started");
 
 
-                Console.WriteLine("Введите свой псевдоним");
+                logger.Information("Введите свой псевдоним");
                 var nickName = Console.ReadLine();
-                Console.WriteLine("Вы подключены к чату под именем {0}", nickName);
+                logger.Information("Вы подключены к чату под именем {0}", nickName);
                 while(true) {
                     var line = Console.ReadLine();
                     if(line == "quit") { break; }
