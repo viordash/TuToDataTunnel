@@ -1,5 +1,4 @@
 using System;
-using System.CommandLine.Parsing;
 using NUnit.Framework;
 using TutoProxy.Core.CommandLine;
 

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace TuToProxy.Core.ServiceProvider {
     public class ServiceProviderFactory : IServiceProviderFactory<IServiceCollection> {
