@@ -17,4 +17,8 @@
     <ProjectReference Include="..\TuToProxy.Core\TuToProxy.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\" />
+  </ItemGroup>
+
 </Project>

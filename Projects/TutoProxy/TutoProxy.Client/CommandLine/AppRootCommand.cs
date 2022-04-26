@@ -2,6 +2,8 @@
 using System.CommandLine.Invocation;
 using System.Reflection;
 using Microsoft.AspNetCore.SignalR.Client;
+using TutoProxy.Client.Services;
+using TutoProxy.Core.Models;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -10,19 +12,19 @@ namespace TutoProxy.Server.CommandLine {
         }
 
         public new class Handler : ICommandHandler {
-            readonly IServiceProvider serviceProvider;
             readonly ILogger logger;
+            readonly IDataReceiveService dataReceiveService;
 
             public string? Server { get; set; }
             HubConnection? connection;
 
             public Handler(
-                IServiceProvider serviceProvider,
-                ILogger logger) {
-                Guard.NotNull(serviceProvider, nameof(serviceProvider));
+                ILogger logger,
+                IDataReceiveService dataReceiveService) {
                 Guard.NotNull(logger, nameof(logger));
-                this.serviceProvider = serviceProvider;
+                Guard.NotNull(dataReceiveService, nameof(dataReceiveService));
                 this.logger = logger;
+                this.dataReceiveService = dataReceiveService;
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
@@ -41,9 +43,13 @@ namespace TutoProxy.Server.CommandLine {
                     logger.Information($"{user}: {message}");
                 });
 
+                connection.On<DataTransferRequestModel>("DataRequest", async (request) => {
+                    var response = await dataReceiveService.HandleRequest(request);
+                    await connection.InvokeAsync("Response", response);
+                });
+
                 await connection.StartAsync();
                 logger.Information("Connection started");
-
 
                 logger.Information("Введите свой псевдоним");
                 var nickName = Console.ReadLine();
@@ -51,7 +57,7 @@ namespace TutoProxy.Server.CommandLine {
                 while(true) {
                     var line = Console.ReadLine();
                     if(line == "quit") { break; }
-                    await connection.InvokeAsync("SendMessage", nickName, line);
+                    await connection.InvokeAsync("SendMessage", connection.ConnectionId, nickName, line);
                 }
                 return 0;
             }

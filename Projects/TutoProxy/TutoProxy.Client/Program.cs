@@ -2,7 +2,9 @@
 using System.CommandLine.Builder;
 using System.CommandLine.Hosting;
 using System.CommandLine.Parsing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using TutoProxy.Client.Services;
 using TutoProxy.Server.CommandLine;
 using TuToProxy.Core.ServiceProvider;
 
@@ -20,7 +22,7 @@ class Program {
                     return ServiceProviderFactory.Instance;
                 })
                 .ConfigureServices((_, services) => {
-
+                    services.AddSingleton<IDataReceiveService, DataReceiveService>();
                 })
             )
             .UseDefaults()

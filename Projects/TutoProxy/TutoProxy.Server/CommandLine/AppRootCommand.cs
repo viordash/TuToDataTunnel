@@ -30,9 +30,7 @@ namespace TutoProxy.Server.CommandLine {
         }
 
         public new class Handler : ICommandHandler {
-            readonly IServiceProvider serviceProvider;
             readonly ILogger logger;
-            readonly IDataTransferService dataTransferService;
 
             public string? Host { get; set; }
             public string? Test { get; set; }
@@ -41,15 +39,9 @@ namespace TutoProxy.Server.CommandLine {
             public bool Verbose { get; set; }
 
             public Handler(
-                IServiceProvider serviceProvider,
-                ILogger logger,
-                IDataTransferService dataTransferService) {
-                Guard.NotNull(serviceProvider, nameof(serviceProvider));
+                ILogger logger) {
                 Guard.NotNull(logger, nameof(logger));
-                Guard.NotNull(dataTransferService, nameof(dataTransferService));
-                this.serviceProvider = serviceProvider;
                 this.logger = logger;
-                this.dataTransferService = dataTransferService;
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
@@ -74,6 +66,8 @@ namespace TutoProxy.Server.CommandLine {
                 });
 
                 builder.Services.AddSignalR();
+                builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
+
                 var app = builder.Build();
                 app.MapHub<ChatHub>("/chatHub");
                 await app.RunAsync("http://127.0.0.1:8088");

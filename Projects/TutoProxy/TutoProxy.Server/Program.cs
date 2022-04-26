@@ -2,10 +2,8 @@
 using System.CommandLine.Builder;
 using System.CommandLine.Hosting;
 using System.CommandLine.Parsing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Server.CommandLine;
-using TutoProxy.Server.Services;
 using TuToProxy.Core.ServiceProvider;
 
 class Program {
@@ -20,9 +18,6 @@ class Program {
                 .UseServiceProviderFactory(context => {
                     var factory = ServiceProviderFactory.Instance;
                     return ServiceProviderFactory.Instance;
-                })
-                .ConfigureServices((h, services) => {
-                    services.AddSingleton<IDataTransferService, DataTransferService>();
                 })
             )
             .UseDefaults()
