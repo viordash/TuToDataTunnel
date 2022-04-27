@@ -67,6 +67,7 @@ namespace TutoProxy.Server.CommandLine {
 
                 builder.Services.AddSignalR();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
+                builder.Services.AddSingleton<IRequestProcessingService, RequestProcessingService>();
 
                 var app = builder.Build();
                 app.MapHub<ChatHub>("/chatHub");

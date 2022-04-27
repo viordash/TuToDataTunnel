@@ -5,14 +5,25 @@ using TutoProxy.Server.Hubs;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
-        Task<DataTransferResponseModel> SendRequest(string payload);
-        Task ReceiveResponse(DataTransferResponseModel response);
+        Task SendRequest(DataRequestModel request, Action<DataResponseModel> responseCallback);
+        void ReceiveResponse(TransferResponseModel response);
     }
 
     public class DataTransferService : IDataTransferService {
+        #region inner classes
+        class NamedRequest {
+            public TransferRequestModel Parent { get; private set; }
+            public Action<DataResponseModel> ResponseCallback { get; private set; }
+            public NamedRequest(TransferRequestModel parent, Action<DataResponseModel> responseCallback) {
+                Parent = parent;
+                ResponseCallback = responseCallback;
+            }
+        }
+        #endregion
+
         readonly ILogger logger;
         readonly IHubContext<ChatHub> hubContext;
-        readonly ConcurrentDictionary<string, DataTransferRequestModel> requests = new();
+        readonly ConcurrentDictionary<string, NamedRequest> requests = new();
 
         public DataTransferService(
                 ILogger logger,
@@ -24,27 +35,22 @@ namespace TutoProxy.Server.Services {
             this.hubContext = hubContext;
         }
 
-        public async Task<DataTransferResponseModel> SendRequest(string payload) {
-            logger.Information($"Request :{payload}");
-
-            var request = new DataTransferRequestModel() {
+        public async Task SendRequest(DataRequestModel request, Action<DataResponseModel> responseCallback) {
+            var namedRequest = new NamedRequest(new TransferRequestModel() {
                 Id = Guid.NewGuid().ToString(),
-                Payload = DateTime.Now.ToString()
-            };
-            requests.TryAdd(request.Id, request);
+                DateTime = DateTime.Now,
+                Payload = request
+            }, responseCallback);
 
-            await hubContext.Clients.All.SendAsync("DataRequest", request);
-
-            await Task.Delay(1000);
-            return new DataTransferResponseModel();
+            requests.TryAdd(namedRequest.Parent.Id, namedRequest);
+            logger.Information($"Request :{namedRequest.Parent}");
+            await hubContext.Clients.All.SendAsync("DataRequest", namedRequest.Parent);
         }
 
-        public async Task ReceiveResponse(DataTransferResponseModel response) {
-            if(requests.TryGetValue(response.Id, out DataTransferRequestModel? request)) {
-                logger.Information($"Response :{request}");
+        public void ReceiveResponse(TransferResponseModel response) {
+            if(requests.TryRemove(response.Id, out NamedRequest? request)) {
+                request.ResponseCallback(response.Payload);
             }
-
-            await Task.CompletedTask;
         }
     }
 }

@@ -1,5 +1,5 @@
 ﻿namespace TutoProxy.Core.Models {
-    public abstract class DataTransferBase {
+    public abstract class TransferBase {
         public string Id { get; set; } = string.Empty;
         public DateTime DateTime { get; set; }
 

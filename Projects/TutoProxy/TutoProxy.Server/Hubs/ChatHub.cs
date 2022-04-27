@@ -6,14 +6,18 @@ namespace TutoProxy.Server.Hubs {
     public class ChatHub : Hub {
         readonly ILogger logger;
         readonly IDataTransferService dataTransferService;
+        readonly IRequestProcessingService requestProcessingService;
 
         public ChatHub(
                 ILogger logger,
-                IDataTransferService dataTransferService) {
+                IDataTransferService dataTransferService,
+                IRequestProcessingService requestProcessingService) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(dataTransferService, nameof(dataTransferService));
+            Guard.NotNull(requestProcessingService, nameof(requestProcessingService));
             this.logger = logger;
             this.dataTransferService = dataTransferService;
+            this.requestProcessingService = requestProcessingService;
         }
 
         public async Task SendMessage(string connectionId, string user, string message) {
@@ -21,15 +25,17 @@ namespace TutoProxy.Server.Hubs {
             await Clients.All.SendAsync("ReceiveMessage", user, message);
 
             _ = Task.Run(async () => {
-                await Task.Delay(1000);
-                var response = await dataTransferService.SendRequest(DateTime.Now.ToLongDateString());
-                logger.Information($"received response: {response}");
+                await Task.Delay(300);
+                await requestProcessingService.Request(new DataRequestModel() {
+                    Data = message,
+                    Protocol = "req TCP"
+                });
             });
         }
 
-        public async Task Response(DataTransferResponseModel model) {
+        public void Response(TransferResponseModel model) {
             logger.Information($"Response: {model}");
-            await dataTransferService.ReceiveResponse(model);
+            dataTransferService.ReceiveResponse(model);
         }
     }
 }

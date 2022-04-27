@@ -43,7 +43,7 @@ namespace TutoProxy.Server.CommandLine {
                     logger.Information($"{user}: {message}");
                 });
 
-                connection.On<DataTransferRequestModel>("DataRequest", async (request) => {
+                connection.On<TransferRequestModel>("DataRequest", async (request) => {
                     var response = await dataReceiveService.HandleRequest(request);
                     await connection.InvokeAsync("Response", response);
                 });

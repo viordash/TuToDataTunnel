@@ -2,7 +2,7 @@
 
 namespace TutoProxy.Client.Services {
     public interface IDataReceiveService {
-        Task<DataTransferResponseModel> HandleRequest(DataTransferRequestModel request);
+        Task<TransferResponseModel> HandleRequest(TransferRequestModel request);
     }
 
     internal class DataReceiveService : IDataReceiveService {
@@ -12,15 +12,17 @@ namespace TutoProxy.Client.Services {
             this.logger = logger;
         }
 
-        public async Task<DataTransferResponseModel> HandleRequest(DataTransferRequestModel request) {
+        public async Task<TransferResponseModel> HandleRequest(TransferRequestModel request) {
             logger.Information($"HandleRequest :{request}");
-            await Task.Delay(1000);
 
-            return new DataTransferResponseModel() {
+            return await Task.FromResult(new TransferResponseModel() {
                 Id = request.Id,
                 DateTime = request.DateTime,
-                Payload = DateTime.Now.ToShortTimeString()
-            };
+                Payload = new DataResponseModel() {
+                    Data = $"{request.Payload?.Data}_{DateTime.Now}",
+                    Protocol = "resp UDP"
+                }
+            });
         }
     }
 }
