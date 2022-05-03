@@ -3,7 +3,7 @@
         public string Data { get; set; } = string.Empty;
 
         public override string ToString() {
-            return $"'{Data}'";
+            return $"{Data}";
         }
     }
 }
