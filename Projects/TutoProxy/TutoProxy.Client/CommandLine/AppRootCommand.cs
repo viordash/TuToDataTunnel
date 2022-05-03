@@ -2,6 +2,7 @@
 using System.CommandLine.Invocation;
 using System.Reflection;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Client.Services;
 using TutoProxy.Core.Models;
 
@@ -14,13 +15,14 @@ namespace TutoProxy.Server.CommandLine {
         public new class Handler : ICommandHandler {
             readonly ILogger logger;
             readonly IDataReceiveService dataReceiveService;
+            HubConnection? connection;
 
             public string? Server { get; set; }
-            HubConnection? connection;
 
             public Handler(
                 ILogger logger,
-                IDataReceiveService dataReceiveService) {
+                IDataReceiveService dataReceiveService
+                ) {
                 Guard.NotNull(logger, nameof(logger));
                 Guard.NotNull(dataReceiveService, nameof(dataReceiveService));
                 this.logger = logger;
@@ -44,20 +46,18 @@ namespace TutoProxy.Server.CommandLine {
                 });
 
                 connection.On<TransferRequestModel>("DataRequest", async (request) => {
-                    var response = await dataReceiveService.HandleRequest(request);
+                    var response = dataReceiveService.HandleRequest(request);
                     await connection.InvokeAsync("Response", response);
                 });
+
 
                 await connection.StartAsync();
                 logger.Information("Connection started");
 
-                logger.Information("Введите свой псевдоним");
-                var nickName = Console.ReadLine();
-                logger.Information("Вы подключены к чату под именем {0}", nickName);
                 while(true) {
                     var line = Console.ReadLine();
                     if(line == "quit") { break; }
-                    await connection.InvokeAsync("SendMessage", connection.ConnectionId, nickName, line);
+                    await connection.InvokeAsync("SendMessage", connection.ConnectionId, "nickName", line);
                 }
                 return 0;
             }

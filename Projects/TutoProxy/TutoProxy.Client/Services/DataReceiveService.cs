@@ -15,14 +15,17 @@ namespace TutoProxy.Client.Services {
         public async Task<TransferResponseModel> HandleRequest(TransferRequestModel request) {
             logger.Information($"HandleRequest :{request}");
 
-            return await Task.FromResult(new TransferResponseModel() {
+            var response = new TransferResponseModel() {
                 Id = request.Id,
                 DateTime = request.DateTime,
                 Payload = new DataResponseModel() {
                     Data = $"{request.Payload?.Data}_{DateTime.Now}",
                     Protocol = "resp UDP"
                 }
-            });
+            };
+            await Task.Delay(1000);
+            logger.Information($"Response :{response}");
+            return response;
         }
     }
 }
