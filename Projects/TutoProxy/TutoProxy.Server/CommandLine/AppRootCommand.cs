@@ -71,7 +71,7 @@ namespace TutoProxy.Server.CommandLine {
                 builder.Services.AddSingleton<IRequestProcessingService, RequestProcessingService>();
 
                 var app = builder.Build();
-                app.MapHub<ChatHub>(DataTunnelParams.Path);
+                app.MapHub<DataTunnelHub>(DataTunnelParams.Path);
                 await app.RunAsync("http://127.0.0.1:8088");
                 return 0;
             }

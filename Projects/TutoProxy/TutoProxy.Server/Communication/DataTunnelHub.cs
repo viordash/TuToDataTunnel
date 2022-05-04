@@ -3,12 +3,12 @@ using TutoProxy.Core.Models;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Hubs {
-    public class ChatHub : Hub {
+    public class DataTunnelHub : Hub {
         readonly ILogger logger;
         readonly IDataTransferService dataTransferService;
         readonly IRequestProcessingService requestProcessingService;
 
-        public ChatHub(
+        public DataTunnelHub(
                 ILogger logger,
                 IDataTransferService dataTransferService,
                 IRequestProcessingService requestProcessingService) {

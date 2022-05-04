@@ -22,12 +22,12 @@ namespace TutoProxy.Server.Services {
         #endregion
 
         readonly ILogger logger;
-        readonly IHubContext<ChatHub> hubContext;
+        readonly IHubContext<DataTunnelHub> hubContext;
         readonly ConcurrentDictionary<string, NamedRequest> requests = new();
 
         public DataTransferService(
                 ILogger logger,
-                IHubContext<ChatHub> hubContext
+                IHubContext<DataTunnelHub> hubContext
             ) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(hubContext, nameof(hubContext));
