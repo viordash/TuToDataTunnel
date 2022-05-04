@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Core.CommandLine;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 using TuToProxy.Core.ServiceProvider;
 
 namespace TutoProxy.Server.CommandLine {
@@ -70,7 +71,7 @@ namespace TutoProxy.Server.CommandLine {
                 builder.Services.AddSingleton<IRequestProcessingService, RequestProcessingService>();
 
                 var app = builder.Build();
-                app.MapHub<ChatHub>("/chatHub");
+                app.MapHub<ChatHub>(DataTunnelParams.Path);
                 await app.RunAsync("http://127.0.0.1:8088");
                 return 0;
             }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
 using TutoProxy.Core.Models;
+using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
     public interface IDataTunnel {
@@ -32,12 +33,8 @@ namespace TutoProxy.Client.Communication {
             Guard.NotNullOrEmpty(server, nameof(server));
             await StopAsync(cancellationToken);
             connection = new HubConnectionBuilder()
-                 .WithUrl(server)
+                 .WithUrl(new Uri(new Uri(server), DataTunnelParams.Path))
                  .Build();
-
-            connection.On<string, string>("ReceiveMessage", (user, message) => {
-                logger.Information($"{user}: {message}");
-            });
 
             connection.On<TransferRequestModel>("DataRequest", async (request) => {
                 var response = dataReceiveService.HandleRequest(request);

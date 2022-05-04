@@ -2,7 +2,7 @@
   "profiles": {
     "TutoProxy.Client": {
       "commandName": "Project",
-      "commandLineArgs": "http://127.0.0.1:8088/ChatHub"
+      "commandLineArgs": "http://127.0.0.1:8088"
     }
   }
 }
