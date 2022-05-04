@@ -2,7 +2,6 @@
 using System.CommandLine.Invocation;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Hosting.Internal;
 using TutoProxy.Client.Communication;
 
 namespace TutoProxy.Server.CommandLine {
@@ -13,21 +12,21 @@ namespace TutoProxy.Server.CommandLine {
 
         public new class Handler : ICommandHandler {
             readonly ILogger logger;
-            readonly IDataTunnel dataTunnel;
+            readonly IDataTunnelClient dataTunnelClient;
             readonly IHostApplicationLifetime applicationLifetime;
 
             public string? Server { get; set; }
 
             public Handler(
                 ILogger logger,
-                IDataTunnel dataTunnel,
+                IDataTunnelClient dataTunnelClient,
                 IHostApplicationLifetime applicationLifetime
                 ) {
                 Guard.NotNull(logger, nameof(logger));
-                Guard.NotNull(dataTunnel, nameof(dataTunnel));
+                Guard.NotNull(dataTunnelClient, nameof(dataTunnelClient));
                 Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
                 this.logger = logger;
-                this.dataTunnel = dataTunnel;
+                this.dataTunnelClient = dataTunnelClient;
                 this.applicationLifetime = applicationLifetime;
             }
 
@@ -40,12 +39,12 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"Прокси клиент TuTo, сервер {Server}");
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
-                    await dataTunnel.StopAsync(default);
+                    await dataTunnelClient.StopAsync(default);
                 });
 
                 while(!appStoppingReg.Token.IsCancellationRequested) {
                     try {
-                        await dataTunnel.StartAsync(Server, appStoppingReg.Token);
+                        await dataTunnelClient.StartAsync(Server, appStoppingReg.Token);
                         break;
                     } catch(HttpRequestException) {
                         logger.Error("Connection failed");

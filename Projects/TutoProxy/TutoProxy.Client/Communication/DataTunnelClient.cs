@@ -1,25 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
 using TutoProxy.Core.Models;
 using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
-    public interface IDataTunnel {
+    public interface IDataTunnelClient {
         Task StartAsync(string server, CancellationToken cancellationToken);
         Task StopAsync(CancellationToken cancellationToken);
     }
 
-    internal class DataTunnel : IDataTunnel {
+    internal class DataTunnelClient : IDataTunnelClient {
         readonly ILogger logger;
         readonly IDataReceiveService dataReceiveService;
         HubConnection? connection = null;
 
-        public DataTunnel(
+        public DataTunnelClient(
                 ILogger logger,
                 IDataReceiveService dataReceiveService
                 ) {
