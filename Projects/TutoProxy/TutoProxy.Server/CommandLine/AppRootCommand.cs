@@ -13,7 +13,6 @@ namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
         public AppRootCommand() : base("Прокси сервер TuTo") {
             Add(new Argument<string>("host", "Local host address"));
-            Add(new Argument<string>("test"));
             var tcpOption = PortsArgument.CreateOption("--tcp");
             var udpOption = PortsArgument.CreateOption("--udp");
             Add(tcpOption);
@@ -34,7 +33,6 @@ namespace TutoProxy.Server.CommandLine {
             readonly ILogger logger;
 
             public string? Host { get; set; }
-            public string? Test { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
             public bool Verbose { get; set; }
@@ -46,18 +44,12 @@ namespace TutoProxy.Server.CommandLine {
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
-                if(string.IsNullOrEmpty(Host) || (Tcp == null && Udp == null)) {
-                    return -1;
-                }
+                Guard.NotNullOrEmpty(Host, nameof(Host));
+                Guard.NotNull(Tcp, nameof(Tcp));
+                Guard.NotNull(Udp, nameof(Udp));
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
                 logger.Information($"Прокси сервер TuTo, хост {Host}, tcp-порты {Tcp}, udp-порты {Udp}");
-
-                logger.Information($"The value for host is: {Host}");
-                logger.Information($"The value for test is: {Test}");
-                logger.Information($"The value for tcpPorts is: {Tcp}");
-                logger.Information($"The value for udpPorts is: {Udp}");
-                logger.Information($"The value for verbose is: {Verbose}");
 
                 var builder = WebApplication.CreateBuilder();
 
@@ -72,7 +64,7 @@ namespace TutoProxy.Server.CommandLine {
 
                 var app = builder.Build();
                 app.MapHub<DataTunnelHub>(DataTunnelParams.Path);
-                await app.RunAsync("http://127.0.0.1:8088");
+                await app.RunAsync(Host);
                 return 0;
             }
         }
