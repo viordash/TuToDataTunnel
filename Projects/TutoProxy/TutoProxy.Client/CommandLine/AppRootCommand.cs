@@ -1,10 +1,9 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Reflection;
-using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.DependencyInjection;
-using TutoProxy.Client.Services;
-using TutoProxy.Core.Models;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
+using TutoProxy.Client.Communication;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -14,19 +13,22 @@ namespace TutoProxy.Server.CommandLine {
 
         public new class Handler : ICommandHandler {
             readonly ILogger logger;
-            readonly IDataReceiveService dataReceiveService;
-            HubConnection? connection;
+            readonly IDataTunnel dataTunnel;
+            readonly IHostApplicationLifetime applicationLifetime;
 
             public string? Server { get; set; }
 
             public Handler(
                 ILogger logger,
-                IDataReceiveService dataReceiveService
+                IDataTunnel dataTunnel,
+                IHostApplicationLifetime applicationLifetime
                 ) {
                 Guard.NotNull(logger, nameof(logger));
-                Guard.NotNull(dataReceiveService, nameof(dataReceiveService));
+                Guard.NotNull(dataTunnel, nameof(dataTunnel));
+                Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
                 this.logger = logger;
-                this.dataReceiveService = dataReceiveService;
+                this.dataTunnel = dataTunnel;
+                this.applicationLifetime = applicationLifetime;
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
@@ -37,28 +39,23 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
                 logger.Information($"Прокси клиент TuTo, сервер {Server}");
 
-                connection = new HubConnectionBuilder()
-                    .WithUrl("http://127.0.0.1:8088/ChatHub")
-                    .Build();
-
-                connection.On<string, string>("ReceiveMessage", (user, message) => {
-                    logger.Information($"{user}: {message}");
+                using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
+                    await dataTunnel.StopAsync(default);
                 });
 
-                connection.On<TransferRequestModel>("DataRequest", async (request) => {
-                    var response = dataReceiveService.HandleRequest(request);
-                    await connection.InvokeAsync("Response", response);
-                });
-
-
-                await connection.StartAsync();
-                logger.Information("Connection started");
-
-                while(true) {
-                    var line = Console.ReadLine();
-                    if(line == "quit") { break; }
-                    await connection.InvokeAsync("SendMessage", connection.ConnectionId, "nickName", line);
+                while(!appStoppingReg.Token.IsCancellationRequested) {
+                    try {
+                        await dataTunnel.StartAsync(Server, appStoppingReg.Token);
+                        break;
+                    } catch(HttpRequestException) {
+                        logger.Error("Connection failed");
+                        await Task.Delay(5000, appStoppingReg.Token);
+                        logger.Information("Retry connect");
+                        continue;
+                    }
                 }
+
+                appStoppingReg.Token.WaitHandle.WaitOne();
                 return 0;
             }
         }
