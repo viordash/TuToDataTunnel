@@ -12,7 +12,7 @@ class Program {
             .UseHost(_ => new HostBuilder(), builder => builder
                 .UseCommandHandler<AppRootCommand, AppRootCommand.Handler>()
                 .UseSerilog((_, config) => config
-                    .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}{Exception}")
+                    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u1}]{Message:lj}{NewLine}{Exception}")
                     .WriteTo.File("log-.txt", rollingInterval: RollingInterval.Day)
                 )
                 .UseServiceProviderFactory(context => {
