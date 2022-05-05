@@ -32,7 +32,7 @@ namespace TutoProxy.Client.Communication {
                  .Build();
 
             connection.On<TransferRequestModel>("DataRequest", async (request) => {
-                var response = dataReceiveService.HandleRequest(request);
+                var response = await dataReceiveService.HandleRequest(request);
                 await connection.InvokeAsync("Response", response);
             });
 

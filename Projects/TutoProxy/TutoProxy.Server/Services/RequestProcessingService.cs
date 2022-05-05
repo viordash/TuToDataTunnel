@@ -21,14 +21,13 @@ namespace TutoProxy.Server.Services {
         }
 
         public async Task<DataResponseModel> Request(DataRequestModel request) {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var waitResponse = new TaskCompletionSource<DataResponseModel>();
-
+            cts.Token.Register(() => waitResponse.TrySetCanceled(), useSynchronizationContext: false);
             await dataTransferService.SendRequest(request, (response) => {
                 waitResponse.TrySetResult(response);
             });
-
-            var sss = await waitResponse.Task;
-            return sss;
+            return await waitResponse.Task;
         }
 
     }

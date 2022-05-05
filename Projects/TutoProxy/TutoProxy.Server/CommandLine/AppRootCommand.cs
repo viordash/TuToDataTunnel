@@ -4,6 +4,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Core.CommandLine;
+using TutoProxy.Core.Models;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
@@ -38,7 +39,8 @@ namespace TutoProxy.Server.CommandLine {
             public bool Verbose { get; set; }
 
             public Handler(
-                ILogger logger) {
+                ILogger logger
+                ) {
                 Guard.NotNull(logger, nameof(logger));
                 this.logger = logger;
             }
@@ -64,6 +66,23 @@ namespace TutoProxy.Server.CommandLine {
 
                 var app = builder.Build();
                 app.MapHub<DataTunnelHub>(DataTunnelParams.Path);
+
+                var requestProcessingService = app.Services.GetRequiredService<IRequestProcessingService>();
+
+                _ = Task.Run(async () => {
+                    while(true) {
+                        await Task.Delay(300);
+                        try {
+                            var response = await requestProcessingService.Request(new DataRequestModel() {
+                                Data = $"staaaaart",
+                                Protocol = "req TCP"
+                            });
+                        } catch(OperationCanceledException) {
+                            await Task.Delay(1000);
+                        }
+                    }
+                });
+
                 await app.RunAsync(Host);
                 return 0;
             }

@@ -23,7 +23,7 @@ namespace TutoProxy.Client.Services {
                     Protocol = "resp UDP"
                 }
             };
-            await Task.Delay(1000);
+            await Task.Delay(300);
             logger.Information($"Response :{response}");
             return response;
         }

@@ -44,7 +44,7 @@ namespace TutoProxy.Server.Services {
 
             requests.TryAdd(namedRequest.Parent.Id, namedRequest);
             logger.Information($"Request :{namedRequest.Parent}");
-            await hubContext.Clients.All.SendAsync("DataRequest", namedRequest.Parent);
+            await hubContext.Clients.All.SendAsync("DataRequest", namedRequest.Parent);            
         }
 
         public void ReceiveResponse(TransferResponseModel response) {
