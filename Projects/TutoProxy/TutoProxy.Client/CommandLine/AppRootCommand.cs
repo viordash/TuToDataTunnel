@@ -54,7 +54,7 @@ namespace TutoProxy.Server.CommandLine {
                     }
                 }
 
-                appStoppingReg.Token.WaitHandle.WaitOne();
+                _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 return 0;
             }
         }
