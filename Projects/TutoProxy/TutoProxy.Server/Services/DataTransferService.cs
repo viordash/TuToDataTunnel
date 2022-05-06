@@ -36,21 +36,22 @@ namespace TutoProxy.Server.Services {
         }
 
         public async Task SendRequest(DataRequestModel request, Action<DataResponseModel> responseCallback) {
-            var namedRequest = new NamedRequest(new TransferRequestModel() {
-                Id = Guid.NewGuid().ToString(),
-                DateTime = DateTime.Now,
-                Payload = request
-            }, responseCallback);
+            RemoveExpiredRequests();
+            var namedRequest = new NamedRequest(new TransferRequestModel(request), responseCallback);
 
             requests.TryAdd(namedRequest.Parent.Id, namedRequest);
             logger.Information($"Request :{namedRequest.Parent}");
-            await hubContext.Clients.All.SendAsync("DataRequest", namedRequest.Parent);            
+            await hubContext.Clients.All.SendAsync("DataRequest", namedRequest.Parent);
         }
 
         public void ReceiveResponse(TransferResponseModel response) {
             if(requests.TryRemove(response.Id, out NamedRequest? request)) {
                 request.ResponseCallback(response.Payload);
             }
+        }
+
+        void RemoveExpiredRequests() {
+            throw new NotImplementedException();
         }
     }
 }

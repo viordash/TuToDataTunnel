@@ -15,13 +15,9 @@ namespace TutoProxy.Client.Services {
         public async Task<TransferResponseModel> HandleRequest(TransferRequestModel request) {
             logger.Information($"HandleRequest :{request}");
 
-            var response = new TransferResponseModel() {
-                Id = request.Id,
-                DateTime = request.DateTime,
-                Payload = new UdpDataResponseModel() {
-                    Data = System.Text.Encoding.UTF8.GetBytes($"{request.Payload?.Data?.ToString()}_{DateTime.Now}")
-                }
-            };
+            var response = new TransferResponseModel(request, new UdpDataResponseModel() {
+                Data = System.Text.Encoding.UTF8.GetBytes($"{request.Payload?.Data?.ToString()}_{DateTime.Now}")
+            });
             await Task.Delay(300);
             logger.Information($"Response :{response}");
             return response;
