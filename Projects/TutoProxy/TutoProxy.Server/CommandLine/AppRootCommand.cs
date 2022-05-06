@@ -73,9 +73,8 @@ namespace TutoProxy.Server.CommandLine {
                     while(true) {
                         await Task.Delay(300);
                         try {
-                            var response = await requestProcessingService.Request(new DataRequestModel() {
-                                Data = $"staaaaart",
-                                Protocol = "req TCP"
+                            var response = await requestProcessingService.Request(new UdpDataRequestModel() {
+                                Data = System.Text.Encoding.UTF8.GetBytes($"staaaaart")
                             });
                         } catch(OperationCanceledException) {
                             await Task.Delay(1000);

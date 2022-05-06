@@ -18,9 +18,8 @@ namespace TutoProxy.Client.Services {
             var response = new TransferResponseModel() {
                 Id = request.Id,
                 DateTime = request.DateTime,
-                Payload = new DataResponseModel() {
-                    Data = $"{request.Payload?.Data}_{DateTime.Now}",
-                    Protocol = "resp UDP"
+                Payload = new UdpDataResponseModel() {
+                    Data = System.Text.Encoding.UTF8.GetBytes($"{request.Payload?.Data?.ToString()}_{DateTime.Now}")
                 }
             };
             await Task.Delay(300);
