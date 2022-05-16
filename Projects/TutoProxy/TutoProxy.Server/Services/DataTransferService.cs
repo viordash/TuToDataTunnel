@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Core.Models;
 using TutoProxy.Server.Hubs;
+using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
@@ -11,7 +12,7 @@ namespace TutoProxy.Server.Services {
 
     public class DataTransferService : IDataTransferService {
         #region inner classes
-        class NamedRequest {
+        public class NamedRequest {
             public TransferRequestModel Parent { get; private set; }
             public Action<DataResponseModel> ResponseCallback { get; private set; }
             public NamedRequest(TransferRequestModel parent, Action<DataResponseModel> responseCallback) {
@@ -22,22 +23,30 @@ namespace TutoProxy.Server.Services {
         #endregion
 
         readonly ILogger logger;
+        readonly IDateTimeService dateTimeService;
+        readonly IIdService idService;
         readonly IHubContext<DataTunnelHub> hubContext;
-        readonly ConcurrentDictionary<string, NamedRequest> requests = new();
+        protected readonly ConcurrentDictionary<string, NamedRequest> requests = new();
 
         public DataTransferService(
                 ILogger logger,
+                IIdService idService,
+                IDateTimeService dateTimeService,
                 IHubContext<DataTunnelHub> hubContext
             ) {
             Guard.NotNull(logger, nameof(logger));
+            Guard.NotNull(idService, nameof(idService));
+            Guard.NotNull(dateTimeService, nameof(dateTimeService));
             Guard.NotNull(hubContext, nameof(hubContext));
             this.logger = logger;
+            this.idService = idService;
+            this.dateTimeService = dateTimeService;
             this.hubContext = hubContext;
         }
 
         public async Task SendRequest(DataRequestModel request, Action<DataResponseModel> responseCallback) {
             RemoveExpiredRequests();
-            var namedRequest = new NamedRequest(new TransferRequestModel(request), responseCallback);
+            var namedRequest = new NamedRequest(new TransferRequestModel(request, idService.TransferRequest, dateTimeService.Now), responseCallback);
 
             requests.TryAdd(namedRequest.Parent.Id, namedRequest);
             logger.Information($"Request :{namedRequest.Parent}");
@@ -51,7 +60,12 @@ namespace TutoProxy.Server.Services {
         }
 
         void RemoveExpiredRequests() {
-            throw new NotImplementedException();
+            var expired = requests.Values
+                .Where(x => x.Parent.Created.CompareTo(dateTimeService.Now.AddSeconds(-60)) < 0)
+                .Select(x => x.Parent.Id);
+            foreach(var id in expired) {
+                requests.TryRemove(id, out NamedRequest? request);
+            }
         }
     }
 }

@@ -3,7 +3,7 @@
         public DataResponseModel Payload { get; private set; }
 
         public TransferResponseModel(TransferRequestModel requestModel, DataResponseModel payload)
-            : base(requestModel.Id, requestModel.DateTime) {
+            : base(requestModel.Id, requestModel.Created) {
             Payload = payload;
         }
 

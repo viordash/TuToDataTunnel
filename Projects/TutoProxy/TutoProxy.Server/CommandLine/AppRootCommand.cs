@@ -9,6 +9,7 @@ using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.ServiceProvider;
+using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -61,6 +62,8 @@ namespace TutoProxy.Server.CommandLine {
                 });
 
                 builder.Services.AddSignalR();
+                builder.Services.AddSingleton<IIdService, IdService>();
+                builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
                 builder.Services.AddSingleton<IRequestProcessingService, RequestProcessingService>();
 

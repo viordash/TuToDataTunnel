@@ -2,8 +2,8 @@
     public class TransferRequestModel : TransferBase {
         public DataRequestModel Payload { get; private set; }
 
-        public TransferRequestModel(DataRequestModel payload)
-            : base(Guid.NewGuid().ToString(), DateTime.Now) {
+        public TransferRequestModel(DataRequestModel payload, string id, DateTime created)
+            : base(id, created) {
             Payload = payload;
         }
 
