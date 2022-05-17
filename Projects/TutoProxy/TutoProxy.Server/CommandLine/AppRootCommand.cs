@@ -3,8 +3,10 @@ using System.CommandLine.Invocation;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using TutoProxy.Core.CommandLine;
 using TutoProxy.Core.Models;
+using TutoProxy.Server.Communication;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
@@ -33,6 +35,7 @@ namespace TutoProxy.Server.CommandLine {
 
         public new class Handler : ICommandHandler {
             readonly ILogger logger;
+            readonly IHostApplicationLifetime applicationLifetime;
 
             public string? Host { get; set; }
             public PortsArgument? Udp { get; set; }
@@ -40,10 +43,13 @@ namespace TutoProxy.Server.CommandLine {
             public bool Verbose { get; set; }
 
             public Handler(
-                ILogger logger
+                ILogger logger,
+                IHostApplicationLifetime applicationLifetime
                 ) {
                 Guard.NotNull(logger, nameof(logger));
+                Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
                 this.logger = logger;
+                this.applicationLifetime = applicationLifetime;
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
@@ -72,18 +78,8 @@ namespace TutoProxy.Server.CommandLine {
 
                 var requestProcessingService = app.Services.GetRequiredService<IRequestProcessingService>();
 
-                _ = Task.Run(async () => {
-                    while(true) {
-                        await Task.Delay(300);
-                        try {
-                            var response = await requestProcessingService.Request(new UdpDataRequestModel() {
-                                Data = System.Text.Encoding.UTF8.GetBytes($"staaaaart")
-                            });
-                        } catch(OperationCanceledException) {
-                            await Task.Delay(1000);
-                        }
-                    }
-                });
+                var udpListenersFactory = new UdpListenersFactory(Host!, Udp!.Ports, requestProcessingService, logger);
+                udpListenersFactory.Listen(applicationLifetime.ApplicationStopping);
 
                 await app.RunAsync(Host);
                 return 0;

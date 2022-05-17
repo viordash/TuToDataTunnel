@@ -2,7 +2,7 @@
   "profiles": {
     "TutoProxy.Server": {
       "commandName": "Project",
-      "commandLineArgs": "http://127.0.0.1:8088 --tcp=80,81,443,700-722,65500 --udp=100,200 --verbose",
+      "commandLineArgs": "http://127.0.0.1:8088 --tcp=80,81,443,700-722,65500 --udp=100,200",
       "hotReloadEnabled": false
     }
   }
