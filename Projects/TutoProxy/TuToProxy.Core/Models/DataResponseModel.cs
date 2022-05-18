@@ -1,8 +1,11 @@
 ﻿using TuToProxy.Core.Models;
 
 namespace TutoProxy.Core.Models {
-    public abstract class DataResponseModel : DataBaseModel {
-        public DataProtocol? Protocol { get; protected set; }
+    public class DataResponseModel : DataBaseModel {
+        public DataProtocol Protocol { get; set; }
+
+        public DataResponseModel() {
+        }
 
         public override string ToString() {
             return $"{base.ToString()}, prot:{Protocol}";

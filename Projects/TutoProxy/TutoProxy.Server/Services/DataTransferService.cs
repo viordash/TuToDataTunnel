@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
-using TutoProxy.Core.Models;
 using TutoProxy.Server.Hubs;
 using TuToProxy.Core.Services;
 

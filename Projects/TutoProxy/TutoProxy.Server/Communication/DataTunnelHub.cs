@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using TutoProxy.Core.Models;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Hubs {

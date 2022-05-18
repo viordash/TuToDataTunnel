@@ -1,4 +1,5 @@
 ﻿using TutoProxy.Core.Models;
+using TuToProxy.Core.Models;
 
 namespace TutoProxy.Client.Services {
     public interface IDataReceiveService {
@@ -15,9 +16,10 @@ namespace TutoProxy.Client.Services {
         public async Task<TransferResponseModel> HandleRequest(TransferRequestModel request) {
             logger.Information($"HandleRequest :{request}");
 
-            var response = new TransferResponseModel(request, new UdpDataResponseModel() {
-                Data = System.Text.Encoding.UTF8.GetBytes($"{request.Payload?.Data?.ToString()}_{DateTime.Now}")
-            });
+            var response = new TransferResponseModel(request,
+                DataResponseFactory.Create(request.Payload.Protocol,
+                        System.Text.Encoding.UTF8.GetBytes($"{request.Payload.Data?.ToString()}_{DateTime.Now}"))
+                );
             await Task.Delay(300);
             logger.Information($"Response :{response}");
             return response;

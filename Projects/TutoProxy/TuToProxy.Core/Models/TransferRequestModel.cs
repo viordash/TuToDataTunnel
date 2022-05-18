@@ -1,6 +1,6 @@
 ﻿namespace TutoProxy.Core.Models {
     public class TransferRequestModel : TransferBase {
-        public DataRequestModel Payload { get; private set; }
+        public DataRequestModel Payload { get; set; }
 
         public TransferRequestModel(DataRequestModel payload, string id, DateTime created)
             : base(id, created) {

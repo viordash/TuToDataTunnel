@@ -1,7 +1,7 @@
 ﻿namespace TutoProxy.Core.Models {
     public abstract class TransferBase {
-        public string Id { get; private set; }
-        public DateTime Created { get; private set; }
+        public string Id { get; set; }
+        public DateTime Created { get; set; }
 
         protected TransferBase(string id, DateTime created) {
             Id = id;

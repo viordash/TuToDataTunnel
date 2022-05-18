@@ -1,7 +1,7 @@
 ﻿using TuToProxy.Core.Models;
 
 namespace TutoProxy.Core.Models {
-    public abstract class DataRequestModel : DataBaseModel {
+    public class DataRequestModel : DataBaseModel {
         public DataProtocol Protocol { get; protected set; }
 
         public override string ToString() {
