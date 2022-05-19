@@ -15,6 +15,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TutoProxy.Client", "TutoPro
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{34EABC39-B485-497E-A04A-C09A3EFEAADE}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UdpClient", "TestClients\UdpClient\UdpClient.csproj", "{647A1398-162B-4B34-AB91-0FE8128B71E9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,10 @@ Global
 		{05208C1D-DEB4-4C07-8852-23939399A816}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05208C1D-DEB4-4C07-8852-23939399A816}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05208C1D-DEB4-4C07-8852-23939399A816}.Release|Any CPU.Build.0 = Release|Any CPU
+		{647A1398-162B-4B34-AB91-0FE8128B71E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{647A1398-162B-4B34-AB91-0FE8128B71E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{647A1398-162B-4B34-AB91-0FE8128B71E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{647A1398-162B-4B34-AB91-0FE8128B71E9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -48,6 +54,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{0CBB9A2E-E939-4050-9229-028834C334F4} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 		{74E925B0-3373-4B4E-83D7-84830FF88842} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
+		{647A1398-162B-4B34-AB91-0FE8128B71E9} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {55C62922-39E4-45DC-BED4-4413A760F011}

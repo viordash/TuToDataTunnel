@@ -1,5 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Client.Communication;
@@ -39,8 +41,9 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"Прокси клиент TuTo, сервер {Server}");
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
-                    await dataTunnelClient.StopAsync(default);
+                    await dataTunnelClient.StopAsync(applicationLifetime.ApplicationStopping);
                 });
+
 
                 while(!appStoppingReg.Token.IsCancellationRequested) {
                     try {

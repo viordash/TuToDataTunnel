@@ -17,8 +17,7 @@ namespace TutoProxy.Client.Services {
             logger.Information($"HandleRequest :{request}");
 
             var response = new TransferResponseModel(request,
-                DataResponseFactory.Create(request.Payload.Protocol,
-                        System.Text.Encoding.UTF8.GetBytes($"{request.Payload.Data?.ToString()}_{DateTime.Now}"))
+                DataResponseFactory.Create(request.Payload.Protocol, request.Payload.Data)
                 );
             await Task.Delay(300);
             logger.Information($"Response :{response}");
