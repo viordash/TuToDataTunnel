@@ -2,7 +2,7 @@
 
 namespace TutoProxy.Core.Models {
     public class DataRequestModel : DataBaseModel {
-        public DataProtocol Protocol { get; protected set; }
+        public DataProtocol Protocol { get; set; }
 
         public override string ToString() {
             return $"{base.ToString()}, prot:{Protocol}";
