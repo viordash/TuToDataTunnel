@@ -7,11 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TutoProxy.Server", "TutoPro
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TutoProxy.Server.Tests", "TutoProxy.Server.Tests\TutoProxy.Server.Tests.csproj", "{0CBB9A2E-E939-4050-9229-028834C334F4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TuToProxy.Core", "TuToProxy.Core\TuToProxy.Core.csproj", "{0552176D-0064-47E7-AFAE-2EE48758B511}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuToProxy.Core", "TuToProxy.Core\TuToProxy.Core.csproj", "{0552176D-0064-47E7-AFAE-2EE48758B511}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TuToProxy.Core.Tests", "TuToProxy.Core.Tests\TuToProxy.Core.Tests.csproj", "{74E925B0-3373-4B4E-83D7-84830FF88842}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuToProxy.Core.Tests", "TuToProxy.Core.Tests\TuToProxy.Core.Tests.csproj", "{74E925B0-3373-4B4E-83D7-84830FF88842}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TutoProxy.Client", "TutoProxy.Client\TutoProxy.Client.csproj", "{05208C1D-DEB4-4C07-8852-23939399A816}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TutoProxy.Client", "TutoProxy.Client\TutoProxy.Client.csproj", "{05208C1D-DEB4-4C07-8852-23939399A816}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{34EABC39-B485-497E-A04A-C09A3EFEAADE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,6 +44,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0CBB9A2E-E939-4050-9229-028834C334F4} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
+		{74E925B0-3373-4B4E-83D7-84830FF88842} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {55C62922-39E4-45DC-BED4-4413A760F011}
