@@ -12,11 +12,18 @@ namespace TutoProxy.Server.CommandLine {
             Add(new Argument<int>("port", "Remote UDP IP port"));
             var argDelay = new Argument<int>("delay", () => 1000, "Delay before repeat, ms. Min value is 10ms");
             Add(argDelay);
+            var argPacketSize = new Argument<int>("packet", () => 1400, "Packet size, bytes. Min value is 1");
+            Add(argPacketSize);
             Add(new Option<bool>("--response", () => false));
             AddValidator((result) => {
                 try {
                     if(result.Children.Any(x => x.GetValueForArgument(argDelay) < 10)) {
-                        result.ErrorMessage = "Delay should be higher than 10ms";
+                        result.ErrorMessage = "Delay should be higher or equal than 10ms";
+                        return;
+                    }
+                    if(result.Children.Any(x => x.GetValueForArgument(argPacketSize) < 1)) {
+                        result.ErrorMessage = "The packet size must be greater than or equal to 1 byte.";
+                        return;
                     }
                 } catch(InvalidOperationException) {
                     result.ErrorMessage = "not valid";
@@ -31,6 +38,7 @@ namespace TutoProxy.Server.CommandLine {
             public string Ip { get; set; } = string.Empty;
             public int Port { get; set; }
             public int Delay { get; set; }
+            public int Packet { get; set; }
             public bool Response { get; set; }
 
             public Handler(
@@ -58,7 +66,9 @@ namespace TutoProxy.Server.CommandLine {
                 var localPort = (udpServer.Client.LocalEndPoint as IPEndPoint)!.Port;
 
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                    var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), 10).SelectMany(x => x).ToArray();
+                    var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
+                        .SelectMany(x => x)
+                        .Take(Packet).ToArray();
                     var txCount = await udpServer.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
                     logger.Information($"udp({localPort}) request to {remoteEndPoint}, bytes:{txCount}");
 
