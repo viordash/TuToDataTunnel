@@ -34,19 +34,16 @@ namespace TutoProxy.Server.CommandLine {
             public async Task<int> InvokeAsync(InvocationContext context) {
                 var remoteEndPoint = new IPEndPoint(IPAddress.Parse(Ip), Port);
 
-                int i = 0;
                 using var udpServer = new UdpClient();
+                uint IOC_IN = 0x80000000;
+                uint IOC_VENDOR = 0x18000000;
+                uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+                udpServer.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
                 udpServer.ExclusiveAddressUse = false;
                 udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
                 udpServer.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
 
                 var localPort = (udpServer.Client.LocalEndPoint as IPEndPoint)!.Port;
-
-                using var udpClient = new UdpClient();
-                udpClient.ExclusiveAddressUse = false;
-                udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, localPort));
-
 
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), 10).SelectMany(x => x).ToArray();
@@ -57,7 +54,8 @@ namespace TutoProxy.Server.CommandLine {
                         try {
                             using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
                             cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
-                            var result = await udpClient.ReceiveAsync(cts.Token);
+
+                            var result = await udpServer.ReceiveAsync(cts.Token);
                             if(dataPacket.SequenceEqual(result.Buffer)) {
                                 logger.Information($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}. Success");
                             } else {
@@ -68,7 +66,7 @@ namespace TutoProxy.Server.CommandLine {
                         }
                     }
 
-                    await Task.Delay(3000);
+                    await Task.Delay(1000);
                 }
 
                 _ = applicationLifetime.ApplicationStopping.WaitHandle.WaitOne();
