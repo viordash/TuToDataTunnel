@@ -23,7 +23,7 @@ namespace TutoProxy.Server.Communication {
 
                     using var udpClient = new UdpClient(localEndPoint);
                     udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                    var txCount = await udpClient.SendAsync(new ReadOnlyMemory<byte>(response.Data), result.RemoteEndPoint, cancellationToken);
+                    var txCount = await udpClient.SendAsync(response.Data, result.RemoteEndPoint, cancellationToken);
                     logger.Information($"udp response to {result.RemoteEndPoint}, bytes:{txCount}");
                 }
             }, cancellationToken);
