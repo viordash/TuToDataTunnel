@@ -10,7 +10,18 @@ namespace TutoProxy.Server.CommandLine {
         public AppRootCommand() : base("Тестовый udp-клиент") {
             Add(new Argument<string>("ip", "Remote UDP IP address"));
             Add(new Argument<int>("port", "Remote UDP IP port"));
+            var argDelay = new Argument<int>("delay", () => 1000, "Delay before repeat, ms. Min value is 10ms");
+            Add(argDelay);
             Add(new Option<bool>("--response", () => false));
+            AddValidator((result) => {
+                try {
+                    if(result.Children.Any(x => x.GetValueForArgument(argDelay) < 10)) {
+                        result.ErrorMessage = "Delay should be higher than 10ms";
+                    }
+                } catch(InvalidOperationException) {
+                    result.ErrorMessage = "not valid";
+                }
+            });
         }
 
         public new class Handler : ICommandHandler {
@@ -19,6 +30,7 @@ namespace TutoProxy.Server.CommandLine {
 
             public string Ip { get; set; } = string.Empty;
             public int Port { get; set; }
+            public int Delay { get; set; }
             public bool Response { get; set; }
 
             public Handler(
@@ -66,7 +78,7 @@ namespace TutoProxy.Server.CommandLine {
                         }
                     }
 
-                    await Task.Delay(1000);
+                    await Task.Delay(Delay);
                 }
 
                 _ = applicationLifetime.ApplicationStopping.WaitHandle.WaitOne();
