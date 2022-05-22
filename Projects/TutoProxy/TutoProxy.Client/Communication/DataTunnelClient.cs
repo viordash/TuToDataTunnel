@@ -1,11 +1,15 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using System.Collections.Specialized;
+using System.Web;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
-using TutoProxy.Core.Models;
+using TutoProxy.Core.CommandLine;
 using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
     public interface IDataTunnelClient {
-        Task StartAsync(string server, CancellationToken cancellationToken);
+        Task StartAsync(string server, string tcpQuery, string udpQuery, CancellationToken cancellationToken);
         Task StopAsync(CancellationToken cancellationToken);
     }
 
@@ -37,12 +41,22 @@ namespace TutoProxy.Client.Communication {
             this.dataReceiveService = dataReceiveService;
         }
 
-        public async Task StartAsync(string server, CancellationToken cancellationToken) {
+        public async Task StartAsync(string server, string tcpQuery, string udpQuery, CancellationToken cancellationToken) {
             Guard.NotNullOrEmpty(server, nameof(server));
 
             await StopAsync(cancellationToken);
+
+            var ub = new UriBuilder(server);
+            ub.Path = DataTunnelParams.Path;
+
+            var query = QueryString.Create(new[] {
+                KeyValuePair.Create(DataTunnelParams.TcpQuery, tcpQuery),
+                KeyValuePair.Create(DataTunnelParams.UdpQuery, udpQuery)
+            });
+            ub.Query = query.ToString();
+
             connection = new HubConnectionBuilder()
-                 .WithUrl(new Uri(new Uri(server), DataTunnelParams.Path))
+                 .WithUrl(ub.Uri)
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 

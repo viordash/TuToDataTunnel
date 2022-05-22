@@ -17,11 +17,10 @@ namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
         public AppRootCommand() : base("Прокси сервер TuTo") {
             Add(new Argument<string>("host", "Local host address"));
-            var tcpOption = PortsArgument.CreateOption("--tcp");
-            var udpOption = PortsArgument.CreateOption("--udp");
+            var tcpOption = PortsArgument.CreateOption("--tcp", $"Listened ports, format like '--tcp=80,81,443,8000-8100'");
+            var udpOption = PortsArgument.CreateOption("--udp", $"Listened ports, format like '--udp=700-900,65500'");
             Add(tcpOption);
             Add(udpOption);
-            Add(new Option<bool>("--verbose", "Show the verbose logs"));
             AddValidator((result) => {
                 try {
                     if(!result.Children.Any(x => x.GetValueForOption(tcpOption) != null || x.GetValueForOption(udpOption) != null)) {
@@ -40,7 +39,6 @@ namespace TutoProxy.Server.CommandLine {
             public string? Host { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
-            public bool Verbose { get; set; }
 
             public Handler(
                 ILogger logger,

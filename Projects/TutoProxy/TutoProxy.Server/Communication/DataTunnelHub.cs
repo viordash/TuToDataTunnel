@@ -1,5 +1,9 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.Web;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.WebUtilities;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 
 namespace TutoProxy.Server.Hubs {
     public class DataTunnelHub : Hub {
@@ -20,6 +24,17 @@ namespace TutoProxy.Server.Hubs {
         public void Response(TransferResponseModel model) {
             logger.Information($"Response: {model}");
             dataTransferService.ReceiveResponse(model);
+        }
+
+        public override Task OnConnectedAsync() {
+            var queryString = QueryHelpers.ParseQuery(Context.GetHttpContext()?.Request.QueryString.Value);
+            var tcpQuery = queryString[DataTunnelParams.TcpQuery];
+            var udpQuery = queryString[DataTunnelParams.UdpQuery];
+
+            if(tcpQuery == "reserved 1.0" || udpQuery == "ssss") {
+                //Clients.Caller.notifyWrongVersion();
+            }
+            return base.OnConnectedAsync();
         }
     }
 }

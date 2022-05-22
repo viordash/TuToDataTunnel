@@ -6,12 +6,17 @@ using System.Runtime.CompilerServices;
 namespace TutoProxy.Core.CommandLine {
     public class PortsArgument {
         public List<int> Ports { get; set; } = new List<int>();
+        public string Argument { get; private set; }
+
+        PortsArgument(string argument) {
+            Argument = argument;
+        }
 
         public override string ToString() {
             return string.Join(',', Ports.Select(x => x.ToString()).ToArray());
         }
 
-        public static Option<PortsArgument?> CreateOption(string name) {
+        public static Option<PortsArgument?> CreateOption(string name, string description) {
             return new Option<PortsArgument?>(
                      name: name,
                      parseArgument: (result) => {
@@ -26,13 +31,13 @@ namespace TutoProxy.Core.CommandLine {
                              return default;
                          }
                      },
-                     description: $"Listened ports, format like '{name}=80,81,443,700-900'"
+                     description: description
              );
         }
 
         public static PortsArgument Parse(string value) {
             Guard.NotNullOrEmpty(value, nameof(value));
-            var postArgument = new PortsArgument();
+            var postArgument = new PortsArgument(value);
             var tokens = value.Split(',');
             foreach(var token in tokens) {
                 var ranges = ParseRanges(token);
