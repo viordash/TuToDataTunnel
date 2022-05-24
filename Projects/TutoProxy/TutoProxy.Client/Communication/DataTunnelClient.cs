@@ -65,6 +65,11 @@ namespace TutoProxy.Client.Communication {
                 await connection.InvokeAsync("Response", response);
             });
 
+
+            connection.On<string>("Errors", (message) => {
+                logger.Error(message);
+            });
+
             connection.Reconnecting += e => {
                 logger.Warning($"Connection lost. Reconnecting");
                 return Task.CompletedTask;

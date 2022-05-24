@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
+using TutoProxy.Core.CommandLine;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 
@@ -9,16 +10,18 @@ namespace TutoProxy.Server.Hubs {
     public class DataTunnelHub : Hub {
         readonly ILogger logger;
         readonly IDataTransferService dataTransferService;
+        readonly IClientsService clientsService;
 
         public DataTunnelHub(
                 ILogger logger,
                 IDataTransferService dataTransferService,
-                IRequestProcessingService requestProcessingService) {
+                IClientsService clientsService) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(dataTransferService, nameof(dataTransferService));
-            Guard.NotNull(requestProcessingService, nameof(requestProcessingService));
+            Guard.NotNull(clientsService, nameof(clientsService));
             this.logger = logger;
             this.dataTransferService = dataTransferService;
+            this.clientsService = clientsService;
         }
 
         public void Response(TransferResponseModel model) {
@@ -27,14 +30,18 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public override Task OnConnectedAsync() {
-            var queryString = QueryHelpers.ParseQuery(Context.GetHttpContext()?.Request.QueryString.Value);
-            var tcpQuery = queryString[DataTunnelParams.TcpQuery];
-            var udpQuery = queryString[DataTunnelParams.UdpQuery];
-
-            if(tcpQuery == "reserved 1.0" || udpQuery == "ssss") {
-                //Clients.Caller.notifyWrongVersion();
+            var queryString = Context.GetHttpContext()?.Request.QueryString.Value;
+            if(queryString != null) {
+                clientsService.Connect(Context.ConnectionId, Clients.Caller, queryString);
+            } else {
+                Clients.Caller.SendAsync("Errors", "QueryString empty");
             }
             return base.OnConnectedAsync();
+        }
+
+        public override Task OnDisconnectedAsync(Exception? exception) {
+            clientsService.Disconnect(Context.ConnectionId);
+            return base.OnDisconnectedAsync(exception);
         }
     }
 }

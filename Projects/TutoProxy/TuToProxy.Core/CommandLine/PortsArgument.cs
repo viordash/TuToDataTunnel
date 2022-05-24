@@ -35,10 +35,10 @@ namespace TutoProxy.Core.CommandLine {
              );
         }
 
-        public static PortsArgument Parse(string value) {
+        public static PortsArgument Parse(string? value) {
             Guard.NotNullOrEmpty(value, nameof(value));
-            var postArgument = new PortsArgument(value);
-            var tokens = value.Split(',');
+            var postArgument = new PortsArgument(value!);
+            var tokens = value!.Split(',');
             foreach(var token in tokens) {
                 var ranges = ParseRanges(token);
                 if(ranges != null) {
