@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Primitives;
 using TutoProxy.Core.CommandLine;
+using TutoProxy.Server.Communication;
 using TuToProxy.Core;
 
 namespace TutoProxy.Server.Services {
@@ -13,21 +14,8 @@ namespace TutoProxy.Server.Services {
     }
 
     public class ClientsService : IClientsService {
-        #region inner classes
-        public class Client {
-            public IClientProxy ClientProxy { get; private set; }
-            public List<int>? TcpPorts { get; private set; }
-            public List<int>? UdpPorts { get; private set; }
-            public Client(IClientProxy clientProxy, List<int>? tcpPorts, List<int>? udpPorts) {
-                ClientProxy = clientProxy;
-                TcpPorts = tcpPorts;
-                UdpPorts = udpPorts;
-            }
-        }
-        #endregion
-
         readonly ILogger logger;
-        protected readonly ConcurrentDictionary<string, Client> clients = new();
+        protected readonly ConcurrentDictionary<string, Client> connectedClients = new();
 
         public ClientsService(
             ILogger logger) {
@@ -36,7 +24,6 @@ namespace TutoProxy.Server.Services {
         }
 
         public void Connect(string connectionId, IClientProxy clientProxy, string queryString) {
-
             var query = QueryHelpers.ParseQuery(queryString);
             var tcpPresent = query.TryGetValue(DataTunnelParams.TcpQuery, out StringValues tcpQuery);
             var udpPresent = query.TryGetValue(DataTunnelParams.UdpQuery, out StringValues udpQuery);
@@ -56,21 +43,58 @@ namespace TutoProxy.Server.Services {
                 udpPorts = PortsArgument.Parse(udpQuery).Ports;
             }
 
-            if(tcpPorts != null && udpPorts == null) {
+            if(tcpPorts == null && udpPorts == null) {
                 clientProxy.SendAsync("Errors", "tcp or udp options requried");
                 return;
             }
-            clients.TryAdd(connectionId, new Client(clientProxy, tcpPorts, udpPorts));
+
+            var clients = connectedClients.Values.ToList();
+
+            var alreadyUsedTcpPorts = GetAlreadyUsedTcpPorts(clients, tcpPorts);
+            if(alreadyUsedTcpPorts.Any()) {
+                clientProxy.SendAsync("Errors", $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]");
+                return;
+            }
+
+            var alreadyUsedUdpPorts = GetAlreadyUsedUdpPorts(clients, udpPorts);
+            if(alreadyUsedUdpPorts.Any()) {
+                clientProxy.SendAsync("Errors", $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]");
+                return;
+            }
+
+            connectedClients.TryAdd(connectionId, new Client(clientProxy, tcpPorts, udpPorts));
             logger.Information($"Connect client :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
         }
 
         public void Disconnect(string connectionId) {
             logger.Information($"Disconnect client :{connectionId}");
-            clients.TryRemove(connectionId, out Client? client);
+            connectedClients.TryRemove(connectionId, out Client? client);
         }
 
         public Task SendAsync(IClientProxy clientProxy, string method, object? arg1, CancellationToken cancellationToken = default) {
             throw new NotImplementedException();
+        }
+
+        IEnumerable<int> GetAlreadyUsedTcpPorts(List<Client> clients, List<int>? tcpPorts) {
+            if(tcpPorts != null) {
+                var alreadyUsedPorts = clients
+                .Where(x => x.TcpPorts != null)
+                .SelectMany(x => x.TcpPorts!)
+                .Intersect(tcpPorts);
+                return alreadyUsedPorts;
+            }
+            return Enumerable.Empty<int>();
+        }
+
+        IEnumerable<int> GetAlreadyUsedUdpPorts(List<Client> clients, List<int>? udpPorts) {
+            if(udpPorts != null) {
+                var alreadyUsedPorts = clients
+                .Where(x => x.UdpPorts != null)
+                .SelectMany(x => x.UdpPorts!)
+                .Intersect(udpPorts);
+                return alreadyUsedPorts;
+            }
+            return Enumerable.Empty<int>();
         }
     }
 }
