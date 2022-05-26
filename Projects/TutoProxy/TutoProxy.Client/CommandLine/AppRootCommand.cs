@@ -48,8 +48,7 @@ namespace TutoProxy.Server.CommandLine {
 
             public async Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNull(Server, nameof(Server));
-                Guard.NotNull(Tcp, nameof(Tcp));
-                Guard.NotNull(Udp, nameof(Udp));
+                Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
@@ -61,7 +60,7 @@ namespace TutoProxy.Server.CommandLine {
 
                 while(!appStoppingReg.Token.IsCancellationRequested) {
                     try {
-                        await dataTunnelClient.StartAsync(Server!, Tcp!.Argument, Udp!.Argument, appStoppingReg.Token);
+                        await dataTunnelClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, appStoppingReg.Token);
                         break;
                     } catch(HttpRequestException) {
                         logger.Error("Connection failed");

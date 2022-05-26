@@ -53,8 +53,7 @@ namespace TutoProxy.Server.CommandLine {
 
             public async Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNullOrEmpty(Host, nameof(Host));
-                Guard.NotNull(Tcp, nameof(Tcp));
-                Guard.NotNull(Udp, nameof(Udp));
+                Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
                 logger.Information($"Прокси сервер TuTo, хост {Host}, tcp-порты {Tcp}, udp-порты {Udp}");

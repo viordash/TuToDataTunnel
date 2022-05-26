@@ -1,15 +1,11 @@
-﻿using System.Collections.Specialized;
-using System.Web;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Extensions;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
-using TutoProxy.Core.CommandLine;
 using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
     public interface IDataTunnelClient {
-        Task StartAsync(string server, string tcpQuery, string udpQuery, CancellationToken cancellationToken);
+        Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken);
         Task StopAsync(CancellationToken cancellationToken);
     }
 
@@ -41,8 +37,9 @@ namespace TutoProxy.Client.Communication {
             this.dataReceiveService = dataReceiveService;
         }
 
-        public async Task StartAsync(string server, string tcpQuery, string udpQuery, CancellationToken cancellationToken) {
+        public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken) {
             Guard.NotNullOrEmpty(server, nameof(server));
+            Guard.NotNull(tcpQuery ?? udpQuery, $"Tcp ?? Udp");
 
             await StopAsync(cancellationToken);
 
