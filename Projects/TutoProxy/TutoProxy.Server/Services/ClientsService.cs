@@ -11,7 +11,7 @@ using TutoProxy.Server.Communication;
 using TuToProxy.Core;
 
 namespace TutoProxy.Server.Services {
-    public interface IClientsService {
+    public interface IClientsService : IDisposable {
         Task ConnectAsync(string connectionId, IClientProxy clientProxy, string queryString);
         void Disconnect(string connectionId);
         Task SendAsync(IClientProxy clientProxy, string method, object? arg1, CancellationToken cancellationToken = default);
@@ -83,11 +83,11 @@ namespace TutoProxy.Server.Services {
                 return;
             }
 
-            var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, logger, requestProcessingService, applicationLifetime.ApplicationStopping);
+            var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, logger, requestProcessingService);
             if(connectedClients.TryAdd(connectionId, client)) {
+                logger.Information($"Connect client :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
                 await client.Listen();
             }
-            logger.Information($"Connect client :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
         }
 
         public void Disconnect(string connectionId) {
@@ -121,6 +121,13 @@ namespace TutoProxy.Server.Services {
                 return alreadyUsedPorts;
             }
             return Enumerable.Empty<int>();
+        }
+
+        public void Dispose() {
+            var clients = connectedClients.Values.ToList();
+            foreach(var client in clients) {
+                client.Dispose();
+            }
         }
     }
 }

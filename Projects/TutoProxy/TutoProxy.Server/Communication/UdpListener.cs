@@ -1,18 +1,22 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
     internal class UdpListener : NetListener {
         readonly UdpClient udpServer;
+        readonly CancellationTokenSource cts;
 
         public UdpListener(int port, IPEndPoint localEndPoint, IRequestProcessingService requestProcessingService, ILogger logger)
             : base(port, localEndPoint, requestProcessingService, logger) {
             udpServer = new UdpClient(port);
             udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            cts = new CancellationTokenSource();
         }
 
-        public Task Listen(CancellationToken cancellationToken) {
+        public Task Listen() {
+            var cancellationToken = cts.Token;
             return Task.Run(async () => {
                 while(!cancellationToken.IsCancellationRequested) {
                     var result = await udpServer.ReceiveAsync(cancellationToken);
@@ -30,6 +34,8 @@ namespace TutoProxy.Server.Communication {
         }
 
         public override void Dispose() {
+            cts.Cancel();
+            cts.Dispose();
             udpServer.Dispose();
         }
     }
