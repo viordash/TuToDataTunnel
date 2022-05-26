@@ -1,6 +1,10 @@
 ﻿using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Primitives;
 using TutoProxy.Core.CommandLine;
 using TutoProxy.Server.Communication;
@@ -8,7 +12,7 @@ using TuToProxy.Core;
 
 namespace TutoProxy.Server.Services {
     public interface IClientsService {
-        void Connect(string connectionId, IClientProxy clientProxy, string queryString);
+        Task ConnectAsync(string connectionId, IClientProxy clientProxy, string queryString);
         void Disconnect(string connectionId);
         Task SendAsync(IClientProxy clientProxy, string method, object? arg1, CancellationToken cancellationToken = default);
     }
@@ -16,20 +20,37 @@ namespace TutoProxy.Server.Services {
     public class ClientsService : IClientsService {
         readonly ILogger logger;
         protected readonly ConcurrentDictionary<string, Client> connectedClients = new();
+        readonly IHostApplicationLifetime applicationLifetime;
+        readonly IRequestProcessingService requestProcessingService;
+        readonly IPEndPoint localEndPoint;
 
         public ClientsService(
-            ILogger logger) {
+            ILogger logger,
+            IHostApplicationLifetime applicationLifetime,
+            IConfiguration configuration,
+            IRequestProcessingService requestProcessingService) {
             Guard.NotNull(logger, nameof(logger));
+            Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
+            Guard.NotNull(configuration, nameof(configuration));
+            Guard.NotNull(requestProcessingService, nameof(requestProcessingService));
             this.logger = logger;
+            this.applicationLifetime = applicationLifetime;
+            this.requestProcessingService = requestProcessingService;
+
+            var uri = new Uri(configuration[ConfigSections.Host]);
+            var ipAddresses = Dns.GetHostEntry(uri.Host).AddressList
+                .Where(x => x.AddressFamily == AddressFamily.InterNetwork)
+                .ToArray();
+            localEndPoint = new IPEndPoint(ipAddresses[0], 0);
         }
 
-        public void Connect(string connectionId, IClientProxy clientProxy, string queryString) {
+        public async Task ConnectAsync(string connectionId, IClientProxy clientProxy, string queryString) {
             var query = QueryHelpers.ParseQuery(queryString);
             var tcpPresent = query.TryGetValue(DataTunnelParams.TcpQuery, out StringValues tcpQuery);
             var udpPresent = query.TryGetValue(DataTunnelParams.UdpQuery, out StringValues udpQuery);
 
             if(!tcpPresent && !udpPresent) {
-                clientProxy.SendAsync("Errors", "tcp or udp options requried");
+                await clientProxy.SendAsync("Errors", "tcp or udp options requried", applicationLifetime.ApplicationStopping);
                 return;
             }
 
@@ -44,7 +65,7 @@ namespace TutoProxy.Server.Services {
             }
 
             if(tcpPorts == null && udpPorts == null) {
-                clientProxy.SendAsync("Errors", "tcp or udp options requried");
+                await clientProxy.SendAsync("Errors", "tcp or udp options requried", applicationLifetime.ApplicationStopping);
                 return;
             }
 
@@ -52,23 +73,28 @@ namespace TutoProxy.Server.Services {
 
             var alreadyUsedTcpPorts = GetAlreadyUsedTcpPorts(clients, tcpPorts);
             if(alreadyUsedTcpPorts.Any()) {
-                clientProxy.SendAsync("Errors", $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]");
+                await clientProxy.SendAsync("Errors", $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]", applicationLifetime.ApplicationStopping);
                 return;
             }
 
             var alreadyUsedUdpPorts = GetAlreadyUsedUdpPorts(clients, udpPorts);
             if(alreadyUsedUdpPorts.Any()) {
-                clientProxy.SendAsync("Errors", $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]");
+                await clientProxy.SendAsync("Errors", $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]", applicationLifetime.ApplicationStopping);
                 return;
             }
 
-            connectedClients.TryAdd(connectionId, new Client(clientProxy, tcpPorts, udpPorts));
+            var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, logger, requestProcessingService, applicationLifetime.ApplicationStopping);
+            if(connectedClients.TryAdd(connectionId, client)) {
+                await client.Listen();
+            }
             logger.Information($"Connect client :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
         }
 
         public void Disconnect(string connectionId) {
             logger.Information($"Disconnect client :{connectionId}");
-            connectedClients.TryRemove(connectionId, out Client? client);
+            if(connectedClients.TryRemove(connectionId, out Client? client)) {
+                client.Dispose();
+            }
         }
 
         public Task SendAsync(IClientProxy clientProxy, string method, object? arg1, CancellationToken cancellationToken = default) {

@@ -2,6 +2,7 @@
 using System.CommandLine.Invocation;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Core.CommandLine;
@@ -65,6 +66,13 @@ namespace TutoProxy.Server.CommandLine {
                     return ServiceProviderFactory.Instance;
                 });
 
+                builder.Host.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(
+                        new Dictionary<string, string> {
+                            [ConfigSections.Host] = Host!,
+                        }));
+
+
                 builder.Services.AddSignalR();
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
@@ -74,11 +82,6 @@ namespace TutoProxy.Server.CommandLine {
 
                 var app = builder.Build();
                 app.MapHub<DataTunnelHub>(DataTunnelParams.Path);
-
-                var requestProcessingService = app.Services.GetRequiredService<IRequestProcessingService>();
-
-                var udpListenersFactory = new UdpListenersFactory(Host!, Udp!.Ports, requestProcessingService, logger);
-                udpListenersFactory.Listen(applicationLifetime.ApplicationStopping);
 
                 await app.RunAsync(Host);
                 return 0;

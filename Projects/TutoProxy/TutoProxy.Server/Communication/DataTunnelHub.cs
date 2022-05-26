@@ -29,14 +29,14 @@ namespace TutoProxy.Server.Hubs {
             dataTransferService.ReceiveResponse(model);
         }
 
-        public override Task OnConnectedAsync() {
+        public override async Task OnConnectedAsync() {
             var queryString = Context.GetHttpContext()?.Request.QueryString.Value;
             if(queryString != null) {
-                clientsService.Connect(Context.ConnectionId, Clients.Caller, queryString);
+                await clientsService.ConnectAsync(Context.ConnectionId, Clients.Caller, queryString);
             } else {
-                Clients.Caller.SendAsync("Errors", "QueryString empty");
+                await Clients.Caller.SendAsync("Errors", "QueryString empty");
             }
-            return base.OnConnectedAsync();
+            await base.OnConnectedAsync();
         }
 
         public override Task OnDisconnectedAsync(Exception? exception) {
