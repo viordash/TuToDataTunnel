@@ -60,8 +60,6 @@ namespace TutoProxy.Server.Tests.Services {
                 .Callback<string, object?[], CancellationToken>((method, args, cancellationToken) => {
                     clientsRequest = args[0] as string;
                 });
-
-
         }
 
         [Test]
@@ -102,6 +100,48 @@ namespace TutoProxy.Server.Tests.Services {
             await testable.ConnectAsync("connectionId3", clientProxyMock.Object, "udpquery=10180,10181,11443");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
             clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "Errors"), It.Is<object?[]>(a => a.Length > 0 && (a[0] as string)!.Contains("udp ports already in us")),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public async Task Clients_With_Banned_TcpPort_Are_Rejected_Test() {
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
+
+            await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "tcpquery=1000,1001");
+            await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "tcpquery=1002,1003");
+            Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
+
+            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "Errors"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            await testable.ConnectAsync("connectionId2", clientProxyMock.Object, "tcpquery=1004");
+            Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
+            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "Errors"), It.Is<object?[]>(a => a.Length > 0 && (a[0] as string)!.Contains("banned tcp ports")),
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            await testable.ConnectAsync("connectionId3", clientProxyMock.Object, "tcpquery=180,181,1443");
+            Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
+            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "Errors"), It.Is<object?[]>(a => a.Length > 0 && (a[0] as string)!.Contains("banned tcp ports")),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public async Task Clients_With_Banned_UdpPort_Are_Rejected_Test() {
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
+
+            await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "udpquery=1000,1001");
+            await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "udpquery=1002,1003");
+            Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
+
+            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "Errors"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            await testable.ConnectAsync("connectionId2", clientProxyMock.Object, "udpquery=1004");
+            Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
+            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "Errors"), It.Is<object?[]>(a => a.Length > 0 && (a[0] as string)!.Contains("banned udp ports")),
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            await testable.ConnectAsync("connectionId3", clientProxyMock.Object, "udpquery=180,181,1443");
+            Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
+            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "Errors"), It.Is<object?[]>(a => a.Length > 0 && (a[0] as string)!.Contains("banned udp ports")),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
