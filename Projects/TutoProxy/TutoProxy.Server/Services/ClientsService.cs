@@ -31,8 +31,8 @@ namespace TutoProxy.Server.Services {
             IHostApplicationLifetime applicationLifetime,
             IRequestProcessingService requestProcessingService,
             IPEndPoint localEndPoint,
-            List<int> alowedTcpPorts,
-            List<int> alowedUdpPorts) {
+            List<int>? alowedTcpPorts,
+            List<int>? alowedUdpPorts) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
             Guard.NotNull(requestProcessingService, nameof(requestProcessingService));

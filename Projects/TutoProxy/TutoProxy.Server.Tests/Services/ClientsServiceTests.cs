@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Castle.Core.Configuration;
@@ -21,8 +24,11 @@ namespace TutoProxy.Server.Tests.Services {
 
         class TestableClientsService : ClientsService {
             public TestableClientsService(ILogger logger, IHostApplicationLifetime applicationLifetime,
-            Microsoft.Extensions.Configuration.IConfiguration configuration, IRequestProcessingService requestProcessingService)
-                : base(logger, applicationLifetime, configuration, requestProcessingService) {
+            IRequestProcessingService requestProcessingService,
+            IPEndPoint localEndPoint,
+            List<int>? alowedTcpPorts,
+            List<int>? alowedUdpPorts)
+                : base(logger, applicationLifetime, requestProcessingService, localEndPoint, alowedTcpPorts, alowedUdpPorts) {
             }
 
             public ConcurrentDictionary<string, Client> PublicMorozovConnectedClients {
@@ -32,17 +38,20 @@ namespace TutoProxy.Server.Tests.Services {
 
         TestableClientsService testable;
 
+        Mock<ILogger> loggerMock;
+        Mock<IHostApplicationLifetime> applicationLifetimeMock;
+        Mock<IRequestProcessingService> requestProcessingServiceMock;
         Mock<IClientProxy> clientProxyMock;
+        IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
 
         string? clientsRequest;
 
         [SetUp]
         public void Setup() {
-            var loggerMock = new Mock<ILogger>();
-            var applicationLifetimeMock = new Mock<IHostApplicationLifetime>();
-            var configurationMock = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
-            var requestProcessingServiceMock = new Mock<IRequestProcessingService>();
+            loggerMock = new();
+            applicationLifetimeMock = new();
+            requestProcessingServiceMock = new();
             clientProxyMock = new();
 
             clientsRequest = null;
@@ -52,11 +61,13 @@ namespace TutoProxy.Server.Tests.Services {
                     clientsRequest = args[0] as string;
                 });
 
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, configurationMock.Object, requestProcessingServiceMock.Object);
+
         }
 
         [Test]
-        public async void Clients_WithAlready_Used_TcpPort_Are_Rejected_Test() {
+        public async Task Clients_WithAlready_Used_TcpPort_Are_Rejected_Test() {
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535).ToList());
+
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "tcpquery=80,81,443");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "tcpquery=180,181,1443");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
@@ -75,7 +86,8 @@ namespace TutoProxy.Server.Tests.Services {
         }
 
         [Test]
-        public async void Clients_WithAlready_Used_UdpPort_Are_Rejected_Test() {
+        public async Task Clients_WithAlready_Used_UdpPort_Are_Rejected_Test() {
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535).ToList());
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "udpquery=1080,1081,10443");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "udpquery=10180,10181,11443");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
