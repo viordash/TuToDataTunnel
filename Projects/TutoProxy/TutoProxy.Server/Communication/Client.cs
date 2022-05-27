@@ -24,9 +24,9 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
-        public async Task Listen() {
+        public void Listen() {
             if(udpListeners != null) {
-                await Task.WhenAll(udpListeners.Select(x => x.Listen()));
+                Task.WhenAll(udpListeners.Select(x => x.Listen()));
             }
         }
 
