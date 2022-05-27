@@ -55,7 +55,7 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"Прокси клиент TuTo, сервер {Server}");
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
-                    await dataTunnelClient.StopAsync(applicationLifetime.ApplicationStopping);
+                    await dataTunnelClient.StopAsync();
                 });
 
                 while(!appStoppingReg.Token.IsCancellationRequested) {

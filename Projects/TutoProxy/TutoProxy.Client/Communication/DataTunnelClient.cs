@@ -6,7 +6,7 @@ using TuToProxy.Core;
 namespace TutoProxy.Client.Communication {
     public interface IDataTunnelClient {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken);
-        Task StopAsync(CancellationToken cancellationToken);
+        Task StopAsync();
     }
 
     internal class DataTunnelClient : IDataTunnelClient {
@@ -41,7 +41,7 @@ namespace TutoProxy.Client.Communication {
             Guard.NotNullOrEmpty(server, nameof(server));
             Guard.NotNull(tcpQuery ?? udpQuery, $"Tcp ?? Udp");
 
-            await StopAsync(cancellationToken);
+            await StopAsync();
 
             var ub = new UriBuilder(server);
             ub.Path = DataTunnelParams.Path;
@@ -81,10 +81,11 @@ namespace TutoProxy.Client.Communication {
             logger.Information("Connection started");
         }
 
-        public async Task StopAsync(CancellationToken cancellationToken) {
+        public async Task StopAsync() {
             if(connection != null) {
-                await connection.StopAsync(cancellationToken);
+                await connection.DisposeAsync();
                 logger.Information("Connection stopped");
+                connection = null;
             }
         }
     }
