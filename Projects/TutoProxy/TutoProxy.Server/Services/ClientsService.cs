@@ -23,25 +23,27 @@ namespace TutoProxy.Server.Services {
         readonly IHostApplicationLifetime applicationLifetime;
         readonly IRequestProcessingService requestProcessingService;
         readonly IPEndPoint localEndPoint;
+        readonly List<int>? alowedTcpPorts;
+        readonly List<int>? alowedUdpPorts;
 
         public ClientsService(
             ILogger logger,
             IHostApplicationLifetime applicationLifetime,
-            IConfiguration configuration,
-            IRequestProcessingService requestProcessingService) {
+            IRequestProcessingService requestProcessingService,
+            IPEndPoint localEndPoint,
+            List<int> alowedTcpPorts,
+            List<int> alowedUdpPorts) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
-            Guard.NotNull(configuration, nameof(configuration));
             Guard.NotNull(requestProcessingService, nameof(requestProcessingService));
+            Guard.NotNull(localEndPoint, nameof(localEndPoint));
+            Guard.NotNull(alowedTcpPorts ?? alowedUdpPorts, "alowedTcpPorts ?? alowedUdpPorts");
             this.logger = logger;
             this.applicationLifetime = applicationLifetime;
             this.requestProcessingService = requestProcessingService;
-
-            var uri = new Uri(configuration[ConfigSections.Host]);
-            var ipAddresses = Dns.GetHostEntry(uri.Host).AddressList
-                .Where(x => x.AddressFamily == AddressFamily.InterNetwork)
-                .ToArray();
-            localEndPoint = new IPEndPoint(ipAddresses[0], 0);
+            this.localEndPoint = localEndPoint;
+            this.alowedTcpPorts = alowedTcpPorts;
+            this.alowedUdpPorts = alowedUdpPorts;
         }
 
         public async Task ConnectAsync(string connectionId, IClientProxy clientProxy, string queryString) {

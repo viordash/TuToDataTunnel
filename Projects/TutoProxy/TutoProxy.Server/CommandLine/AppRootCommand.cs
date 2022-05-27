@@ -1,5 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -18,8 +20,8 @@ namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
         public AppRootCommand() : base("Прокси сервер TuTo") {
             Add(new Argument<string>("host", "Local host address"));
-            var tcpOption = PortsArgument.CreateOption("--tcp", $"Listened ports, format like '--tcp=80,81,443,8000-8100'");
-            var udpOption = PortsArgument.CreateOption("--udp", $"Listened ports, format like '--udp=700-900,65500'");
+            var tcpOption = PortsArgument.CreateOption("--tcp", $"Allowed ports, format like '--tcp=80,81,443,8000-8100'");
+            var udpOption = PortsArgument.CreateOption("--udp", $"Allowed ports, format like '--udp=700-900,65500'");
             Add(tcpOption);
             Add(udpOption);
             AddValidator((result) => {
@@ -53,10 +55,10 @@ namespace TutoProxy.Server.CommandLine {
 
             public async Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNullOrEmpty(Host, nameof(Host));
-                Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
+                Guard.NotNull(Tcp ?? Udp, "Tcp ?? Udp");
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"Прокси сервер TuTo, хост {Host}, tcp-порты {Tcp}, udp-порты {Udp}");
+                logger.Information($"Прокси сервер TuTo, хост {Host}, доступные tcp-порты {Tcp}, udp-порты {Udp}");
 
                 var builder = WebApplication.CreateBuilder();
 
@@ -65,19 +67,25 @@ namespace TutoProxy.Server.CommandLine {
                     return ServiceProviderFactory.Instance;
                 });
 
-                builder.Host.ConfigureAppConfiguration((_, configuration) =>
-                    configuration.AddInMemoryCollection(
-                        new Dictionary<string, string> {
-                            [ConfigSections.Host] = Host!,
-                        }));
-
+                var uri = new Uri(Host!);
+                var ipAddresses = Dns.GetHostEntry(uri.Host).AddressList
+                    .Where(x => x.AddressFamily == AddressFamily.InterNetwork)
+                    .ToArray();
+                var localEndPoint = new IPEndPoint(ipAddresses[0], 0);
 
                 builder.Services.AddSignalR();
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
                 builder.Services.AddSingleton<IRequestProcessingService, RequestProcessingService>();
-                builder.Services.AddSingleton<IClientsService, ClientsService>();
+                builder.Services.AddSingleton<IClientsService>((sp) => new ClientsService(
+                    sp.GetRequiredService<ILogger>(),
+                    sp.GetRequiredService<IHostApplicationLifetime>(),
+                    sp.GetRequiredService<IRequestProcessingService>(),
+                    localEndPoint,
+                    Tcp?.Ports,
+                    Udp?.Ports
+                    ));
 
                 var app = builder.Build();
                 app.MapHub<DataTunnelHub>(DataTunnelParams.Path);
