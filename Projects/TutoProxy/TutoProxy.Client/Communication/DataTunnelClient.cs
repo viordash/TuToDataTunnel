@@ -58,7 +58,7 @@ namespace TutoProxy.Client.Communication {
                  .Build();
 
             connection.On<TransferRequestModel>("DataRequest", async (request) => {
-                var response = await dataReceiveService.HandleRequest(request);
+                var response = await dataReceiveService.HandleRequest(request, cancellationToken);
                 await connection.InvokeAsync("Response", response);
             });
 

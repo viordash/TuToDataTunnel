@@ -3,13 +3,15 @@
 namespace TutoProxy.Core.Models {
     public class DataRequestModel : DataBaseModel {
         public DataProtocol Protocol { get; set; }
+        public int Port { get; set; }
 
         public override string ToString() {
-            return $"{base.ToString()}, prot:{Protocol}";
+            return $"{base.ToString()}, port:{Port}, pt:{Protocol}";
         }
     }
 
     public class UdpDataRequestModel : DataRequestModel {
+        public bool FireNForget { get; set; }
         public UdpDataRequestModel() {
             Protocol = DataProtocol.Udp;
         }
