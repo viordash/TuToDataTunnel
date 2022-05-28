@@ -5,16 +5,16 @@ using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
-        Task SendRequest(DataRequestModel request, Action<DataResponseModel> responseCallback);
-        void ReceiveResponse(TransferResponseModel response);
+        Task SendUdpRequest(UdpDataRequestModel request, Action<UdpDataResponseModel> responseCallback);
+        void ReceiveUdpResponse(TransferUdpResponseModel response);
     }
 
     public class DataTransferService : IDataTransferService {
         #region inner classes
-        public class NamedRequest {
-            public TransferRequestModel Parent { get; private set; }
-            public Action<DataResponseModel> ResponseCallback { get; private set; }
-            public NamedRequest(TransferRequestModel parent, Action<DataResponseModel> responseCallback) {
+        public class NamedUdpRequest {
+            public TransferUdpRequestModel Parent { get; private set; }
+            public Action<UdpDataResponseModel> ResponseCallback { get; private set; }
+            public NamedUdpRequest(TransferUdpRequestModel parent, Action<UdpDataResponseModel> responseCallback) {
                 Parent = parent;
                 ResponseCallback = responseCallback;
             }
@@ -25,7 +25,7 @@ namespace TutoProxy.Server.Services {
         readonly IDateTimeService dateTimeService;
         readonly IIdService idService;
         readonly IHubContext<DataTunnelHub> hubContext;
-        protected readonly ConcurrentDictionary<string, NamedRequest> requests = new();
+        protected readonly ConcurrentDictionary<string, NamedUdpRequest> udpRequests = new();
 
         public DataTransferService(
                 ILogger logger,
@@ -43,27 +43,27 @@ namespace TutoProxy.Server.Services {
             this.hubContext = hubContext;
         }
 
-        public async Task SendRequest(DataRequestModel request, Action<DataResponseModel> responseCallback) {
+        public async Task SendUdpRequest(UdpDataRequestModel request, Action<UdpDataResponseModel> responseCallback) {
             RemoveExpiredRequests();
-            var namedRequest = new NamedRequest(new TransferRequestModel(request, idService.TransferRequest, dateTimeService.Now), responseCallback);
+            var namedRequest = new NamedUdpRequest(new TransferUdpRequestModel(request, idService.TransferRequest, dateTimeService.Now), responseCallback);
 
-            requests.TryAdd(namedRequest.Parent.Id, namedRequest);
-            logger.Information($"Request :{namedRequest.Parent}");
-            await hubContext.Clients.All.SendAsync("DataRequest", namedRequest.Parent);
+            udpRequests.TryAdd(namedRequest.Parent.Id, namedRequest);
+            logger.Information($"UdpRequest :{namedRequest.Parent}");
+            await hubContext.Clients.All.SendAsync("UdpRequest", namedRequest.Parent);
         }
 
-        public void ReceiveResponse(TransferResponseModel response) {
-            if(requests.TryRemove(response.Id, out NamedRequest? request)) {
+        public void ReceiveUdpResponse(TransferUdpResponseModel response) {
+            if(udpRequests.TryRemove(response.Id, out NamedUdpRequest? request)) {
                 request.ResponseCallback(response.Payload);
             }
         }
 
         void RemoveExpiredRequests() {
-            var expired = requests.Values
+            var expired = udpRequests.Values
                 .Where(x => x.Parent.Created.CompareTo(dateTimeService.Now.AddSeconds(-60)) < 0)
                 .Select(x => x.Parent.Id);
             foreach(var id in expired) {
-                requests.TryRemove(id, out NamedRequest? request);
+                udpRequests.TryRemove(id, out NamedUdpRequest? request);
             }
         }
     }

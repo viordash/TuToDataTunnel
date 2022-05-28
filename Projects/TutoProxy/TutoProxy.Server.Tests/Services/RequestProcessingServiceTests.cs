@@ -35,8 +35,8 @@ namespace TutoProxy.Server.Tests.Services {
         [Test]
         public async Task Request_Test() {
             dataTransferServiceMock
-                .Setup(x => x.SendRequest(It.Is<DataRequestModel>(r => r.Data.SequenceEqual(new byte[] { 10, 20, 30, 40 })), It.IsAny<Action<DataResponseModel>>()))
-                .Callback<DataRequestModel, Action<DataResponseModel>>((request, responseCallback) => {
+                .Setup(x => x.SendUdpRequest(It.Is<UdpDataRequestModel>(r => r.Data.SequenceEqual(new byte[] { 10, 20, 30, 40 })), It.IsAny<Action<UdpDataResponseModel>>()))
+                .Callback<UdpDataRequestModel, Action<UdpDataResponseModel>>((request, responseCallback) => {
                     responseCallback(new UdpDataResponseModel() {
                         Data = new byte[] { 1, 2, 3, 4 }
                     });
@@ -45,7 +45,7 @@ namespace TutoProxy.Server.Tests.Services {
             var requestModel = new UdpDataRequestModel() {
                 Data = new byte[] { 10, 20, 30, 40 }
             };
-            var response = await testable.Request(requestModel);
+            var response = await testable.UdpRequest(requestModel);
             Assert.That(response, Is.Not.Null);
             Assert.That(response.Data, Is.EquivalentTo(new byte[] { 1, 2, 3, 4 }));
         }
@@ -59,7 +59,7 @@ namespace TutoProxy.Server.Tests.Services {
             };
             var stopWatch = new Stopwatch();
             stopWatch.Start();
-            Assert.ThrowsAsync<TaskCanceledException>(() => testable.Request(requestModel));
+            Assert.ThrowsAsync<TaskCanceledException>(() => testable.UdpRequest(requestModel));
             stopWatch.Stop();
             Assert.That(stopWatch.Elapsed, Is.GreaterThanOrEqualTo(timeout));
         }

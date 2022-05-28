@@ -1,14 +1,27 @@
 ﻿namespace TutoProxy.Core.Models {
-    public class TransferRequestModel : TransferBase {
-        public DataRequestModel Payload { get; set; }
+    public class TransferUdpRequestModel : TransferBase {
+        public UdpDataRequestModel Payload { get; set; }
 
-        public TransferRequestModel(DataRequestModel payload, string id, DateTime created)
+        public TransferUdpRequestModel(UdpDataRequestModel payload, string id, DateTime created)
             : base(id, created) {
             Payload = payload;
         }
 
         public override string ToString() {
-            return $"{base.ToString()}, Payload: '{Payload}'";
+            return $"udp {base.ToString()}, Payload: '{Payload}'";
+        }
+    }
+
+    public class TransferTcpRequestModel : TransferBase {
+        public TcpDataRequestModel Payload { get; set; }
+
+        public TransferTcpRequestModel(TcpDataRequestModel payload, string id, DateTime created)
+            : base(id, created) {
+            Payload = payload;
+        }
+
+        public override string ToString() {
+            return $"tcp {base.ToString()}, Payload: '{Payload}'";
         }
     }
 }

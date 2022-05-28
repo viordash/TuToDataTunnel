@@ -57,9 +57,11 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferRequestModel>("DataRequest", async (request) => {
-                var response = await dataReceiveService.HandleRequest(request, cancellationToken);
-                await connection.InvokeAsync("Response", response);
+            connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
+                var response = await dataReceiveService.HandleUdpRequest(request, cancellationToken);
+                if(!request.Payload.FireNForget) {
+                    await connection.InvokeAsync("UdpResponse", response);
+                }
             });
 
 

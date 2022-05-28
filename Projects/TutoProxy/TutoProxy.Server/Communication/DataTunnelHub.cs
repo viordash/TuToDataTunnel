@@ -19,9 +19,9 @@ namespace TutoProxy.Server.Hubs {
             this.clientsService = clientsService;
         }
 
-        public void Response(TransferResponseModel model) {
-            logger.Information($"Response: {model}");
-            dataTransferService.ReceiveResponse(model);
+        public void UdpResponse(TransferUdpResponseModel model) {
+            logger.Information($"UdpResponse: {model}");
+            dataTransferService.ReceiveUdpResponse(model);
         }
 
         public override async Task OnConnectedAsync() {

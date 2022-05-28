@@ -3,7 +3,7 @@ using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Services {
     public interface IRequestProcessingService {
-        Task<DataResponseModel> Request(DataRequestModel request);
+        Task<UdpDataResponseModel> UdpRequest(UdpDataRequestModel request);
     }
 
     public class RequestProcessingService : IRequestProcessingService {
@@ -25,11 +25,11 @@ namespace TutoProxy.Server.Services {
             this.dateTimeService = dateTimeService;
         }
 
-        public async Task<DataResponseModel> Request(DataRequestModel request) {
+        public async Task<UdpDataResponseModel> UdpRequest(UdpDataRequestModel request) {
             using var cts = new CancellationTokenSource(dateTimeService.RequestTimeout);
-            var waitResponse = new TaskCompletionSource<DataResponseModel>();
+            var waitResponse = new TaskCompletionSource<UdpDataResponseModel>();
             cts.Token.Register(() => waitResponse.TrySetCanceled(), useSynchronizationContext: false);
-            await dataTransferService.SendRequest(request, (response) => {
+            await dataTransferService.SendUdpRequest(request, (response) => {
                 waitResponse.TrySetResult(response);
             });
             return await waitResponse.Task;

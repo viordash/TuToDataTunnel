@@ -1,11 +1,9 @@
 ﻿using System.Net;
 using TutoProxy.Client.Communication;
-using TutoProxy.Core.Models;
-using TuToProxy.Core.Models;
 
 namespace TutoProxy.Client.Services {
     public interface IDataReceiveService {
-        Task<TransferResponseModel> HandleRequest(TransferRequestModel request, CancellationToken cancellationToken);
+        Task<TransferUdpResponseModel> HandleUdpRequest(TransferUdpRequestModel request, CancellationToken cancellationToken);
     }
 
     internal class DataReceiveService : IDataReceiveService {
@@ -17,29 +15,21 @@ namespace TutoProxy.Client.Services {
 
         }
 
-        public async Task<TransferResponseModel> HandleRequest(TransferRequestModel request, CancellationToken cancellationToken) {
-            logger.Information($"HandleRequest :{request}");
+        public async Task<TransferUdpResponseModel> HandleUdpRequest(TransferUdpRequestModel request, CancellationToken cancellationToken) {
+            logger.Information($"HandleUdpRequest :{request}");
 
-            switch(request.Payload.Protocol) {
-                case DataProtocol.Udp: {
-                    var remoteEndPoint = new IPEndPoint(IPAddress.Loopback, request.Payload.Port);
-                    using(var client = new UdpNetClient(remoteEndPoint, logger)) {
-                        await client.SendRequest(request.Payload.Data, cancellationToken);
+            var remoteEndPoint = new IPEndPoint(IPAddress.Loopback, request.Payload.Port);
+            using(var client = new UdpNetClient(remoteEndPoint, logger)) {
+                await client.SendRequest(request.Payload.Data, cancellationToken);
 
-                    }
-                    break;
+                if(!request.Payload.FireNForget) {
+                    var response = await client.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(10_000));
+                    var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(response));
+                    return transferResponse;
+                } else {
+                    return new TransferUdpResponseModel();
                 }
-                default:
-                    throw new NotImplementedException();
             }
-
-
-            var response = new TransferResponseModel(request,
-                DataResponseFactory.Create(request.Payload.Protocol, request.Payload.Data)
-                );
-            await Task.Delay(300);
-            logger.Information($"Response :{response}");
-            return response;
         }
     }
 }
