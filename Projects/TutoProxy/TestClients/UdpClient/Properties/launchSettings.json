@@ -2,7 +2,7 @@
   "profiles": {
     "UdpClient": {
       "commandName": "Project",
-      "commandLineArgs": "127.0.0.1 700 20 1000 --response"
+      "commandLineArgs": "127.0.0.1 700 20 1000"
     }
   }
 }

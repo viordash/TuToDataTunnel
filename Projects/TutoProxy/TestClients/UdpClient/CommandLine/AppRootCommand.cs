@@ -14,7 +14,7 @@ namespace TutoProxy.Server.CommandLine {
             Add(argDelay);
             var argPacketSize = new Argument<int>("packet", () => 1400, "Packet size, bytes. Min value is 1");
             Add(argPacketSize);
-            Add(new Option<bool>("--response", () => false));
+            Add(new Option<bool>("--firenforget", () => false, "Fire'n'Forget"));
             AddValidator((result) => {
                 try {
                     if(result.Children.Any(x => x.GetValueForArgument(argDelay) < 10)) {
@@ -39,7 +39,7 @@ namespace TutoProxy.Server.CommandLine {
             public int Port { get; set; }
             public int Delay { get; set; }
             public int Packet { get; set; }
-            public bool Response { get; set; }
+            public bool Firenforget { get; set; }
 
             public Handler(
                 ILogger logger,
@@ -72,7 +72,7 @@ namespace TutoProxy.Server.CommandLine {
                     var txCount = await udpServer.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
                     logger.Information($"udp({localPort}) request to {remoteEndPoint}, bytes:{txCount}");
 
-                    if(Response) {
+                    if(!Firenforget) {
                         try {
                             using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
                             cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
