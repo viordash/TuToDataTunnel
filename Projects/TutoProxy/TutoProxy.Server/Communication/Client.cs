@@ -11,15 +11,17 @@ namespace TutoProxy.Server.Communication {
 
         readonly Dictionary<int, UdpConnection> udpConnections = new();
 
-        public Client(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts, ILogger logger,
+        public Client(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
             ClientProxy = clientProxy;
             TcpPorts = tcpPorts;
             UdpPorts = udpPorts;
 
+            var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
+            var logger = serviceProvider.GetRequiredService<ILogger>();
             if(udpPorts != null) {
                 udpConnections = udpPorts
-                    .ToDictionary(k => k, v => new UdpConnection(v, localEndPoint, serviceProvider.GetRequiredService<IDataTransferService>(), logger));
+                    .ToDictionary(k => k, v => new UdpConnection(v, localEndPoint, dataTransferService, logger));
             } else {
                 udpConnections = new();
             }

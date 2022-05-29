@@ -107,7 +107,7 @@ namespace TutoProxy.Server.Services {
                 return;
             }
 
-            var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, logger, serviceProvider);
+            var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
             if(connectedClients.TryAdd(connectionId, client)) {
                 logger.Information($"Connect client :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
                 client.Listen();

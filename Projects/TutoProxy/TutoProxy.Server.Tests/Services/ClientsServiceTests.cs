@@ -63,6 +63,7 @@ namespace TutoProxy.Server.Tests.Services {
                 .Returns<Type>((type) => {
                     return type switch {
                         _ when type == typeof(IDataTransferService) => dataTransferServiceMock.Object,
+                        _ when type == typeof(ILogger) => loggerMock.Object,
                         _ => null
                     };
                 });
@@ -157,10 +158,10 @@ namespace TutoProxy.Server.Tests.Services {
             using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new Client(localEndPoint, clientProxyMock.Object,
-                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), loggerMock.Object, serviceProviderMock.Object));
+                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId1", new Client(localEndPoint, clientProxyMock.Object,
-                            Enumerable.Range(2000, 1).ToList(), Enumerable.Range(2000, 1), loggerMock.Object, serviceProviderMock.Object));
+                            Enumerable.Range(2000, 1).ToList(), Enumerable.Range(2000, 1), serviceProviderMock.Object));
 
             Assert.IsNull(testable.GetUdpClient(1));
             Assert.That(testable.GetUdpClient(1000)?.UdpPorts, Has.Member(1000));
