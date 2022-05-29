@@ -5,17 +5,13 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Castle.Core.Configuration;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
 using Serilog;
-using TutoProxy.Core.Models;
 using TutoProxy.Server.Communication;
-using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
-using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Tests.Services {
     public class ClientsServiceTests {
@@ -36,7 +32,6 @@ namespace TutoProxy.Server.Tests.Services {
             }
         }
 
-        TestableClientsService testable;
 
         Mock<ILogger> loggerMock;
         Mock<IHostApplicationLifetime> applicationLifetimeMock;
@@ -75,7 +70,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Clients_WithAlready_Used_TcpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535), Enumerable.Range(1, 65535));
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535), Enumerable.Range(1, 65535));
 
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "tcpquery=80,81,443");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "tcpquery=180,181,1443");
@@ -96,7 +91,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Clients_WithAlready_Used_UdpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535), Enumerable.Range(1, 65535));
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535), Enumerable.Range(1, 65535));
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "udpquery=1080,1081,10443");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "udpquery=10180,10181,11443");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
@@ -116,7 +111,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Clients_With_Banned_TcpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1000, 4), Enumerable.Range(1, 65535));
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1000, 4), Enumerable.Range(1, 65535));
 
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "tcpquery=1000,1001");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "tcpquery=1002,1003");
@@ -137,7 +132,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Clients_With_Banned_UdpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535), Enumerable.Range(1000, 4));
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535), Enumerable.Range(1000, 4));
 
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "udpquery=1000,1001");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "udpquery=1002,1003");
@@ -156,5 +151,19 @@ namespace TutoProxy.Server.Tests.Services {
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
+
+        [Test]
+        public void GetUdpClient_Test() {
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
+
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new Client(localEndPoint, clientProxyMock.Object,
+                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), loggerMock.Object, serviceProviderMock.Object));
+
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId1", new Client(localEndPoint, clientProxyMock.Object,
+                            Enumerable.Range(2000, 1).ToList(), Enumerable.Range(2000, 1), loggerMock.Object, serviceProviderMock.Object));
+
+            Assert.IsNull(testable.GetUdpClient(1));
+            Assert.That(testable.GetUdpClient(1000)?.UdpPorts, Has.Member(1000));
+        }
     }
 }
