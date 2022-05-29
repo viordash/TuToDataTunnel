@@ -24,11 +24,11 @@ namespace TutoProxy.Server.Tests.Services {
 
         class TestableClientsService : ClientsService {
             public TestableClientsService(ILogger logger, IHostApplicationLifetime applicationLifetime,
-            IRequestProcessingService requestProcessingService,
+            IServiceProvider serviceProvider,
             IPEndPoint localEndPoint,
             List<int>? alowedTcpPorts,
             List<int>? alowedUdpPorts)
-                : base(logger, applicationLifetime, requestProcessingService, localEndPoint, alowedTcpPorts, alowedUdpPorts) {
+                : base(logger, applicationLifetime, serviceProvider, localEndPoint, alowedTcpPorts, alowedUdpPorts) {
             }
 
             public ConcurrentDictionary<string, Client> PublicMorozovConnectedClients {
@@ -40,8 +40,9 @@ namespace TutoProxy.Server.Tests.Services {
 
         Mock<ILogger> loggerMock;
         Mock<IHostApplicationLifetime> applicationLifetimeMock;
-        Mock<IRequestProcessingService> requestProcessingServiceMock;
+        Mock<IServiceProvider> serviceProviderMock;
         Mock<IClientProxy> clientProxyMock;
+        Mock<IDataTransferService> dataTransferServiceMock;
         IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
 
@@ -51,8 +52,9 @@ namespace TutoProxy.Server.Tests.Services {
         public void Setup() {
             loggerMock = new();
             applicationLifetimeMock = new();
-            requestProcessingServiceMock = new();
+            serviceProviderMock = new();
             clientProxyMock = new();
+            dataTransferServiceMock = new();
 
             clientsRequest = null;
             clientProxyMock
@@ -60,11 +62,21 @@ namespace TutoProxy.Server.Tests.Services {
                 .Callback<string, object?[], CancellationToken>((method, args, cancellationToken) => {
                     clientsRequest = args[0] as string;
                 });
+
+
+            serviceProviderMock
+                .Setup(x => x.GetService(It.IsAny<Type>()))
+                .Returns<Type>((type) => {
+                    return type switch {
+                        _ when type == typeof(IDataTransferService) => dataTransferServiceMock.Object,
+                        _ => null
+                    };
+                });
         }
 
         [Test]
         public async Task Clients_WithAlready_Used_TcpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535).ToList());
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535).ToList());
 
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "tcpquery=80,81,443");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "tcpquery=180,181,1443");
@@ -85,7 +97,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Clients_WithAlready_Used_UdpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535).ToList());
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535).ToList());
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "udpquery=1080,1081,10443");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "udpquery=10180,10181,11443");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
@@ -105,7 +117,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Clients_With_Banned_TcpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "tcpquery=1000,1001");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "tcpquery=1002,1003");
@@ -126,7 +138,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Clients_With_Banned_UdpPort_Are_Rejected_Test() {
-            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, requestProcessingServiceMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
+            testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             await testable.ConnectAsync("connectionId0", clientProxyMock.Object, "udpquery=1000,1001");
             await testable.ConnectAsync("connectionId1", clientProxyMock.Object, "udpquery=1002,1003");

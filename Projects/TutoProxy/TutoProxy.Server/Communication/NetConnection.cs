@@ -2,16 +2,16 @@
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
-    internal abstract class NetListener : IDisposable {
+    internal abstract class NetConnection : IDisposable {
         protected readonly int port;
         protected readonly IPEndPoint localEndPoint;
-        protected readonly IRequestProcessingService requestProcessingService;
+        protected readonly IDataTransferService dataTransferService;
         protected readonly ILogger logger;
 
-        public NetListener(int port, IPEndPoint localEndPoint, IRequestProcessingService requestProcessingService, ILogger logger) {
+        public NetConnection(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger) {
             this.port = port;
             this.localEndPoint = localEndPoint;
-            this.requestProcessingService = requestProcessingService;
+            this.dataTransferService = dataTransferService;
             this.logger = logger;
         }
 

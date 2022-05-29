@@ -15,19 +15,10 @@ namespace TutoProxy.Server.Tests.Services {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
     public class DataTransferServiceTests {
-        class TestableDataTransferService : DataTransferService {
-            public TestableDataTransferService(ILogger logger, IIdService idService, IDateTimeService dateTimeService, IHubContext<DataTunnelHub> hubContext)
-                : base(logger, idService, dateTimeService, hubContext) {
-            }
-
-            public ConcurrentDictionary<string, NamedUdpRequest> PublicMorozovUdpRequests {
-                get { return udpRequests; }
-            }
-        }
-
-        TestableDataTransferService testable;
+        DataTransferService testable;
 
         Mock<IClientProxy> clientProxyMock;
+        Mock<IClientsService> clientsServiceMock;
 
         DateTime nowDateTime;
         string requestId = string.Empty;
@@ -41,6 +32,7 @@ namespace TutoProxy.Server.Tests.Services {
             var dateTimeServiceMock = new Mock<IDateTimeService>();
             var hubClientsMock = new Mock<IHubClients>();
             clientProxyMock = new();
+            clientsServiceMock = new();
 
             hubClientsMock
                 .SetupGet(x => x.All)
@@ -67,59 +59,13 @@ namespace TutoProxy.Server.Tests.Services {
                     sendedTransferUdpRequest = args[0] as TransferUdpRequestModel;
                 });
 
-            testable = new TestableDataTransferService(loggerMock.Object, idServiceMock.Object, dateTimeServiceMock.Object, hubContextMock.Object);
+            testable = new DataTransferService(loggerMock.Object, idServiceMock.Object, dateTimeServiceMock.Object, hubContextMock.Object, clientsServiceMock.Object);
         }
 
         [Test]
-        public async Task RemoveExpiredRequests_Test() {
-            UdpDataResponseModel? responseFromCallback = null;
-
+        public async Task SendUdpRequest_Test() {
             var requestModel = new UdpDataRequestModel();
-            requestId = Guid.NewGuid().ToString();
-            await testable.SendUdpRequest(requestModel, (response) => { responseFromCallback = response; });
-            Assert.That(testable.PublicMorozovUdpRequests.Keys, Has.Count.EqualTo(1));
-
-            nowDateTime = nowDateTime.AddSeconds(60);
-            requestId = Guid.NewGuid().ToString();
-            await testable.SendUdpRequest(requestModel, (response) => { responseFromCallback = response; });
-            Assert.That(testable.PublicMorozovUdpRequests.Keys, Has.Count.EqualTo(2));
-
-            nowDateTime = nowDateTime.AddSeconds(61);
-            requestId = Guid.NewGuid().ToString();
-            await testable.SendUdpRequest(requestModel, (response) => { responseFromCallback = response; });
-            Assert.That(testable.PublicMorozovUdpRequests.Keys, Has.Count.EqualTo(1));
-
-            Assert.That(responseFromCallback, Is.Null);
-            Assert.That(sendedTransferUdpRequest, Is.Not.Null);
-#pragma warning disable CS8604 // Possible null reference argument.
-            testable.ReceiveUdpResponse(new TransferUdpResponseModel(sendedTransferUdpRequest, new UdpDataResponseModel() { Data = new byte[] { 1, 2, 3, 4 } }));
-#pragma warning restore CS8604 // Possible null reference argument.
-
-            Assert.That(responseFromCallback, Is.Not.Null);
-            Assert.That(responseFromCallback?.Data, Is.EquivalentTo(new byte[] { 1, 2, 3, 4 }));
-
-            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "UdpRequest"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
-        }
-
-        [Test]
-        public async Task ReceiveResponse_Is_Single_Action_Test() {
-            UdpDataResponseModel? responseFromCallback = null;
-
-            var requestModel = new UdpDataRequestModel();
-            await testable.SendUdpRequest(requestModel, (response) => { responseFromCallback = response; });
-
-            Assert.That(testable.PublicMorozovUdpRequests.Keys, Has.Count.EqualTo(1));
-#pragma warning disable CS8604 // Possible null reference argument.
-            testable.ReceiveUdpResponse(new TransferUdpResponseModel(sendedTransferUdpRequest, new UdpDataResponseModel() { Data = new byte[] { 1, 2, 3, 4 } }));
-#pragma warning restore CS8604 // Possible null reference argument.
-
-            Assert.That(testable.PublicMorozovUdpRequests.Keys, Has.Count.EqualTo(0));
-            Assert.That(responseFromCallback, Is.Not.Null);
-            Assert.That(responseFromCallback?.Data, Is.EquivalentTo(new byte[] { 1, 2, 3, 4 }));
-
-            responseFromCallback = null;
-            testable.ReceiveUdpResponse(new TransferUdpResponseModel(sendedTransferUdpRequest, new UdpDataResponseModel() { Data = new byte[] { 1, 2, 3, 4 } }));
-            Assert.That(responseFromCallback, Is.Null);
+            await testable.SendUdpRequest(requestModel);
             clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "UdpRequest"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
         }
     }

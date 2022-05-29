@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
+using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Hubs {
     public class DataTunnelHub : Hub {
@@ -19,9 +20,13 @@ namespace TutoProxy.Server.Hubs {
             this.clientsService = clientsService;
         }
 
-        public void UdpResponse(TransferUdpResponseModel model) {
+        public async Task UdpResponse(TransferUdpResponseModel model) {
             logger.Information($"UdpResponse: {model}");
-            dataTransferService.ReceiveUdpResponse(model);
+            try {
+                await dataTransferService.HandleUdpResponse(model);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
         }
 
         public override async Task OnConnectedAsync() {

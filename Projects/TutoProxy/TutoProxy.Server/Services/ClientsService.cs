@@ -15,13 +15,14 @@ namespace TutoProxy.Server.Services {
         Task ConnectAsync(string connectionId, IClientProxy clientProxy, string queryString);
         void Disconnect(string connectionId);
         Task SendAsync(IClientProxy clientProxy, string method, object? arg1, CancellationToken cancellationToken = default);
+        Client? GetUdpClient(int port);
     }
 
     public class ClientsService : IClientsService {
         readonly ILogger logger;
         protected readonly ConcurrentDictionary<string, Client> connectedClients = new();
         readonly IHostApplicationLifetime applicationLifetime;
-        readonly IRequestProcessingService requestProcessingService;
+        readonly IServiceProvider serviceProvider;
         readonly IPEndPoint localEndPoint;
         readonly List<int>? alowedTcpPorts;
         readonly List<int>? alowedUdpPorts;
@@ -29,18 +30,18 @@ namespace TutoProxy.Server.Services {
         public ClientsService(
             ILogger logger,
             IHostApplicationLifetime applicationLifetime,
-            IRequestProcessingService requestProcessingService,
+            IServiceProvider serviceProvider,
             IPEndPoint localEndPoint,
             List<int>? alowedTcpPorts,
             List<int>? alowedUdpPorts) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
-            Guard.NotNull(requestProcessingService, nameof(requestProcessingService));
+            Guard.NotNull(serviceProvider, nameof(serviceProvider));
             Guard.NotNull(localEndPoint, nameof(localEndPoint));
             Guard.NotNull(alowedTcpPorts ?? alowedUdpPorts, "alowedTcpPorts ?? alowedUdpPorts");
             this.logger = logger;
             this.applicationLifetime = applicationLifetime;
-            this.requestProcessingService = requestProcessingService;
+            this.serviceProvider = serviceProvider;
             this.localEndPoint = localEndPoint;
             this.alowedTcpPorts = alowedTcpPorts;
             this.alowedUdpPorts = alowedUdpPorts;
@@ -106,7 +107,7 @@ namespace TutoProxy.Server.Services {
                 return;
             }
 
-            var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, logger, requestProcessingService);
+            var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, logger, serviceProvider);
             if(connectedClients.TryAdd(connectionId, client)) {
                 logger.Information($"Connect client :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
                 client.Listen();
@@ -160,6 +161,11 @@ namespace TutoProxy.Server.Services {
             foreach(var client in clients) {
                 client.Dispose();
             }
+        }
+
+        public Client? GetUdpClient(int port) {
+            var clients = connectedClients.Values.ToList();
+            return clients.FirstOrDefault(x => x.UdpPorts?.Contains(port) == true);
         }
     }
 }

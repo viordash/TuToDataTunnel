@@ -1,6 +1,6 @@
-﻿using System.Diagnostics;
-using System.Net;
+﻿using System.Net;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
@@ -9,32 +9,37 @@ namespace TutoProxy.Server.Communication {
         public List<int>? TcpPorts { get; private set; }
         public List<int>? UdpPorts { get; private set; }
 
-        readonly List<UdpListener>? udpListeners = null;
+        readonly Dictionary<int, UdpConnection> udpConnections = new();
 
         public Client(IPEndPoint localEndPoint, IClientProxy clientProxy, List<int>? tcpPorts, List<int>? udpPorts, ILogger logger,
-                    IRequestProcessingService requestProcessingService) {
+                    IServiceProvider serviceProvider) {
             ClientProxy = clientProxy;
             TcpPorts = tcpPorts;
             UdpPorts = udpPorts;
 
             if(udpPorts != null) {
-                udpListeners = udpPorts
-                    .Select(x => new UdpListener(x, localEndPoint, requestProcessingService, logger))
-                    .ToList();
+                udpConnections = udpPorts
+                    .ToDictionary(k => k, v => new UdpConnection(v, localEndPoint, serviceProvider.GetRequiredService<IDataTransferService>(), logger));
+            } else {
+                udpConnections = new();
             }
         }
 
         public void Listen() {
-            if(udpListeners != null) {
-                Task.WhenAll(udpListeners.Select(x => x.Listen()));
+            if(udpConnections != null) {
+                Task.WhenAll(udpConnections.Values.Select(x => x.Listen()));
+            }
+        }
+
+        public async Task SendUdpResponse(UdpDataResponseModel response) {
+            if(udpConnections.TryGetValue(response.Port, out UdpConnection? udpConnection)) {
+                await udpConnection.SendResponse(response);
             }
         }
 
         public void Dispose() {
-            if(udpListeners != null) {
-                foreach(var item in udpListeners) {
-                    item.Dispose();
-                }
+            foreach(var item in udpConnections.Values) {
+                item.Dispose();
             }
         }
     }
