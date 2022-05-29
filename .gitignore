@@ -11,3 +11,4 @@ xunit-*.xml
 **/packages/
 Garbage/
 **/MigrationBackup/
+Projects/TutoProxy/TestClients/UdpClient/log*.txt

@@ -6,12 +6,12 @@ using TutoProxy.Server.Services;
 namespace TutoProxy.Server.Communication {
     public class Client : IDisposable {
         public IClientProxy ClientProxy { get; private set; }
-        public List<int>? TcpPorts { get; private set; }
-        public List<int>? UdpPorts { get; private set; }
+        public IEnumerable<int>? TcpPorts { get; private set; }
+        public IEnumerable<int>? UdpPorts { get; private set; }
 
         readonly Dictionary<int, UdpConnection> udpConnections = new();
 
-        public Client(IPEndPoint localEndPoint, IClientProxy clientProxy, List<int>? tcpPorts, List<int>? udpPorts, ILogger logger,
+        public Client(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts, ILogger logger,
                     IServiceProvider serviceProvider) {
             ClientProxy = clientProxy;
             TcpPorts = tcpPorts;

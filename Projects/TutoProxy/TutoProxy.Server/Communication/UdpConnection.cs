@@ -23,9 +23,7 @@ namespace TutoProxy.Server.Communication {
                 while(!cancellationToken.IsCancellationRequested) {
                     var result = await udpServer.ReceiveAsync(cancellationToken);
                     logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
-                    await dataTransferService.SendUdpRequest(new UdpDataRequestModel() {
-                        Data = result.Buffer
-                    });
+                    await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.Buffer));
                     remoteEndPoint = result.RemoteEndPoint;
                 }
             }, cancellationToken);

@@ -24,16 +24,16 @@ namespace TutoProxy.Server.Services {
         readonly IHostApplicationLifetime applicationLifetime;
         readonly IServiceProvider serviceProvider;
         readonly IPEndPoint localEndPoint;
-        readonly List<int>? alowedTcpPorts;
-        readonly List<int>? alowedUdpPorts;
+        readonly IEnumerable<int>? alowedTcpPorts;
+        readonly IEnumerable<int>? alowedUdpPorts;
 
         public ClientsService(
             ILogger logger,
             IHostApplicationLifetime applicationLifetime,
             IServiceProvider serviceProvider,
             IPEndPoint localEndPoint,
-            List<int>? alowedTcpPorts,
-            List<int>? alowedUdpPorts) {
+            IEnumerable<int>? alowedTcpPorts,
+            IEnumerable<int>? alowedUdpPorts) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
             Guard.NotNull(serviceProvider, nameof(serviceProvider));
@@ -125,7 +125,7 @@ namespace TutoProxy.Server.Services {
             throw new NotImplementedException();
         }
 
-        IEnumerable<int> GetBannedPorts(List<int>? allowedPorts, List<int>? ports) {
+        IEnumerable<int> GetBannedPorts(IEnumerable<int>? allowedPorts, IEnumerable<int>? ports) {
             if(allowedPorts != null && ports != null) {
                 var bannedPorts = ports
                 .Where(x => !allowedPorts.Contains(x));
@@ -134,7 +134,7 @@ namespace TutoProxy.Server.Services {
             return Enumerable.Empty<int>();
         }
 
-        IEnumerable<int> GetAlreadyUsedTcpPorts(List<Client> clients, List<int>? tcpPorts) {
+        IEnumerable<int> GetAlreadyUsedTcpPorts(List<Client> clients, IEnumerable<int>? tcpPorts) {
             if(tcpPorts != null) {
                 var alreadyUsedPorts = clients
                 .Where(x => x.TcpPorts != null)
@@ -145,7 +145,7 @@ namespace TutoProxy.Server.Services {
             return Enumerable.Empty<int>();
         }
 
-        IEnumerable<int> GetAlreadyUsedUdpPorts(List<Client> clients, List<int>? udpPorts) {
+        IEnumerable<int> GetAlreadyUsedUdpPorts(List<Client> clients, IEnumerable<int>? udpPorts) {
             if(udpPorts != null) {
                 var alreadyUsedPorts = clients
                 .Where(x => x.UdpPorts != null)

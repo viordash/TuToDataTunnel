@@ -4,7 +4,7 @@ namespace TutoProxy.Core.Models {
     public class UdpDataRequestModel : DataBaseModel {
         public bool FireNForget { get; set; } = false;
 
-        public UdpDataRequestModel() {
+        public UdpDataRequestModel(int port, byte[] data) : base(port, data) {
         }
         public override string ToString() {
             return $"udp request {base.ToString()}, fnf:{FireNForget}";
@@ -12,7 +12,7 @@ namespace TutoProxy.Core.Models {
     }
 
     public class TcpDataRequestModel : DataBaseModel {
-        public TcpDataRequestModel() {
+        public TcpDataRequestModel(int port, byte[] data) : base(port, data) {
         }
         public override string ToString() {
             return $"tcp request {base.ToString()}";
