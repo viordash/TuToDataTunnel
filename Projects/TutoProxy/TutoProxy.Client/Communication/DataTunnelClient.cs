@@ -63,8 +63,9 @@ namespace TutoProxy.Client.Communication {
             });
 
 
-            connection.On<string>("Errors", (message) => {
+            connection.On<string>("Errors", async (message) => {
                 logger.Error(message);
+                await StopAsync();
             });
 
             connection.Reconnecting += e => {

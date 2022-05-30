@@ -30,11 +30,12 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public override async Task OnConnectedAsync() {
-            var queryString = Context.GetHttpContext()?.Request.QueryString.Value;
-            if(queryString != null) {
-                await clientsService.ConnectAsync(Context.ConnectionId, Clients.Caller, queryString);
-            } else {
-                await Clients.Caller.SendAsync("Errors", "QueryString empty");
+            try {
+                var queryString = Context.GetHttpContext()?.Request.QueryString.Value;
+                clientsService.Connect(Context.ConnectionId, Clients.Caller, queryString);
+            } catch(TuToException ex) {
+                logger.Error(ex.Message);
+                await Clients.Caller.SendAsync("Errors", ex.Message);
             }
             await base.OnConnectedAsync();
         }

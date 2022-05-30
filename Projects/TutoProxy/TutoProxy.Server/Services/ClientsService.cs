@@ -9,12 +9,12 @@ using Microsoft.Extensions.Primitives;
 using TutoProxy.Core.CommandLine;
 using TutoProxy.Server.Communication;
 using TuToProxy.Core;
+using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Services {
     public interface IClientsService : IDisposable {
-        Task ConnectAsync(string connectionId, IClientProxy clientProxy, string queryString);
+        void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
         void Disconnect(string connectionId);
-        Task SendAsync(IClientProxy clientProxy, string method, object? arg1, CancellationToken cancellationToken = default);
         Client? GetUdpClient(int port);
     }
 
@@ -47,14 +47,16 @@ namespace TutoProxy.Server.Services {
             this.alowedUdpPorts = alowedUdpPorts;
         }
 
-        public async Task ConnectAsync(string connectionId, IClientProxy clientProxy, string queryString) {
+        public void Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
+            if(queryString == null) {
+                throw new ClientConnectionException(connectionId, "QueryString empty");
+            }
             var query = QueryHelpers.ParseQuery(queryString);
             var tcpPresent = query.TryGetValue(DataTunnelParams.TcpQuery, out StringValues tcpQuery);
             var udpPresent = query.TryGetValue(DataTunnelParams.UdpQuery, out StringValues udpQuery);
 
             if(!tcpPresent && !udpPresent) {
-                await clientProxy.SendAsync("Errors", "tcp or udp options requried", applicationLifetime.ApplicationStopping);
-                return;
+                throw new ClientConnectionException(connectionId, "tcp or udp options requried");
             }
 
             List<int>? tcpPorts = null;
@@ -68,25 +70,20 @@ namespace TutoProxy.Server.Services {
             }
 
             if(tcpPorts == null && udpPorts == null) {
-                await clientProxy.SendAsync("Errors", "tcp or udp options requried", applicationLifetime.ApplicationStopping);
-                return;
+                throw new ClientConnectionException(connectionId, "tcp or udp options error");
             }
 
 
             var bannedTcpPorts = GetBannedPorts(alowedTcpPorts, tcpPorts);
             if(bannedTcpPorts.Any()) {
                 var message = $"banned tcp ports [{string.Join(",", bannedTcpPorts)}]";
-                await clientProxy.SendAsync("Errors", message, applicationLifetime.ApplicationStopping);
-                logger.Error($"Client :{connectionId}, {message}");
-                return;
+                throw new ClientConnectionException(connectionId, message);
             }
 
             var bannedUdpPorts = GetBannedPorts(alowedUdpPorts, udpPorts);
             if(bannedUdpPorts.Any()) {
                 var message = $"banned udp ports [{string.Join(",", bannedUdpPorts)}]";
-                await clientProxy.SendAsync("Errors", message, applicationLifetime.ApplicationStopping);
-                logger.Error($"Client :{connectionId}, {message}");
-                return;
+                throw new ClientConnectionException(connectionId, message);
             }
 
             var clients = connectedClients.Values.ToList();
@@ -94,17 +91,13 @@ namespace TutoProxy.Server.Services {
             var alreadyUsedTcpPorts = GetAlreadyUsedTcpPorts(clients, tcpPorts);
             if(alreadyUsedTcpPorts.Any()) {
                 var message = $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]";
-                await clientProxy.SendAsync("Errors", message, applicationLifetime.ApplicationStopping);
-                logger.Error($"Client :{connectionId}, {message}");
-                return;
+                throw new ClientConnectionException(connectionId, message);
             }
 
             var alreadyUsedUdpPorts = GetAlreadyUsedUdpPorts(clients, udpPorts);
             if(alreadyUsedUdpPorts.Any()) {
                 var message = $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]";
-                await clientProxy.SendAsync("Errors", message, applicationLifetime.ApplicationStopping);
-                logger.Error($"Client :{connectionId}, {message}");
-                return;
+                throw new ClientConnectionException(connectionId, message);
             }
 
             var client = new Client(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
@@ -119,10 +112,6 @@ namespace TutoProxy.Server.Services {
             if(connectedClients.TryRemove(connectionId, out Client? client)) {
                 client.Dispose();
             }
-        }
-
-        public Task SendAsync(IClientProxy clientProxy, string method, object? arg1, CancellationToken cancellationToken = default) {
-            throw new NotImplementedException();
         }
 
         IEnumerable<int> GetBannedPorts(IEnumerable<int>? allowedPorts, IEnumerable<int>? ports) {
