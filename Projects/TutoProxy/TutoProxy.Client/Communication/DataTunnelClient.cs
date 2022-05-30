@@ -59,9 +59,7 @@ namespace TutoProxy.Client.Communication {
 
             connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
                 var response = await dataReceiveService.HandleUdpRequest(request, cancellationToken);
-                if(!request.Payload.FireNForget) {
-                    await connection.InvokeAsync("UdpResponse", response);
-                }
+                await connection.InvokeAsync("UdpResponse", response);
             });
 
 
