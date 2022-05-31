@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "UdpServer": {
+      "commandName": "Project",
+      "commandLineArgs": "700 20"
+    }
+  }
+}
