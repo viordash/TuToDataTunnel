@@ -49,10 +49,16 @@ namespace TutoProxy.Server.CommandLine {
 
                 var localPort = (udpServer.Client.LocalEndPoint as IPEndPoint)!.Port;
 
+                var logTimer = DateTime.Now.AddSeconds(1);
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
-                    logger.Information($"udp({localPort}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
-                    await Task.Delay(Delay);
+                    if(logTimer <= DateTime.Now) {
+                        logTimer = DateTime.Now.AddSeconds(1);
+                        logger.Information($"udp({localPort}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                    }
+                    if(Delay > 0) {
+                        await Task.Delay(Delay);
+                    }
                     var txCount = await udpServer.SendAsync(result.Buffer, result.RemoteEndPoint, applicationLifetime.ApplicationStopping);
                 }
 

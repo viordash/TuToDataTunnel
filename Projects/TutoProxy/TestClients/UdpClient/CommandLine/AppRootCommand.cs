@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -10,15 +11,15 @@ namespace TutoProxy.Server.CommandLine {
         public AppRootCommand() : base("Тестовый udp-клиент") {
             Add(new Argument<string>("ip", "Remote UDP IP address"));
             Add(new Argument<int>("port", "Remote UDP IP port"));
-            var argDelay = new Argument<int>("delay", () => 1000, "Delay before repeat, ms. Min value is 10ms");
+            var argDelay = new Argument<int>("delay", () => 1000, "Delay before repeat, ms. Min value is 0ms");
             Add(argDelay);
             var argPacketSize = new Argument<int>("packet", () => 1400, "Packet size, bytes. Min value is 1");
             Add(argPacketSize);
             Add(new Option<bool>("--firenforget", () => false, "Fire'n'Forget"));
             AddValidator((result) => {
                 try {
-                    if(result.Children.Any(x => x.GetValueForArgument(argDelay) < 10)) {
-                        result.ErrorMessage = "Delay should be higher or equal than 10ms";
+                    if(result.Children.Any(x => x.GetValueForArgument(argDelay) < 0)) {
+                        result.ErrorMessage = "Delay should be higher or equal than 0ms";
                         return;
                     }
                     if(result.Children.Any(x => x.GetValueForArgument(argPacketSize) < 1)) {
@@ -65,30 +66,48 @@ namespace TutoProxy.Server.CommandLine {
 
                 var localPort = (udpServer.Client.LocalEndPoint as IPEndPoint)!.Port;
 
+                var sRateStopWatch = new Stopwatch();
+                var logTimer = DateTime.Now.AddSeconds(1);
+                double sRate = 0;
+                int packetsCount = 0;
+
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
                         .SelectMany(x => x)
                         .Take(Packet).ToArray();
+                    sRateStopWatch.Restart();
                     var txCount = await udpServer.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
-                    logger.Information($"udp({localPort}) request to {remoteEndPoint}, bytes:{txCount}");
 
                     if(!Firenforget) {
                         try {
                             using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
                             cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
 
-                            var result = await udpServer.ReceiveAsync(cts.Token);
+                            var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
+                            sRateStopWatch.Stop();
                             if(dataPacket.SequenceEqual(result.Buffer)) {
-                                logger.Information($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}. Success");
+                                var ts = sRateStopWatch.Elapsed;
+                                sRate += result.Buffer.Length / ts.TotalMilliseconds;
+                                packetsCount++;
+                                if(logTimer <= DateTime.Now) {
+                                    logTimer = DateTime.Now.AddSeconds(1);
+                                    logger.Information($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
+                                    sRate = 0;
+                                    packetsCount = 0;
+                                }
                             } else {
                                 logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}. Wrong");
                             }
                         } catch(OperationCanceledException) {
                             logger.Warning($"udp({localPort}) response timeout");
                         }
+                    } else {
+                        logger.Information($"udp({localPort}) request to {remoteEndPoint}, bytes:{txCount}");
+                        await Task.Delay(10);
                     }
-
-                    await Task.Delay(Delay);
+                    if(Delay > 0) {
+                        await Task.Delay(Delay);
+                    }
                 }
 
                 _ = applicationLifetime.ApplicationStopping.WaitHandle.WaitOne();
