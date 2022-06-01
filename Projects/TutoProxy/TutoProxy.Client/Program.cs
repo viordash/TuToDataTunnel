@@ -24,7 +24,7 @@ class Program {
                 })
                 .ConfigureServices((_, services) => {
                     services.AddSingleton<IDataTunnelClient, DataTunnelClient>();
-                    services.AddSingleton<IDataReceiveService, DataReceiveService>();
+                    services.AddSingleton<IDataExchangeService, DataExchangeService>();
                 })
             )
             .UseDefaults()

@@ -1,16 +1,15 @@
 ﻿using System.Net;
-using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Communication;
 
 namespace TutoProxy.Client.Services {
-    public interface IDataReceiveService {
+    public interface IDataExchangeService {
         Task HandleUdpRequestAsync(TransferUdpRequestModel request, IDataTunnelClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
-    internal class DataReceiveService : IDataReceiveService {
+    internal class DataExchangeService : IDataExchangeService {
         readonly ILogger logger;
 
-        public DataReceiveService(ILogger logger) {
+        public DataExchangeService(ILogger logger) {
             Guard.NotNull(logger, nameof(logger));
             this.logger = logger;
         }

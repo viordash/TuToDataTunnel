@@ -25,17 +25,17 @@ namespace TutoProxy.Client.Communication {
         #endregion
 
         readonly ILogger logger;
-        readonly IDataReceiveService dataReceiveService;
+        readonly IDataExchangeService dataExchangeService;
         HubConnection? connection = null;
 
         public DataTunnelClient(
                 ILogger logger,
-                IDataReceiveService dataReceiveService
+                IDataExchangeService dataExchangeService
                 ) {
             Guard.NotNull(logger, nameof(logger));
-            Guard.NotNull(dataReceiveService, nameof(dataReceiveService));
+            Guard.NotNull(dataExchangeService, nameof(dataExchangeService));
             this.logger = logger;
-            this.dataReceiveService = dataReceiveService;
+            this.dataExchangeService = dataExchangeService;
         }
 
         public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken) {
@@ -59,7 +59,7 @@ namespace TutoProxy.Client.Communication {
                  .Build();
 
             connection.On<TransferUdpRequestModel>("UdpRequest", (request) => {
-                dataReceiveService.HandleUdpRequestAsync(request, this, cancellationToken);
+                dataExchangeService.HandleUdpRequestAsync(request, this, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {
