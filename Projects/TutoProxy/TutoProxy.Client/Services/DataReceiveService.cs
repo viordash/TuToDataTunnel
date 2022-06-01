@@ -1,9 +1,10 @@
 ﻿using System.Net;
+using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Communication;
 
 namespace TutoProxy.Client.Services {
     public interface IDataReceiveService {
-        Task<TransferUdpResponseModel> HandleUdpRequest(TransferUdpRequestModel request, CancellationToken cancellationToken);
+        Task HandleUdpRequestAsync(TransferUdpRequestModel request, IDataTunnelClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
     internal class DataReceiveService : IDataReceiveService {
@@ -12,24 +13,23 @@ namespace TutoProxy.Client.Services {
         public DataReceiveService(ILogger logger) {
             Guard.NotNull(logger, nameof(logger));
             this.logger = logger;
-
         }
 
-        public async Task<TransferUdpResponseModel> HandleUdpRequest(TransferUdpRequestModel request, CancellationToken cancellationToken) {
-            logger.Information($"HandleUdpRequest :{request}");
+        public Task HandleUdpRequestAsync(TransferUdpRequestModel request, IDataTunnelClient dataTunnelClient, CancellationToken cancellationToken) {
+            logger.Debug($"HandleUdpRequestAsync :{request}");
 
-            var remoteEndPoint = new IPEndPoint(IPAddress.Loopback, request.Payload.Port);
-            using(var client = new UdpNetClient(remoteEndPoint, logger)) {
-                await client.SendRequest(request.Payload.Data, cancellationToken);
+            return Task.Run(async () => {
+                var remoteEndPoint = new IPEndPoint(IPAddress.Loopback, request.Payload.Port);
+                using(var client = new UdpNetClient(remoteEndPoint, logger)) {
+                    await client.SendRequest(request.Payload.Data, cancellationToken);
 
-                if(!request.Payload.FireNForget) {
-                    var response = await client.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(10_000));
-                    var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(response));
-                    return transferResponse;
-                } else {
-                    return new TransferUdpResponseModel();
+                    var response = await client.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(5_000));
+                    var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, response));
+                    await dataTunnelClient.SendResponse(transferResponse, cancellationToken);
                 }
-            }
+            }, cancellationToken);
+
+
         }
     }
 }

@@ -7,6 +7,7 @@ namespace TutoProxy.Client.Communication {
     public interface IDataTunnelClient {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken);
         Task StopAsync();
+        Task SendResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
     }
 
     internal class DataTunnelClient : IDataTunnelClient {
@@ -57,11 +58,9 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
-                var response = await dataReceiveService.HandleUdpRequest(request, cancellationToken);
-                await connection.InvokeAsync("UdpResponse", response);
+            connection.On<TransferUdpRequestModel>("UdpRequest", (request) => {
+                dataReceiveService.HandleUdpRequestAsync(request, this, cancellationToken);
             });
-
 
             connection.On<string>("Errors", async (message) => {
                 logger.Error(message);
@@ -87,6 +86,12 @@ namespace TutoProxy.Client.Communication {
                 await connection.DisposeAsync();
                 logger.Information("Connection stopped");
                 connection = null;
+            }
+        }
+
+        public async Task SendResponse(TransferUdpResponseModel response, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.InvokeAsync("UdpResponse", response, cancellationToken);
             }
         }
     }

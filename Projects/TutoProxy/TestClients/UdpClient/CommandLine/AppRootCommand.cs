@@ -63,6 +63,8 @@ namespace TutoProxy.Server.CommandLine {
                 udpServer.ExclusiveAddressUse = false;
                 udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
                 udpServer.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+                udpServer.Client.SendTimeout = 5000;
+                udpServer.Client.ReceiveTimeout = 5000;
 
                 var localPort = (udpServer.Client.LocalEndPoint as IPEndPoint)!.Port;
 
@@ -83,7 +85,7 @@ namespace TutoProxy.Server.CommandLine {
                             using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
                             cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
 
-                            var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
+                            var result = await udpServer.ReceiveAsync(cts.Token);
                             sRateStopWatch.Stop();
                             if(dataPacket.SequenceEqual(result.Buffer)) {
                                 var ts = sRateStopWatch.Elapsed;

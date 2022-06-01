@@ -67,11 +67,7 @@ namespace TutoProxy.Server.CommandLine {
                     return ServiceProviderFactory.Instance;
                 });
 
-                var uri = new Uri(Host!);
-                var ipAddresses = Dns.GetHostEntry(uri.Host).AddressList
-                    .Where(x => x.AddressFamily == AddressFamily.InterNetwork)
-                    .ToArray();
-                var localEndPoint = new IPEndPoint(ipAddresses[0], 0);
+                var localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
                 builder.Services.AddSignalR();
                 builder.Services.AddSingleton<IIdService, IdService>();
