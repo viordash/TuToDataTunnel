@@ -33,9 +33,7 @@ namespace TutoProxy.Server.Communication {
             if(cancellationToken.IsCancellationRequested || remoteEndPoint == null) {
                 return;
             }
-            using var udpClient = new UdpClient(localEndPoint);
-            udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            var txCount = await udpClient.SendAsync(response.Data, remoteEndPoint, cancellationToken);
+            var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint, cancellationToken);
             logger.Information($"udp response to {remoteEndPoint}, bytes:{txCount}");
         }
 
