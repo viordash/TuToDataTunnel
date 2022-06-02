@@ -3,6 +3,7 @@ using System.CommandLine.Invocation;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Client.Communication;
+using TutoProxy.Client.Services;
 using TutoProxy.Core.CommandLine;
 
 namespace TutoProxy.Server.CommandLine {
@@ -28,6 +29,7 @@ namespace TutoProxy.Server.CommandLine {
             readonly ILogger logger;
             readonly IDataTunnelClient dataTunnelClient;
             readonly IHostApplicationLifetime applicationLifetime;
+            readonly IClientsService clientsService;
 
             public string? Server { get; set; }
             public PortsArgument? Udp { get; set; }
@@ -36,26 +38,29 @@ namespace TutoProxy.Server.CommandLine {
             public Handler(
                 ILogger logger,
                 IDataTunnelClient dataTunnelClient,
-                IHostApplicationLifetime applicationLifetime
+                IHostApplicationLifetime applicationLifetime,
+                IClientsService clientsService
                 ) {
                 Guard.NotNull(logger, nameof(logger));
                 Guard.NotNull(dataTunnelClient, nameof(dataTunnelClient));
                 Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
+                Guard.NotNull(clientsService, nameof(clientsService));
                 this.logger = logger;
                 this.dataTunnelClient = dataTunnelClient;
                 this.applicationLifetime = applicationLifetime;
+                this.clientsService = clientsService;
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNull(Server, nameof(Server));
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
-
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
                 logger.Information($"Прокси клиент TuTo, сервер {Server}");
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
                     await dataTunnelClient.StopAsync();
+                    clientsService.Stop();
                 });
 
                 while(!appStoppingReg.Token.IsCancellationRequested) {
@@ -70,6 +75,7 @@ namespace TutoProxy.Server.CommandLine {
                     }
                 }
 
+                clientsService.Start(Tcp?.Ports, Udp?.Ports);
                 _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 return 0;
             }

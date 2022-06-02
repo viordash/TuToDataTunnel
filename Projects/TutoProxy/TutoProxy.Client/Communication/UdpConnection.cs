@@ -2,11 +2,13 @@
 using System.Net.Sockets;
 
 namespace TutoProxy.Client.Communication {
-    internal class UdpNetClient : NetClient {
+    public class UdpConnection : NetConnection {
         readonly UdpClient udpClient;
         readonly int localPort;
 
-        public UdpNetClient(IPEndPoint remoteEndPoint, ILogger logger)
+        public int Port { get { return remoteEndPoint.Port; } }
+
+        public UdpConnection(IPEndPoint remoteEndPoint, ILogger logger)
             : base(remoteEndPoint, logger) {
 
             udpClient = new UdpClient();
