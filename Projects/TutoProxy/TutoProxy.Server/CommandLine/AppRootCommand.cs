@@ -73,7 +73,7 @@ namespace TutoProxy.Server.CommandLine {
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
-                builder.Services.AddSingleton<IClientsService>((sp) => new ClientsService(
+                builder.Services.AddSingleton<IHubClientsService>((sp) => new HubClientsService(
                     sp.GetRequiredService<ILogger>(),
                     sp.GetRequiredService<IHostApplicationLifetime>(),
                     sp.GetRequiredService<IServiceProvider>(),

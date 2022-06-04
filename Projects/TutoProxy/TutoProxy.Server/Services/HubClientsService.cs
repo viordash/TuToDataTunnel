@@ -12,13 +12,13 @@ using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Services {
-    public interface IClientsService : IDisposable {
+    public interface IHubClientsService : IDisposable {
         void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
         void Disconnect(string connectionId);
         Client? GetUdpClient(int port);
     }
 
-    public class ClientsService : IClientsService {
+    public class HubClientsService : IHubClientsService {
         readonly ILogger logger;
         protected readonly ConcurrentDictionary<string, Client> connectedClients = new();
         readonly IHostApplicationLifetime applicationLifetime;
@@ -27,7 +27,7 @@ namespace TutoProxy.Server.Services {
         readonly IEnumerable<int>? alowedTcpPorts;
         readonly IEnumerable<int>? alowedUdpPorts;
 
-        public ClientsService(
+        public HubClientsService(
             ILogger logger,
             IHostApplicationLifetime applicationLifetime,
             IServiceProvider serviceProvider,

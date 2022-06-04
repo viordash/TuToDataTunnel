@@ -6,12 +6,12 @@ namespace TutoProxy.Server.Hubs {
     public class SignalRHub : Hub {
         readonly ILogger logger;
         readonly IDataTransferService dataTransferService;
-        readonly IClientsService clientsService;
+        readonly IHubClientsService clientsService;
 
         public SignalRHub(
                 ILogger logger,
                 IDataTransferService dataTransferService,
-                IClientsService clientsService) {
+                IHubClientsService clientsService) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(dataTransferService, nameof(dataTransferService));
             Guard.NotNull(clientsService, nameof(clientsService));

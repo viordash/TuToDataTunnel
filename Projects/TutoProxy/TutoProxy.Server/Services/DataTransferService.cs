@@ -16,14 +16,14 @@ namespace TutoProxy.Server.Services {
         readonly IDateTimeService dateTimeService;
         readonly IIdService idService;
         readonly IHubContext<SignalRHub> signalHub;
-        readonly IClientsService clientsService;
+        readonly IHubClientsService clientsService;
 
         public DataTransferService(
                 ILogger logger,
                 IIdService idService,
                 IDateTimeService dateTimeService,
                 IHubContext<SignalRHub> hubContext,
-                IClientsService clientsService
+                IHubClientsService clientsService
             ) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(idService, nameof(idService));
