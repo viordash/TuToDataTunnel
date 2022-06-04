@@ -4,14 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
-    public class Client : IDisposable {
+    public class HubClient : IDisposable {
         public IClientProxy ClientProxy { get; private set; }
         public IEnumerable<int>? TcpPorts { get; private set; }
         public IEnumerable<int>? UdpPorts { get; private set; }
 
         readonly Dictionary<int, UdpServer> udpServers = new();
 
-        public Client(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
+        public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
             ClientProxy = clientProxy;
             TcpPorts = tcpPorts;
