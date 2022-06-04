@@ -83,7 +83,7 @@ namespace TutoProxy.Server.CommandLine {
                     ));
 
                 var app = builder.Build();
-                app.MapHub<DataTunnelHub>(DataTunnelParams.Path);
+                app.MapHub<SignalRHub>(SignalRParams.Path);
 
                 await app.RunAsync(Host);
                 return 0;

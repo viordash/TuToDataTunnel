@@ -27,7 +27,7 @@ namespace TutoProxy.Server.CommandLine {
 
         public new class Handler : ICommandHandler {
             readonly ILogger logger;
-            readonly IDataTunnelClient dataTunnelClient;
+            readonly ISignalRClient signalrClient;
             readonly IHostApplicationLifetime applicationLifetime;
             readonly IClientsService clientsService;
 
@@ -37,16 +37,16 @@ namespace TutoProxy.Server.CommandLine {
 
             public Handler(
                 ILogger logger,
-                IDataTunnelClient dataTunnelClient,
+                ISignalRClient signalrClient,
                 IHostApplicationLifetime applicationLifetime,
                 IClientsService clientsService
                 ) {
                 Guard.NotNull(logger, nameof(logger));
-                Guard.NotNull(dataTunnelClient, nameof(dataTunnelClient));
+                Guard.NotNull(signalrClient, nameof(signalrClient));
                 Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
                 Guard.NotNull(clientsService, nameof(clientsService));
                 this.logger = logger;
-                this.dataTunnelClient = dataTunnelClient;
+                this.signalrClient = signalrClient;
                 this.applicationLifetime = applicationLifetime;
                 this.clientsService = clientsService;
             }
@@ -59,13 +59,13 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"Прокси клиент TuTo, сервер {Server}");
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
-                    await dataTunnelClient.StopAsync();
+                    await signalrClient.StopAsync();
                     clientsService.Stop();
                 });
 
                 while(!appStoppingReg.Token.IsCancellationRequested) {
                     try {
-                        await dataTunnelClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, appStoppingReg.Token);
+                        await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, appStoppingReg.Token);
                         break;
                     } catch(HttpRequestException) {
                         logger.Error("Connection failed");

@@ -3,7 +3,7 @@ using TutoProxy.Client.Communication;
 
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
-        Task HandleUdpRequestAsync(TransferUdpRequestModel request, IDataTunnelClient dataTunnelClient, CancellationToken cancellationToken);
+        Task HandleUdpRequestAsync(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -20,7 +20,7 @@ namespace TutoProxy.Client.Services {
             this.clientsService = clientsService;
         }
 
-        public Task HandleUdpRequestAsync(TransferUdpRequestModel request, IDataTunnelClient dataTunnelClient, CancellationToken cancellationToken) {
+        public Task HandleUdpRequestAsync(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleUdpRequestAsync :{request}");
 
             //return Task.Run(async () => {

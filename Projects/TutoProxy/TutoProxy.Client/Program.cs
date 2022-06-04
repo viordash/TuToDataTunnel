@@ -23,7 +23,7 @@ class Program {
                     return ServiceProviderFactory.Instance;
                 })
                 .ConfigureServices((_, services) => {
-                    services.AddSingleton<IDataTunnelClient, DataTunnelClient>();
+                    services.AddSingleton<ISignalRClient, SignalRClient>();
                     services.AddSingleton<IDataExchangeService, DataExchangeService>();
                     services.AddSingleton<IClientsService, ClientsService>();
                 })

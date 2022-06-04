@@ -52,8 +52,8 @@ namespace TutoProxy.Server.Services {
                 throw new ClientConnectionException(connectionId, "QueryString empty");
             }
             var query = QueryHelpers.ParseQuery(queryString);
-            var tcpPresent = query.TryGetValue(DataTunnelParams.TcpQuery, out StringValues tcpQuery);
-            var udpPresent = query.TryGetValue(DataTunnelParams.UdpQuery, out StringValues udpQuery);
+            var tcpPresent = query.TryGetValue(SignalRParams.TcpQuery, out StringValues tcpQuery);
+            var udpPresent = query.TryGetValue(SignalRParams.UdpQuery, out StringValues udpQuery);
 
             if(!tcpPresent && !udpPresent) {
                 throw new ClientConnectionException(connectionId, "tcp or udp options requried");

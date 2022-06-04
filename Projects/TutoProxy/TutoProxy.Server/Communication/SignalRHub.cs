@@ -3,12 +3,12 @@ using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Hubs {
-    public class DataTunnelHub : Hub {
+    public class SignalRHub : Hub {
         readonly ILogger logger;
         readonly IDataTransferService dataTransferService;
         readonly IClientsService clientsService;
 
-        public DataTunnelHub(
+        public SignalRHub(
                 ILogger logger,
                 IDataTransferService dataTransferService,
                 IClientsService clientsService) {

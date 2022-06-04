@@ -15,14 +15,14 @@ namespace TutoProxy.Server.Services {
         readonly ILogger logger;
         readonly IDateTimeService dateTimeService;
         readonly IIdService idService;
-        readonly IHubContext<DataTunnelHub> hubContext;
+        readonly IHubContext<SignalRHub> signalHub;
         readonly IClientsService clientsService;
 
         public DataTransferService(
                 ILogger logger,
                 IIdService idService,
                 IDateTimeService dateTimeService,
-                IHubContext<DataTunnelHub> hubContext,
+                IHubContext<SignalRHub> hubContext,
                 IClientsService clientsService
             ) {
             Guard.NotNull(logger, nameof(logger));
@@ -33,14 +33,14 @@ namespace TutoProxy.Server.Services {
             this.logger = logger;
             this.idService = idService;
             this.dateTimeService = dateTimeService;
-            this.hubContext = hubContext;
+            this.signalHub = hubContext;
             this.clientsService = clientsService;
         }
 
         public async Task SendUdpRequest(UdpDataRequestModel request) {
             var transferRequest = new TransferUdpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
             logger.Information($"UdpRequest :{transferRequest}");
-            await hubContext.Clients.All.SendAsync("UdpRequest", transferRequest);
+            await signalHub.Clients.All.SendAsync("UdpRequest", transferRequest);
         }
 
         public async Task HandleUdpResponse(TransferUdpResponseModel response) {

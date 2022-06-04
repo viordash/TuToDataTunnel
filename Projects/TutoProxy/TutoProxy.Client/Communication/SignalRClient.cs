@@ -4,13 +4,13 @@ using TutoProxy.Client.Services;
 using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
-    public interface IDataTunnelClient {
+    public interface ISignalRClient {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
     }
 
-    internal class DataTunnelClient : IDataTunnelClient {
+    internal class SignalRClient : ISignalRClient {
         #region inner classes
         class RetryPolicy : IRetryPolicy {
             readonly ILogger logger;
@@ -28,7 +28,7 @@ namespace TutoProxy.Client.Communication {
         readonly IDataExchangeService dataExchangeService;
         HubConnection? connection = null;
 
-        public DataTunnelClient(
+        public SignalRClient(
                 ILogger logger,
                 IDataExchangeService dataExchangeService
                 ) {
@@ -45,11 +45,11 @@ namespace TutoProxy.Client.Communication {
             await StopAsync();
 
             var ub = new UriBuilder(server);
-            ub.Path = DataTunnelParams.Path;
+            ub.Path = SignalRParams.Path;
 
             var query = QueryString.Create(new[] {
-                KeyValuePair.Create(DataTunnelParams.TcpQuery, tcpQuery),
-                KeyValuePair.Create(DataTunnelParams.UdpQuery, udpQuery)
+                KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery),
+                KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery)
             });
             ub.Query = query.ToString();
 
