@@ -9,7 +9,7 @@ namespace TutoProxy.Server.Communication {
         public IEnumerable<int>? TcpPorts { get; private set; }
         public IEnumerable<int>? UdpPorts { get; private set; }
 
-        readonly Dictionary<int, UdpConnection> udpConnections = new();
+        readonly Dictionary<int, UdpServer> udpServers = new();
 
         public Client(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -20,27 +20,27 @@ namespace TutoProxy.Server.Communication {
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
             var logger = serviceProvider.GetRequiredService<ILogger>();
             if(udpPorts != null) {
-                udpConnections = udpPorts
-                    .ToDictionary(k => k, v => new UdpConnection(v, localEndPoint, dataTransferService, logger));
+                udpServers = udpPorts
+                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger));
             } else {
-                udpConnections = new();
+                udpServers = new();
             }
         }
 
         public void Listen() {
-            if(udpConnections != null) {
-                Task.WhenAll(udpConnections.Values.Select(x => x.Listen()));
+            if(udpServers != null) {
+                Task.WhenAll(udpServers.Values.Select(x => x.Listen()));
             }
         }
 
         public async Task SendUdpResponse(UdpDataResponseModel response) {
-            if(udpConnections.TryGetValue(response.Port, out UdpConnection? udpConnection)) {
+            if(udpServers.TryGetValue(response.Port, out UdpServer? udpConnection)) {
                 await udpConnection.SendResponse(response);
             }
         }
 
         public void Dispose() {
-            foreach(var item in udpConnections.Values) {
+            foreach(var item in udpServers.Values) {
                 item.Dispose();
             }
         }

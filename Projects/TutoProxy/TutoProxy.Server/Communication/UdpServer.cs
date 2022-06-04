@@ -3,14 +3,14 @@ using System.Net.Sockets;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
-    internal class UdpConnection : NetConnection {
+    internal class UdpServer : BaseServer {
         readonly UdpClient udpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
 
         IPEndPoint? remoteEndPoint = null;
 
-        public UdpConnection(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger)
+        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger)
             : base(port, localEndPoint, dataTransferService, logger) {
             udpServer = new UdpClient(port);
             udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);

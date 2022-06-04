@@ -31,10 +31,10 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
 
             return Task.Run(async () => {
-                var connection = clientsService.GetUdpConnection(request.Payload.Port);
-                await connection.SendRequest(request.Payload.Data, cancellationToken);
+                var client = clientsService.GetUdpClient(request.Payload.Port);
+                await client.SendRequest(request.Payload.Data, cancellationToken);
 
-                var response = await connection.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(5_000));
+                var response = await client.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(5_000));
                 var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, response));
                 await dataTunnelClient.SendResponse(transferResponse, cancellationToken);
             }, cancellationToken);

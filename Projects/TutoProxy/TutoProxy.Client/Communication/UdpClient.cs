@@ -2,16 +2,16 @@
 using System.Net.Sockets;
 
 namespace TutoProxy.Client.Communication {
-    public class UdpConnection : NetConnection {
-        readonly UdpClient udpClient;
+    public class UdpClient : BaseClient {
+        readonly System.Net.Sockets.UdpClient udpClient;
         readonly int localPort;
 
         public int Port { get { return remoteEndPoint.Port; } }
 
-        public UdpConnection(IPEndPoint remoteEndPoint, ILogger logger)
+        public UdpClient(IPEndPoint remoteEndPoint, ILogger logger)
             : base(remoteEndPoint, logger) {
 
-            udpClient = new UdpClient();
+            udpClient = new System.Net.Sockets.UdpClient();
             uint IOC_IN = 0x80000000;
             uint IOC_VENDOR = 0x18000000;
             uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;

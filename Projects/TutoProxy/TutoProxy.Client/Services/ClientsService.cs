@@ -11,14 +11,14 @@ using TuToProxy.Core.Models;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts);
-        UdpConnection GetUdpConnection(int port);
+        UdpClient GetUdpClient(int port);
         void Stop();
     }
 
     internal class ClientsService : IClientsService {
         readonly ILogger logger;
-        readonly List<NetConnection> tcpConnections = new();
-        readonly List<UdpConnection> udpConnections = new();
+        readonly List<BaseClient> tcpClients = new();
+        readonly List<UdpClient> udpClients = new();
 
         public ClientsService(ILogger logger) {
             Guard.NotNull(logger, nameof(logger));
@@ -29,12 +29,12 @@ namespace TutoProxy.Client.Services {
             Stop();
 
             if(udpPorts != null) {
-                udpConnections.AddRange(udpPorts.Select(x => new UdpConnection(new IPEndPoint(IPAddress.Loopback, x), logger)));
+                udpClients.AddRange(udpPorts.Select(x => new UdpClient(new IPEndPoint(IPAddress.Loopback, x), logger)));
             }
         }
 
-        public UdpConnection GetUdpConnection(int port) {
-            var connection = udpConnections.FirstOrDefault(x => x.Port == port);
+        public UdpClient GetUdpClient(int port) {
+            var connection = udpClients.FirstOrDefault(x => x.Port == port);
             if(connection == null) {
                 throw new ClientNotFoundException(DataProtocol.Udp, port);
             }
@@ -42,15 +42,15 @@ namespace TutoProxy.Client.Services {
         }
 
         public void Stop() {
-            foreach(var connection in tcpConnections) {
-                connection.Dispose();
+            foreach(var client in tcpClients) {
+                client.Dispose();
             }
-            tcpConnections.Clear();
+            tcpClients.Clear();
 
-            foreach(var connection in udpConnections) {
-                connection.Dispose();
+            foreach(var client in udpClients) {
+                client.Dispose();
             }
-            udpConnections.Clear();
+            udpClients.Clear();
         }
     }
 }
