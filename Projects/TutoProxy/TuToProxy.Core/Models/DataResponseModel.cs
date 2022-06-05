@@ -2,7 +2,7 @@
 
 namespace TutoProxy.Core.Models {
     public class UdpDataResponseModel : DataBaseModel {
-        public UdpDataResponseModel(int port, byte[] data) : base(port, data) {
+        public UdpDataResponseModel(int port, int remotePort, byte[] data) : base(port, remotePort, data) {
         }
 
         public override string ToString() {
@@ -11,7 +11,7 @@ namespace TutoProxy.Core.Models {
     }
 
     public class TcpDataResponseModel : DataBaseModel {
-        public TcpDataResponseModel(int port, byte[] data) : base(port, data) {
+        public TcpDataResponseModel(int port, int remotePort, byte[] data) : base(port, remotePort, data) {
         }
         public override string ToString() {
             return $"tcp response: {base.ToString()}";

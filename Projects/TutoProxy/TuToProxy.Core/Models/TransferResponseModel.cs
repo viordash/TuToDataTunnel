@@ -3,7 +3,7 @@
         public UdpDataResponseModel Payload { get; set; }
 
         public TransferUdpResponseModel() : base(string.Empty, default) {
-            Payload = new(0, Array.Empty<byte>());
+            Payload = new(0, 0, Array.Empty<byte>());
         }
 
         public TransferUdpResponseModel(TransferUdpRequestModel requestModel, UdpDataResponseModel payload)
@@ -20,7 +20,7 @@
         public TcpDataResponseModel Payload { get; set; }
 
         public TransferTcpResponseModel() : base(string.Empty, default) {
-            Payload = new(0, Array.Empty<byte>());
+            Payload = new(0, 0, Array.Empty<byte>());
         }
 
         public TransferTcpResponseModel(TransferTcpRequestModel requestModel, TcpDataResponseModel payload)

@@ -35,7 +35,7 @@ namespace TutoProxy.Client.Services {
                 await client.SendRequest(request.Payload.Data, cancellationToken);
 
                 var response = await client.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(5_000));
-                var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, response));
+                var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
                 await dataTunnelClient.SendResponse(transferResponse, cancellationToken);
             }, cancellationToken);
 

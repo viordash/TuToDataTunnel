@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
 
@@ -8,7 +9,7 @@ namespace TutoProxy.Server.Communication {
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
 
-        IPEndPoint? remoteEndPoint = null;
+        protected readonly ConcurrentDictionary<int, IPEndPoint> remoteEndPoints = new();
 
         public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger)
             : base(port, localEndPoint, dataTransferService, logger) {
@@ -23,14 +24,17 @@ namespace TutoProxy.Server.Communication {
                 while(!cancellationToken.IsCancellationRequested) {
                     var result = await udpServer.ReceiveAsync(cancellationToken);
                     logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
-                    await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.Buffer));
-                    remoteEndPoint = result.RemoteEndPoint;
+                    await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.RemoteEndPoint.Port, result.Buffer));
+                    remoteEndPoints.TryAdd(result.RemoteEndPoint.Port, result.RemoteEndPoint);
                 }
             }, cancellationToken);
         }
 
         public async Task SendResponse(UdpDataResponseModel response) {
-            if(cancellationToken.IsCancellationRequested || remoteEndPoint == null) {
+            if(cancellationToken.IsCancellationRequested) {
+                return;
+            }
+            if(!remoteEndPoints.TryGetValue(response.RemotePort, out IPEndPoint? remoteEndPoint)) {
                 return;
             }
             var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint, cancellationToken);
