@@ -18,7 +18,7 @@ namespace TutoProxy.Server.Tests.Services {
         DataTransferService testable;
 
         Mock<IClientProxy> clientProxyMock;
-        Mock<IClientsService> clientsServiceMock;
+        Mock<IHubClientsService> clientsServiceMock;
 
         DateTime nowDateTime;
         string requestId = string.Empty;
@@ -27,7 +27,7 @@ namespace TutoProxy.Server.Tests.Services {
         [SetUp]
         public void Setup() {
             var loggerMock = new Mock<ILogger>();
-            var hubContextMock = new Mock<IHubContext<DataTunnelHub>>();
+            var hubContextMock = new Mock<IHubContext<SignalRHub>>();
             var idServiceMock = new Mock<IIdService>();
             var dateTimeServiceMock = new Mock<IDateTimeService>();
             var hubClientsMock = new Mock<IHubClients>();
@@ -64,7 +64,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task SendUdpRequest_Test() {
-            var requestModel = new UdpDataRequestModel(700, Array.Empty<byte>());
+            var requestModel = new UdpDataRequestModel(700, 800, Array.Empty<byte>());
             await testable.SendUdpRequest(requestModel);
             clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "UdpRequest"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
         }

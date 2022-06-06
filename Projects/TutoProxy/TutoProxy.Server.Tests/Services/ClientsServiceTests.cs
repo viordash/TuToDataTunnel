@@ -13,13 +13,14 @@ using Serilog;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
+using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Tests.Services {
     public class ClientsServiceTests {
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-        class TestableClientsService : ClientsService {
+        class TestableClientsService : HubClientsService {
             public TestableClientsService(ILogger logger, IHostApplicationLifetime applicationLifetime,
             IServiceProvider serviceProvider,
             IPEndPoint localEndPoint,
@@ -28,7 +29,7 @@ namespace TutoProxy.Server.Tests.Services {
                 : base(logger, applicationLifetime, serviceProvider, localEndPoint, alowedTcpPorts, alowedUdpPorts) {
             }
 
-            public ConcurrentDictionary<string, Client> PublicMorozovConnectedClients {
+            public ConcurrentDictionary<string, HubClient> PublicMorozovConnectedClients {
                 get { return connectedClients; }
             }
         }
@@ -39,9 +40,10 @@ namespace TutoProxy.Server.Tests.Services {
         Mock<IServiceProvider> serviceProviderMock;
         Mock<IClientProxy> clientProxyMock;
         Mock<IDataTransferService> dataTransferServiceMock;
+        Mock<IDateTimeService> dateTimeServiceMock;
         IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
-
+        DateTime nowDateTime;
         string? clientsRequest;
 
         [SetUp]
@@ -51,6 +53,7 @@ namespace TutoProxy.Server.Tests.Services {
             serviceProviderMock = new();
             clientProxyMock = new();
             dataTransferServiceMock = new();
+            dateTimeServiceMock = new();
 
             clientsRequest = null;
             clientProxyMock
@@ -65,9 +68,15 @@ namespace TutoProxy.Server.Tests.Services {
                     return type switch {
                         _ when type == typeof(IDataTransferService) => dataTransferServiceMock.Object,
                         _ when type == typeof(ILogger) => loggerMock.Object,
+                        _ when type == typeof(IDateTimeService) => dateTimeServiceMock.Object,
                         _ => null
                     };
                 });
+
+            nowDateTime = DateTime.Now;
+            dateTimeServiceMock
+                .SetupGet(x => x.Now)
+                .Returns(() => nowDateTime);
         }
 
         [Test]
@@ -122,10 +131,10 @@ namespace TutoProxy.Server.Tests.Services {
         public void GetUdpClient_Test() {
             using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new Client(localEndPoint, clientProxyMock.Object,
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId1", new Client(localEndPoint, clientProxyMock.Object,
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId1", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(2000, 1).ToList(), Enumerable.Range(2000, 1), serviceProviderMock.Object));
 
             Assert.IsNull(testable.GetUdpClient(1));
