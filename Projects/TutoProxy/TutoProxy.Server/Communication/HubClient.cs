@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
+using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
     public class HubClient : IDisposable {
@@ -19,9 +20,10 @@ namespace TutoProxy.Server.Communication {
 
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
             var logger = serviceProvider.GetRequiredService<ILogger>();
+            var dateTimeService = serviceProvider.GetRequiredService<IDateTimeService>();
             if(udpPorts != null) {
                 udpServers = udpPorts
-                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger));
+                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, dateTimeService));
             } else {
                 udpServers = new();
             }

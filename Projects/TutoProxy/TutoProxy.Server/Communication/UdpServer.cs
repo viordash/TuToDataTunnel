@@ -1,18 +1,16 @@
-﻿using System.Collections.Concurrent;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
+using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
-    internal class UdpServer : BaseServer {
+    public class UdpServer : BaseServer {
         readonly UdpClient udpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
 
-        protected readonly ConcurrentDictionary<int, IPEndPoint> remoteEndPoints = new();
-
-        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger)
-            : base(port, localEndPoint, dataTransferService, logger) {
+        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
+            : base(port, localEndPoint, dataTransferService, logger, dateTimeService) {
             udpServer = new UdpClient(port);
             udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             cts = new CancellationTokenSource();
@@ -25,7 +23,7 @@ namespace TutoProxy.Server.Communication {
                     var result = await udpServer.ReceiveAsync(cancellationToken);
                     logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
                     await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.RemoteEndPoint.Port, result.Buffer));
-                    remoteEndPoints.TryAdd(result.RemoteEndPoint.Port, result.RemoteEndPoint);
+                    AddRemoteEndPoint(result.RemoteEndPoint, cancellationToken);
                 }
             }, cancellationToken);
         }
@@ -34,10 +32,10 @@ namespace TutoProxy.Server.Communication {
             if(cancellationToken.IsCancellationRequested) {
                 return;
             }
-            if(!remoteEndPoints.TryGetValue(response.RemotePort, out IPEndPoint? remoteEndPoint)) {
+            if(!remoteEndPoints.TryGetValue(response.RemotePort, out RemoteEndPoint? remoteEndPoint)) {
                 return;
             }
-            var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint, cancellationToken);
+            var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);
             logger.Information($"udp response to {remoteEndPoint}, bytes:{txCount}");
         }
 
