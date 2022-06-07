@@ -13,12 +13,12 @@ using TuToProxy.Core.Services;
 
 
 namespace TutoProxy.Server.Tests.Communication {
-    public class BaseServerTests {
+    public class UdpServerTests {
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-        class TestableBaseServer : BaseServer {
-            public TestableBaseServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
+        class TestableUdpServer : UdpServer {
+            public TestableUdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
                 : base(port, localEndPoint, dataTransferService, logger, dateTimeService) {
             }
 
@@ -34,7 +34,6 @@ namespace TutoProxy.Server.Tests.Communication {
             public override void Dispose() {
             }
         }
-
 
         Mock<ILogger> loggerMock;
         Mock<IDataTransferService> dataTransferServiceMock;
@@ -56,7 +55,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Test]
         [Retry(3)]
         public async Task RemoteEndPoints_Are_AutoDelete_After_Timeout_Test() {
-            using var testable = new TestableBaseServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
+            using var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
 
             requestTimeout = TimeSpan.FromMilliseconds(500);
             var cts = new CancellationTokenSource();
@@ -78,7 +77,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Test]
         [Retry(3)]
         public async Task Add_Already_Exists_RemoteEndPoint_Increase_Timeout_Test() {
-            using var testable = new TestableBaseServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
+            using var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
 
             requestTimeout = TimeSpan.FromMilliseconds(500);
             var cts = new CancellationTokenSource();
@@ -104,7 +103,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Test]
         [Retry(3)]
         public async Task RemoteEndPoint_Cancelling_Test() {
-            using var testable = new TestableBaseServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
+            using var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
 
             requestTimeout = TimeSpan.FromMilliseconds(500);
             var stopWatch = new Stopwatch();

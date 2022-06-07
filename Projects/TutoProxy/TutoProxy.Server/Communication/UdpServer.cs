@@ -1,13 +1,53 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
     public class UdpServer : BaseServer {
+        #region inner classes
+        public class RemoteEndPoint {
+            readonly IDateTimeService dateTimeService;
+            readonly CancellationToken extCancellationToken;
+            readonly Action<int> timeoutAction;
+            public IPEndPoint EndPoint { get; private set; }
+
+            CancellationTokenSource? cts = null;
+
+            public RemoteEndPoint(IPEndPoint endPoint, IDateTimeService dateTimeService, CancellationToken extCancellationToken, Action<int> timeoutAction) {
+                EndPoint = endPoint;
+                this.dateTimeService = dateTimeService;
+                this.timeoutAction = timeoutAction;
+                this.extCancellationToken = extCancellationToken;
+
+                StartTimeoutTimer();
+
+            }
+
+            public void StartTimeoutTimer() {
+                cts?.Cancel();
+                cts?.Dispose();
+
+                cts = CancellationTokenSource.CreateLinkedTokenSource(extCancellationToken);
+                var cancellationToken = cts.Token;
+
+                _ = Task.Run(async () => {
+                    await Task.Delay(dateTimeService.RequestTimeout, cancellationToken);
+                    if(!cancellationToken.IsCancellationRequested) {
+                        timeoutAction(EndPoint.Port);
+                    }
+                }, cancellationToken);
+            }
+        }
+        #endregion
+
         readonly UdpClient udpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
+
+        protected readonly ConcurrentDictionary<int, RemoteEndPoint> remoteEndPoints = new();
 
         public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
             : base(port, localEndPoint, dataTransferService, logger, dateTimeService) {
@@ -43,6 +83,25 @@ namespace TutoProxy.Server.Communication {
             cts.Cancel();
             cts.Dispose();
             udpServer.Dispose();
+        }
+
+        protected void AddRemoteEndPoint(IPEndPoint endPoint, CancellationToken cancellationToken) {
+            remoteEndPoints.AddOrUpdate(endPoint.Port,
+                (k) => {
+                    Debug.WriteLine($"AddRemoteEndPoint: add {k}");
+                    return new RemoteEndPoint(endPoint, dateTimeService, cancellationToken, RemoveExpiredRemoteEndPoint);
+                },
+                (k, v) => {
+                    Debug.WriteLine($"AddRemoteEndPoint: update {k}");
+                    v.StartTimeoutTimer();
+                    return v;
+                }
+            );
+        }
+
+        void RemoveExpiredRemoteEndPoint(int port) {
+            Debug.WriteLine($"RemoveExpiredRemoteEndPoint: {port}");
+            remoteEndPoints.TryRemove(port, out RemoteEndPoint? remoteEndPoint);
         }
     }
 }
