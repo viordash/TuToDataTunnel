@@ -54,6 +54,7 @@ namespace TutoProxy.Server.Tests.Communication {
         }
 
         [Test]
+        [Retry(3)]
         public async Task RemoteEndPoints_Are_AutoDelete_After_Timeout_Test() {
             using var testable = new TestableBaseServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
 
@@ -75,6 +76,7 @@ namespace TutoProxy.Server.Tests.Communication {
         }
 
         [Test]
+        [Retry(3)]
         public async Task Add_Already_Exists_RemoteEndPoint_Increase_Timeout_Test() {
             using var testable = new TestableBaseServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
 
@@ -100,6 +102,7 @@ namespace TutoProxy.Server.Tests.Communication {
         }
 
         [Test]
+        [Retry(3)]
         public async Task RemoteEndPoint_Cancelling_Test() {
             using var testable = new TestableBaseServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object, dateTimeServiceMock.Object);
 
