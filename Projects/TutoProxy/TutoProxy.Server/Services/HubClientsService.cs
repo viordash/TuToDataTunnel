@@ -15,6 +15,7 @@ namespace TutoProxy.Server.Services {
     public interface IHubClientsService : IDisposable {
         void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
         void Disconnect(string connectionId);
+        HubClient? GetTcpClient(int port);
         HubClient? GetUdpClient(int port);
     }
 
@@ -150,6 +151,11 @@ namespace TutoProxy.Server.Services {
             foreach(var hubClient in hubClients) {
                 hubClient.Dispose();
             }
+        }
+
+        public HubClient? GetTcpClient(int port) {
+            var hubClients = connectedClients.Values.ToList();
+            return hubClients.FirstOrDefault(x => x.TcpPorts?.Contains(port) == true);
         }
 
         public HubClient? GetUdpClient(int port) {
