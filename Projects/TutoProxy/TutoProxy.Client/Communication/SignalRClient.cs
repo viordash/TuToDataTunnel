@@ -7,7 +7,8 @@ namespace TutoProxy.Client.Communication {
     public interface ISignalRClient {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken);
         Task StopAsync();
-        Task SendResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
+        Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken);
+        Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -58,8 +59,12 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferUdpRequestModel>("UdpRequest", (request) => {
+            connection.On<TransferUdpRequestModel>("TcpRequest", (request) => {
                 dataExchangeService.HandleUdpRequestAsync(request, this, cancellationToken);
+            });
+
+            connection.On<TransferTcpRequestModel>("UdpRequest", (request) => {
+                dataExchangeService.HandleTcpRequestAsync(request, this, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {
@@ -89,7 +94,13 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendResponse(TransferUdpResponseModel response, CancellationToken cancellationToken) {
+        public async Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.InvokeAsync("TcpResponse", response, cancellationToken);
+            }
+        }
+
+        public async Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("UdpResponse", response, cancellationToken);
             }

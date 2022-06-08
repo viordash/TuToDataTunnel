@@ -4,6 +4,7 @@ using TutoProxy.Client.Communication;
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
         Task HandleUdpRequestAsync(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        Task HandleTcpRequestAsync(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -18,6 +19,19 @@ namespace TutoProxy.Client.Services {
             Guard.NotNull(clientsService, nameof(clientsService));
             this.logger = logger;
             this.clientsService = clientsService;
+        }
+
+        public Task HandleTcpRequestAsync(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+            logger.Debug($"HandleTcpRequestAsync :{request}");
+
+            return Task.Run(async () => {
+                var client = clientsService.GetTcpClient(request.Payload.Port);
+                await client.SendRequest(request.Payload.Data, cancellationToken);
+
+                var response = await client.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(5_000));
+                var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
+                await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
+            }, cancellationToken);
         }
 
         public Task HandleUdpRequestAsync(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
@@ -36,7 +50,7 @@ namespace TutoProxy.Client.Services {
 
                 var response = await client.GetResponse(cancellationToken, TimeSpan.FromMilliseconds(5_000));
                 var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
-                await dataTunnelClient.SendResponse(transferResponse, cancellationToken);
+                await dataTunnelClient.SendUdpResponse(transferResponse, cancellationToken);
             }, cancellationToken);
 
 

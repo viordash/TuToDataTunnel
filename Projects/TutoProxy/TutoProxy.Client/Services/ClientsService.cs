@@ -11,6 +11,7 @@ using TuToProxy.Core.Models;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts);
+        UdpClient GetTcpClient(int port);
         UdpClient GetUdpClient(int port);
         void Stop();
     }
