@@ -59,12 +59,12 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferUdpRequestModel>("TcpRequest", (request) => {
-                dataExchangeService.HandleUdpRequestAsync(request, this, cancellationToken);
+            connection.On<TransferTcpRequestModel>("TcpRequest", (request) => {
+                dataExchangeService.HandleTcpRequestAsync(request, this, cancellationToken);
             });
 
-            connection.On<TransferTcpRequestModel>("UdpRequest", (request) => {
-                dataExchangeService.HandleTcpRequestAsync(request, this, cancellationToken);
+            connection.On<TransferUdpRequestModel>("UdpRequest", (request) => {
+                dataExchangeService.HandleUdpRequestAsync(request, this, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {

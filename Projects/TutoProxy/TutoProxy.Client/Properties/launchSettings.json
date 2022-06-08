@@ -2,7 +2,7 @@
   "profiles": {
     "TutoProxy.Client": {
       "commandName": "Project",
-      "commandLineArgs": "http://127.0.0.1:8088  --udp=700"
+      "commandLineArgs": "http://127.0.0.1:8088 --tcp=700 --udp=700"
     }
   }
 }

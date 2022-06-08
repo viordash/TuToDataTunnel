@@ -20,6 +20,15 @@ namespace TutoProxy.Server.Hubs {
             this.clientsService = clientsService;
         }
 
+        public async Task TcpResponse(TransferTcpResponseModel model) {
+            logger.Information($"TcpResponse: {model}");
+            try {
+                await dataTransferService.HandleTcpResponse(model);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
+        }
+
         public async Task UdpResponse(TransferUdpResponseModel model) {
             logger.Information($"UdpResponse: {model}");
             try {
