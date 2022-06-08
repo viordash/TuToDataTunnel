@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
@@ -34,11 +35,11 @@ namespace TutoProxy.Server.Communication {
         }
 
         async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
-            Memory<byte> receiveBuffer = new byte[8192];
+            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             try {
                 while(socket.Connected) {
                     var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
-                    await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, receiveBuffer.Slice(0, receivedBytes).ToArray()));
+                    await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, receiveBuffer[..receivedBytes].ToArray()));
 
                     remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
                 }
