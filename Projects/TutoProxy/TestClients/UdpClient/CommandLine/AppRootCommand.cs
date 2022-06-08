@@ -112,7 +112,6 @@ namespace TutoProxy.Server.CommandLine {
                     }
                 }
 
-                _ = applicationLifetime.ApplicationStopping.WaitHandle.WaitOne();
                 return 0;
             }
         }

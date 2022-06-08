@@ -62,7 +62,6 @@ namespace TutoProxy.Server.CommandLine {
                     var txCount = await udpServer.SendAsync(result.Buffer, result.RemoteEndPoint, applicationLifetime.ApplicationStopping);
                 }
 
-                _ = applicationLifetime.ApplicationStopping.WaitHandle.WaitOne();
                 return 0;
             }
         }
