@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Services;
@@ -9,7 +10,7 @@ namespace TutoProxy.Server.Communication {
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
 
-        IPEndPoint? remoteEndPoint = null;
+        protected readonly ConcurrentDictionary<int, Socket> remoteSockets = new();
 
         public TcpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
             : base(port, localEndPoint, dataTransferService, logger, dateTimeService) {
@@ -24,45 +25,42 @@ namespace TutoProxy.Server.Communication {
 
                 tcpServer.Start();
                 while(!cancellationToken.IsCancellationRequested) {
-
-                    var socket = tcpServer.AcceptSocket();
+                    var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
 
                     logger.Information($"tcp accept {socket}");
-                    _ = Task.Run(async () => await HandleSocket(socket, cancellationToken));
-
-
-                    //var result = await tcpServer.ReceiveAsync(cancellationToken);
-                    //await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.Buffer));
-                    //remoteEndPoint = result.RemoteEndPoint;
+                    _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken));
                 }
             }, cancellationToken);
         }
 
-        async Task HandleSocket(Socket socket, CancellationToken cancellationToken) {
+        async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[8192];
-            while(socket.Connected) {
-                var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
-                await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, receiveBuffer.Slice(0, receivedBytes).ToArray()));
+            try {
+                while(socket.Connected) {
+                    var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                    await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, receiveBuffer.Slice(0, receivedBytes).ToArray()));
 
-
-                //// Blocks until send returns.
-                //int byteCount = server.Send(msg, SocketFlags.None);
-                //Console.WriteLine("Sent {0} bytes.", byteCount);
-
-                //// Get reply from the server.
-                //byteCount = server.Receive(bytes, SocketFlags.None);
-                //if(byteCount > 0)
-                //    Console.WriteLine(Encoding.UTF8.GetString(bytes));
-
+                    remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
+                }
+                remoteSockets.TryRemove(port, out _);
+            } catch {
+                remoteSockets.TryRemove(port, out _);
+                throw;
             }
         }
 
         public async Task SendResponse(TcpDataResponseModel response) {
-            if(cancellationToken.IsCancellationRequested || remoteEndPoint == null) {
+            if(cancellationToken.IsCancellationRequested) {
                 return;
             }
-            //var txCount = await tcpServer.SendAsync(response.Data, remoteEndPoint, cancellationToken);
-            //logger.Information($"tcp response to {remoteEndPoint}, bytes:{txCount}");
+            if(!remoteSockets.TryGetValue(response.RemotePort, out Socket? remoteSocket)) {
+                return;
+            }
+            if(!remoteSocket.Connected) {
+                return;
+            }
+            var txCount = await remoteSocket.SendAsync(response.Data, SocketFlags.None, cancellationToken);
+            logger.Information($"tcp response to {remoteSocket}, bytes:{txCount}");
         }
 
         public override void Dispose() {

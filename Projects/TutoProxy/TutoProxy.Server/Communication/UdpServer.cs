@@ -101,7 +101,7 @@ namespace TutoProxy.Server.Communication {
 
         void RemoveExpiredRemoteEndPoint(int port) {
             Debug.WriteLine($"RemoveExpiredRemoteEndPoint: {port}");
-            remoteEndPoints.TryRemove(port, out RemoteEndPoint? remoteEndPoint);
+            remoteEndPoints.TryRemove(port, out _);
         }
     }
 }
