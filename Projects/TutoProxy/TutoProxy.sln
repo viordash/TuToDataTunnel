@@ -19,6 +19,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UdpClient", "TestClients\Ud
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UdpServer", "TestClients\UdpServer\UdpServer.csproj", "{2EADA73C-75FD-4276-A6D3-C6B3402B24C2}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TcpClient", "TestClients\TcpClient\TcpClient.csproj", "{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -53,6 +55,10 @@ Global
 		{2EADA73C-75FD-4276-A6D3-C6B3402B24C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2EADA73C-75FD-4276-A6D3-C6B3402B24C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2EADA73C-75FD-4276-A6D3-C6B3402B24C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -62,6 +68,7 @@ Global
 		{74E925B0-3373-4B4E-83D7-84830FF88842} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 		{647A1398-162B-4B34-AB91-0FE8128B71E9} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 		{2EADA73C-75FD-4276-A6D3-C6B3402B24C2} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
+		{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {55C62922-39E4-45DC-BED4-4413A760F011}
