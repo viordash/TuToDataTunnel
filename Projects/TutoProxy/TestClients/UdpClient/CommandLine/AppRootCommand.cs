@@ -55,18 +55,18 @@ namespace TutoProxy.Server.CommandLine {
             public async Task<int> InvokeAsync(InvocationContext context) {
                 var remoteEndPoint = new IPEndPoint(IPAddress.Parse(Ip), Port);
 
-                using var udpServer = new UdpClient();
+                using var udpClient = new UdpClient();
                 uint IOC_IN = 0x80000000;
                 uint IOC_VENDOR = 0x18000000;
                 uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-                udpServer.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                udpServer.ExclusiveAddressUse = false;
-                udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                udpServer.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
-                udpServer.Client.SendTimeout = 5000;
-                udpServer.Client.ReceiveTimeout = 5000;
+                udpClient.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                udpClient.ExclusiveAddressUse = false;
+                udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+                udpClient.Client.SendTimeout = 5000;
+                udpClient.Client.ReceiveTimeout = 5000;
 
-                var localPort = (udpServer.Client.LocalEndPoint as IPEndPoint)!.Port;
+                var localPort = (udpClient.Client.LocalEndPoint as IPEndPoint)!.Port;
 
                 var sRateStopWatch = new Stopwatch();
                 var logTimer = DateTime.Now.AddSeconds(1);
@@ -78,14 +78,14 @@ namespace TutoProxy.Server.CommandLine {
                         .SelectMany(x => x)
                         .Take(Packet).ToArray();
                     sRateStopWatch.Restart();
-                    var txCount = await udpServer.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
+                    var txCount = await udpClient.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
 
                     if(!Firenforget) {
                         try {
                             using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
                             cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
 
-                            var result = await udpServer.ReceiveAsync(cts.Token);
+                            var result = await udpClient.ReceiveAsync(cts.Token);
                             sRateStopWatch.Stop();
                             if(dataPacket.SequenceEqual(result.Buffer)) {
                                 var ts = sRateStopWatch.Elapsed;
