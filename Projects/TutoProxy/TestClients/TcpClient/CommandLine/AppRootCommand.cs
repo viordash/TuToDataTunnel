@@ -53,7 +53,6 @@ namespace TutoProxy.Server.CommandLine {
             public async Task<int> InvokeAsync(InvocationContext context) {
                 var remoteEndPoint = new IPEndPoint(IPAddress.Parse(Ip), Port);
 
-
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     using var tcpClient = new Socket(SocketType.Stream, ProtocolType.Tcp);
                     try {

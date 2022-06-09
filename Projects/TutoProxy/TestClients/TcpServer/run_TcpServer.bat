@@ -1,0 +1,1 @@
+.\bin\Release\net6.0\TcpServer.exe 700 0

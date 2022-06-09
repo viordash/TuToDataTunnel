@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TcpServer": {
+      "commandName": "Project",
+      "commandLineArgs": "700 0"
+    }
+  }
+}

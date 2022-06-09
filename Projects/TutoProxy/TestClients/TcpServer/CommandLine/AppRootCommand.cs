@@ -3,11 +3,12 @@ using System.CommandLine.Invocation;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Hosting;
+using TuToProxy.Core;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
-        public AppRootCommand() : base("Тестовый udp-сервер") {
-            Add(new Argument<int>("port", "Listen UDP IP port"));
+        public AppRootCommand() : base("Тестовый tcp-сервер") {
+            Add(new Argument<int>("port", "Listen TCP IP port"));
             var argDelay = new Argument<int>("delay", () => 10, "Delay before response, ms. Min value is 0ms");
             Add(argDelay);
             AddValidator((result) => {
@@ -40,27 +41,31 @@ namespace TutoProxy.Server.CommandLine {
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
-                using var udpServer = new UdpClient(Port);
-                uint IOC_IN = 0x80000000;
-                uint IOC_VENDOR = 0x18000000;
-                uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-                udpServer.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-
-                var logTimer = DateTime.Now.AddSeconds(1);
+                var tcpServer = new TcpListener(IPAddress.Loopback, Port);
+                tcpServer.Start();
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                    var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
+                    var socket = await tcpServer.AcceptSocketAsync(applicationLifetime.ApplicationStopping);
+
+                    logger.Information($"tcp accept {socket}");
+                    _ = Task.Run(async () => await HandleSocketAsync(socket, applicationLifetime.ApplicationStopping));
+                }
+                return 0;
+            }
+
+            async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
+                Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+                var logTimer = DateTime.Now.AddSeconds(1);
+                while(socket.Connected) {
+                    var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
                     if(logTimer <= DateTime.Now) {
                         logTimer = DateTime.Now.AddSeconds(1);
-                        logger.Information($"udp({Port}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                        logger.Information($"tcp({Port}) request from {(IPEndPoint)socket.RemoteEndPoint!}, bytes:{receivedBytes}");
                     }
                     if(Delay > 0) {
                         await Task.Delay(Delay);
                     }
-                    var txCount = await udpServer.SendAsync(result.Buffer, result.RemoteEndPoint, applicationLifetime.ApplicationStopping);
+                    var txCount = await socket.SendAsync(receiveBuffer[..receivedBytes], SocketFlags.None, cancellationToken);
                 }
-
-                return 0;
             }
         }
     }
