@@ -3,8 +3,8 @@ using TuToProxy.Core;
 
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
-        Task HandleUdpRequestAsync(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
-        Task HandleTcpRequestAsync(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        void HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        void HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -21,18 +21,18 @@ namespace TutoProxy.Client.Services {
             this.clientsService = clientsService;
         }
 
-        public Task HandleTcpRequestAsync(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+        public void HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleTcpRequestAsync :{request}");
 
-            return Task.Run(async () => {
+            _ = Task.Run(async () => {
                 var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, request.Payload.Data));
-                await Task.Delay(0);
+                //await Task.Delay(0);
                 logger.Information($"Response :{transferResponse}");
                 await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
             }, cancellationToken);
 
 
-            //return Task.Run(async () => {
+            //_ = Task.Run(async () => {
             //    var client = clientsService.GetTcpClient(request.Payload.Port);
             //    await client.SendRequest(request.Payload.Data, cancellationToken);
 
@@ -42,17 +42,17 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
         }
 
-        public Task HandleUdpRequestAsync(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+        public void HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleUdpRequestAsync :{request}");
 
-            //return Task.Run(async () => {
+            //_= Task.Run(async () => {
             //    var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.Data));
             //    await Task.Delay(0);
             //    logger.Information($"Response :{transferResponse}");
             //    await dataTunnelClient.SendResponse(transferResponse, cancellationToken);
             //}, cancellationToken);
 
-            return Task.Run(async () => {
+            _ = Task.Run(async () => {
                 var client = clientsService.GetUdpClient(request.Payload.Port);
                 await client.SendRequest(request.Payload.Data, cancellationToken);
 

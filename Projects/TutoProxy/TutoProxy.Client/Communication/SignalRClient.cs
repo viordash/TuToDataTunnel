@@ -60,11 +60,11 @@ namespace TutoProxy.Client.Communication {
                  .Build();
 
             connection.On<TransferTcpRequestModel>("TcpRequest", (request) => {
-                dataExchangeService.HandleTcpRequestAsync(request, this, cancellationToken);
+                dataExchangeService.HandleTcpRequest(request, this, cancellationToken);
             });
 
             connection.On<TransferUdpRequestModel>("UdpRequest", (request) => {
-                dataExchangeService.HandleUdpRequestAsync(request, this, cancellationToken);
+                dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {
