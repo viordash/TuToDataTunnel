@@ -15,7 +15,7 @@ namespace TutoProxy.Server.Communication {
 
         public TcpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
             : base(port, localEndPoint, dataTransferService, logger, dateTimeService) {
-            tcpServer = new TcpListener(IPAddress.Loopback, port);
+            tcpServer = new TcpListener(IPAddress.Any, port);
 
             cts = new CancellationTokenSource();
             cancellationToken = cts.Token;

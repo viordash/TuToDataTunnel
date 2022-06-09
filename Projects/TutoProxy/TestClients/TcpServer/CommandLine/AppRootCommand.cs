@@ -41,7 +41,7 @@ namespace TutoProxy.Server.CommandLine {
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
-                var tcpServer = new TcpListener(IPAddress.Loopback, Port);
+                var tcpServer = new TcpListener(IPAddress.Any, Port);
                 tcpServer.Start();
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     var socket = await tcpServer.AcceptSocketAsync(applicationLifetime.ApplicationStopping);
