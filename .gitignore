@@ -13,3 +13,4 @@ Garbage/
 **/MigrationBackup/
 Projects/TutoProxy/TestClients/UdpClient/log*.txt
 **/TcpClient/log*.txt
+**/TcpServer/log*.txt

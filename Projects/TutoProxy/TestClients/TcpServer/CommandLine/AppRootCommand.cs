@@ -46,7 +46,7 @@ namespace TutoProxy.Server.CommandLine {
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     var socket = await tcpServer.AcceptSocketAsync(applicationLifetime.ApplicationStopping);
 
-                    logger.Information($"tcp accept {socket}");
+                    logger.Information($"tcp accept {socket.RemoteEndPoint}");
                     _ = Task.Run(async () => await HandleSocketAsync(socket, applicationLifetime.ApplicationStopping));
                 }
                 return 0;
@@ -57,6 +57,9 @@ namespace TutoProxy.Server.CommandLine {
                 var logTimer = DateTime.Now.AddSeconds(1);
                 while(socket.Connected) {
                     var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                    if(receivedBytes == 0) {
+                        break;
+                    }
                     if(logTimer <= DateTime.Now) {
                         logTimer = DateTime.Now.AddSeconds(1);
                         logger.Information($"tcp({Port}) request from {(IPEndPoint)socket.RemoteEndPoint!}, bytes:{receivedBytes}");
@@ -66,6 +69,7 @@ namespace TutoProxy.Server.CommandLine {
                     }
                     var txCount = await socket.SendAsync(receiveBuffer[..receivedBytes], SocketFlags.None, cancellationToken);
                 }
+                logger.Information($"tcp disconnected {socket.RemoteEndPoint}");
             }
         }
     }
