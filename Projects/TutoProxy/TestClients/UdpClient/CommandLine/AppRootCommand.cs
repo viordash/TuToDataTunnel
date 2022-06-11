@@ -91,6 +91,12 @@ namespace TutoProxy.Server.CommandLine {
                             using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
                             cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
 
+                            await Task.Run(async () => {
+                                while(!cts.Token.IsCancellationRequested && udpClient.Available < Packet) {
+                                    await Task.Yield();
+                                };
+                            }, cts.Token);
+
                             var result = await udpClient.ReceiveAsync(cts.Token);
                             sRateStopWatch.Stop();
                             if(dataPacket.SequenceEqual(result.Buffer)) {

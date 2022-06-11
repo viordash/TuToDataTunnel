@@ -76,6 +76,8 @@ namespace TutoProxy.Server.CommandLine {
                         int packetsCount = 0;
                         int errors = 0;
 
+                        Memory<byte> receiveBuffer = new byte[Math.Max(16384, Packet)];
+
                         while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                             var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
                                 .SelectMany(x => x)
@@ -87,7 +89,12 @@ namespace TutoProxy.Server.CommandLine {
                                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
                                 cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
 
-                                Memory<byte> receiveBuffer = new byte[Math.Max(16384, Packet)];
+                                await Task.Run(async () => {
+                                    while(!cts.Token.IsCancellationRequested && tcpClient.Available < Packet) {
+                                        await Task.Yield();
+                                    };
+                                }, cts.Token);
+
                                 var receivedBytes = await tcpClient.ReceiveAsync(receiveBuffer, SocketFlags.None, cts.Token);
 
                                 sRateStopWatch.Stop();
