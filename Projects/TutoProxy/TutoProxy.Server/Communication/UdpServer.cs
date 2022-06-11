@@ -51,7 +51,7 @@ namespace TutoProxy.Server.Communication {
 
         public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
             : base(port, localEndPoint, dataTransferService, logger, dateTimeService) {
-            udpServer = new UdpClient(port);
+            udpServer = new UdpClient(new IPEndPoint(localEndPoint.Address, port));
             udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             cts = new CancellationTokenSource();
             cancellationToken = cts.Token;

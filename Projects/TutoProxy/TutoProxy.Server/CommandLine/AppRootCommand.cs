@@ -1,18 +1,16 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Core.CommandLine;
-using TutoProxy.Core.Models;
-using TutoProxy.Server.Communication;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Helpers;
 using TuToProxy.Core.ServiceProvider;
 using TuToProxy.Core.Services;
 
@@ -67,8 +65,6 @@ namespace TutoProxy.Server.CommandLine {
                     return ServiceProviderFactory.Instance;
                 });
 
-                var localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
-
                 builder.Services.AddSignalR();
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
@@ -77,10 +73,10 @@ namespace TutoProxy.Server.CommandLine {
                     sp.GetRequiredService<ILogger>(),
                     sp.GetRequiredService<IHostApplicationLifetime>(),
                     sp.GetRequiredService<IServiceProvider>(),
-                    localEndPoint,
+                    new IPEndPoint(IpAddressHelpers.ParseUrl(Host!), 0),
                     Tcp?.Ports,
-                    Udp?.Ports
-                    ));
+                    Udp?.Ports)
+                );
 
                 var app = builder.Build();
                 app.MapHub<SignalRHub>(SignalRParams.Path);
