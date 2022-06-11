@@ -1,10 +1,12 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
     public class UdpClient : BaseClient {
         readonly System.Net.Sockets.UdpClient udpClient;
-        readonly int localPort;
+        DateTime requestLogTimer = DateTime.Now;
+        DateTime responseLogTimer = DateTime.Now;
 
         public int Port { get { return remoteEndPoint.Port; } }
 
@@ -22,7 +24,10 @@ namespace TutoProxy.Client.Communication {
 
         public async Task SendRequest(byte[] payload, CancellationToken cancellationToken) {
             var txCount = await udpClient.SendAsync(payload, remoteEndPoint, cancellationToken);
-            logger.Information($"udp({(udpClient.Client.LocalEndPoint as IPEndPoint)!.Port}) request to {remoteEndPoint}, bytes:{txCount}");
+            if(requestLogTimer <= DateTime.Now) {
+                requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                logger.Information($"udp({(udpClient.Client.LocalEndPoint as IPEndPoint)!.Port}) request to {remoteEndPoint}, bytes:{txCount}");
+            }
         }
 
         public async Task<byte[]> GetResponse(CancellationToken cancellationToken, TimeSpan timeout) {
@@ -30,7 +35,12 @@ namespace TutoProxy.Client.Communication {
             cts.CancelAfter(timeout);
 
             var result = await udpClient.ReceiveAsync(cts.Token);
-            logger.Information($"udp({(udpClient.Client.LocalEndPoint as IPEndPoint)!.Port}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}.");
+
+            if(responseLogTimer <= DateTime.Now) {
+                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                logger.Information($"udp({(udpClient.Client.LocalEndPoint as IPEndPoint)!.Port}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}.");
+
+            }
             return result.Buffer;
         }
 

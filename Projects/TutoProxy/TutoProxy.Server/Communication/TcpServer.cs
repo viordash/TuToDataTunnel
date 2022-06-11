@@ -10,6 +10,8 @@ namespace TutoProxy.Server.Communication {
         readonly TcpListener tcpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
+        DateTime requestLogTimer = DateTime.Now;
+        DateTime responseLogTimer = DateTime.Now;
 
         protected readonly ConcurrentDictionary<int, Socket> remoteSockets = new();
 
@@ -45,6 +47,11 @@ namespace TutoProxy.Server.Communication {
                     await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, receiveBuffer[..receivedBytes].ToArray()));
 
                     remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
+
+                    if(requestLogTimer <= DateTime.Now) {
+                        requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                        logger.Information($"tcp request from {socket.RemoteEndPoint}, bytes:{receivedBytes}");
+                    }
                 }
                 remoteSockets.TryRemove(port, out _);
             } catch {
@@ -64,7 +71,11 @@ namespace TutoProxy.Server.Communication {
                 return;
             }
             var txCount = await remoteSocket.SendAsync(response.Data, SocketFlags.None, cancellationToken);
-            logger.Information($"tcp response to {remoteSocket}, bytes:{txCount}");
+
+            if(responseLogTimer <= DateTime.Now) {
+                responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                logger.Information($"tcp response to {remoteSocket.RemoteEndPoint}, bytes:{txCount}");
+            }
         }
 
         public override void Dispose() {

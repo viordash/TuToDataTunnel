@@ -21,7 +21,7 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public async Task TcpResponse(TransferTcpResponseModel model) {
-            logger.Information($"TcpResponse: {model}");
+            logger.Debug($"TcpResponse: {model}");
             try {
                 await dataTransferService.HandleTcpResponse(model);
             } catch(TuToException ex) {
@@ -30,7 +30,7 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public async Task UdpResponse(TransferUdpResponseModel model) {
-            logger.Information($"UdpResponse: {model}");
+            logger.Debug($"UdpResponse: {model}");
             try {
                 await dataTransferService.HandleUdpResponse(model);
             } catch(TuToException ex) {

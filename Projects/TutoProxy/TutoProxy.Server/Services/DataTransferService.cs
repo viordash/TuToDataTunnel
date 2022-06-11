@@ -40,7 +40,7 @@ namespace TutoProxy.Server.Services {
 
         public async Task SendTcpRequest(TcpDataRequestModel request) {
             var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Information($"TcpRequest :{transferRequest}");
+            logger.Debug($"TcpRequest :{transferRequest}");
             await signalHub.Clients.All.SendAsync("TcpRequest", transferRequest);
         }
 
@@ -54,7 +54,7 @@ namespace TutoProxy.Server.Services {
 
         public async Task SendUdpRequest(UdpDataRequestModel request) {
             var transferRequest = new TransferUdpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Information($"UdpRequest :{transferRequest}");
+            logger.Debug($"UdpRequest :{transferRequest}");
             await signalHub.Clients.All.SendAsync("UdpRequest", transferRequest);
         }
 

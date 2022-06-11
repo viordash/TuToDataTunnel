@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
@@ -46,6 +47,8 @@ namespace TutoProxy.Server.Communication {
         readonly UdpClient udpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
+        DateTime requestLogTimer = DateTime.Now;
+        DateTime responseLogTimer = DateTime.Now;
 
         protected readonly ConcurrentDictionary<int, RemoteEndPoint> remoteEndPoints = new();
 
@@ -61,9 +64,12 @@ namespace TutoProxy.Server.Communication {
             return Task.Run(async () => {
                 while(!cancellationToken.IsCancellationRequested) {
                     var result = await udpServer.ReceiveAsync(cancellationToken);
-                    logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
                     await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.RemoteEndPoint.Port, result.Buffer));
                     AddRemoteEndPoint(result.RemoteEndPoint, cancellationToken);
+                    if(requestLogTimer <= DateTime.Now) {
+                        requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                        logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                    }
                 }
             }, cancellationToken);
         }
@@ -76,7 +82,10 @@ namespace TutoProxy.Server.Communication {
                 return;
             }
             var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);
-            logger.Information($"udp response to {remoteEndPoint}, bytes:{txCount}");
+            if(responseLogTimer <= DateTime.Now) {
+                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                logger.Information($"udp response to {remoteEndPoint}, bytes:{txCount}");
+            }
         }
 
         public override void Dispose() {
