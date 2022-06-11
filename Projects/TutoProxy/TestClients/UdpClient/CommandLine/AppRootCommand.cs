@@ -8,7 +8,8 @@ using Microsoft.Extensions.Hosting;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
-        public AppRootCommand() : base("Тестовый udp-клиент") {
+        const string description = "Тестовый udp-клиент";
+        public AppRootCommand() : base(description) {
             Add(new Argument<string>("ip", "Remote UDP IP address"));
             Add(new Argument<int>("port", "Remote UDP IP port"));
             var argDelay = new Argument<int>("delay", () => 1000, "Delay before repeat, ms. Min value is 0ms");
@@ -55,23 +56,26 @@ namespace TutoProxy.Server.CommandLine {
             public async Task<int> InvokeAsync(InvocationContext context) {
                 var remoteEndPoint = new IPEndPoint(IPAddress.Parse(Ip), Port);
 
-                using var udpClient = new UdpClient();
+                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
+                logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
+
+
+                using var udpClient = new UdpClient(remoteEndPoint.AddressFamily);
                 uint IOC_IN = 0x80000000;
                 uint IOC_VENDOR = 0x18000000;
                 uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
                 udpClient.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
                 udpClient.ExclusiveAddressUse = false;
                 udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
                 udpClient.Client.SendTimeout = 5000;
                 udpClient.Client.ReceiveTimeout = 5000;
 
-                var localPort = (udpClient.Client.LocalEndPoint as IPEndPoint)!.Port;
 
                 var sRateStopWatch = new Stopwatch();
                 var logTimer = DateTime.Now.AddSeconds(1);
                 double sRate = 0;
                 int packetsCount = 0;
+                int errors = 0;
 
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
@@ -79,6 +83,8 @@ namespace TutoProxy.Server.CommandLine {
                         .Take(Packet).ToArray();
                     sRateStopWatch.Restart();
                     var txCount = await udpClient.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
+
+                    var localPort = (udpClient.Client.LocalEndPoint as IPEndPoint)!.Port;
 
                     if(!Firenforget) {
                         try {
@@ -97,8 +103,13 @@ namespace TutoProxy.Server.CommandLine {
                                     sRate = 0;
                                     packetsCount = 0;
                                 }
+                                errors = 0;
                             } else {
                                 logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}. Wrong");
+                                await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
+                                if(errors++ > 3) {
+                                    break;
+                                }
                             }
                         } catch(OperationCanceledException) {
                             logger.Warning($"udp({localPort}) response timeout");
