@@ -1,15 +1,18 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Net;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
 using TutoProxy.Core.CommandLine;
+using TuToProxy.Core.Helpers;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
         public AppRootCommand() : base("Прокси клиент TuTo") {
             Add(new Argument<string>("server", "Remote server address"));
+            Add(new Argument<string>("ip", "Local IP address"));
             var tcpOption = PortsArgument.CreateOption("--tcp", $"Tunneling ports, format like '--tcp=80,81,443,8000-8100'");
             var udpOption = PortsArgument.CreateOption("--udp", $"Tunneling ports, format like '--udp=700-900,65500'");
             Add(tcpOption);
@@ -32,6 +35,7 @@ namespace TutoProxy.Server.CommandLine {
             readonly IClientsService clientsService;
 
             public string? Server { get; set; }
+            public string? Ip { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
 
@@ -53,6 +57,7 @@ namespace TutoProxy.Server.CommandLine {
 
             public async Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNull(Server, nameof(Server));
+                Guard.NotNullOrEmpty(Ip, nameof(Ip));
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
@@ -75,7 +80,7 @@ namespace TutoProxy.Server.CommandLine {
                     }
                 }
 
-                clientsService.Start(Tcp?.Ports, Udp?.Ports);
+                clientsService.Start(IPAddress.Parse(Ip!), Tcp?.Ports, Udp?.Ports);
                 _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 return 0;
             }

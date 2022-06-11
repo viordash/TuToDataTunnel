@@ -5,7 +5,7 @@ using TuToProxy.Core.Models;
 
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
-        void Start(IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts);
+        void Start(IPAddress localIpAddress, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts);
         TcpClient GetTcpClient(int port);
         UdpClient GetUdpClient(int port);
         void Stop();
@@ -21,16 +21,14 @@ namespace TutoProxy.Client.Services {
             this.logger = logger;
         }
 
-        public void Start(IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts) {
+        public void Start(IPAddress localIpAddress, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts) {
             Stop();
 
-            var ipLocalAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[0];
-
             if(tcpPorts != null) {
-                tcpClients.AddRange(tcpPorts.Select(x => new TcpClient(new IPEndPoint(ipLocalAddress, x), logger)));
+                tcpClients.AddRange(tcpPorts.Select(x => new TcpClient(new IPEndPoint(localIpAddress, x), logger)));
             }
             if(udpPorts != null) {
-                udpClients.AddRange(udpPorts.Select(x => new UdpClient(new IPEndPoint(ipLocalAddress, x), logger)));
+                udpClients.AddRange(udpPorts.Select(x => new UdpClient(new IPEndPoint(localIpAddress, x), logger)));
             }
         }
 

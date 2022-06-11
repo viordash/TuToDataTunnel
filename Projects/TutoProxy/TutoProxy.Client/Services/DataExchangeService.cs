@@ -24,40 +24,41 @@ namespace TutoProxy.Client.Services {
         public void HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleTcpRequestAsync :{request}");
 
-            _ = Task.Run(async () => {
-                var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, request.Payload.Data));
-                //await Task.Delay(0);
-                logger.Information($"Response :{transferResponse}");
-                await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
-            }, cancellationToken);
-
-
             //_ = Task.Run(async () => {
-            //    var client = clientsService.GetTcpClient(request.Payload.Port);
-            //    await client.SendRequest(request.Payload.Data, cancellationToken);
-
-            //    var response = await client.GetResponse(cancellationToken, TcpSocketParams.ReceiveTimeout);
-            //    var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
+            //    var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, request.Payload.Data));
+            //    await Task.Delay(0);
+            //    logger.Debug($"Response :{transferResponse}");
             //    await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
             //}, cancellationToken);
+
+
+            _ = Task.Run(async () => {
+                var client = clientsService.GetTcpClient(request.Payload.Port);
+                await client.SendRequest(request.Payload.Data, cancellationToken);
+
+                var response = await client.GetResponse(cancellationToken, TcpSocketParams.ReceiveTimeout);
+                var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
+
+                await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
+            }, cancellationToken);
         }
 
         public void HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleUdpRequestAsync :{request}");
 
-            //_= Task.Run(async () => {
-            //    var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.Data));
+            //_ = Task.Run(async () => {
+            //    var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, request.Payload.Data));
             //    await Task.Delay(0);
-            //    logger.Information($"Response :{transferResponse}");
-            //    await dataTunnelClient.SendResponse(transferResponse, cancellationToken);
+            //    logger.Debug($"Response :{transferResponse}");
+            //    await dataTunnelClient.SendUdpResponse(transferResponse, cancellationToken);
             //}, cancellationToken);
 
             _ = Task.Run(async () => {
                 var client = clientsService.GetUdpClient(request.Payload.Port);
                 await client.SendRequest(request.Payload.Data, cancellationToken);
-
                 var response = await client.GetResponse(cancellationToken, UdpSocketParams.ReceiveTimeout);
                 var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
+
                 await dataTunnelClient.SendUdpResponse(transferResponse, cancellationToken);
             }, cancellationToken);
 
