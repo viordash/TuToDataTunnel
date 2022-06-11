@@ -39,6 +39,9 @@ namespace TutoProxy.Server.Communication {
             try {
                 while(socket.Connected) {
                     var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                    if(receivedBytes == 0) {
+                        break;
+                    }
                     await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, receiveBuffer[..receivedBytes].ToArray()));
 
                     remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
