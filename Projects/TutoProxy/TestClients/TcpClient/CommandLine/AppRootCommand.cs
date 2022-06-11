@@ -61,6 +61,8 @@ namespace TutoProxy.Server.CommandLine {
                     using(var tcpClient = new Socket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)) {
                         try {
                             await tcpClient.ConnectAsync(remoteEndPoint, applicationLifetime.ApplicationStopping);
+                            logger.Information($"tcp({Port}) success connected");
+
                         } catch(SocketException) {
                             logger.Warning($"tcp({Port}) connect timeout");
                             await Task.Delay(5_000, applicationLifetime.ApplicationStopping);
@@ -109,12 +111,16 @@ namespace TutoProxy.Server.CommandLine {
                                 }
                             } catch(OperationCanceledException) {
                                 logger.Warning($"tcp({localPort}) response timeout");
+                                if(errors++ > 3) {
+                                    break;
+                                }
                             }
 
                             if(Delay > 0) {
                                 await Task.Delay(Delay, applicationLifetime.ApplicationStopping);
                             }
                         }
+                        logger.Warning($"tcp({Port}) disconnecting");
                     }
                 }
 
