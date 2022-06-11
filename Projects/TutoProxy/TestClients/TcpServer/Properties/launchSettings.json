@@ -2,7 +2,7 @@
   "profiles": {
     "TcpServer": {
       "commandName": "Project",
-      "commandLineArgs": "700 0"
+      "commandLineArgs": "::1 700 0"
     }
   }
 }

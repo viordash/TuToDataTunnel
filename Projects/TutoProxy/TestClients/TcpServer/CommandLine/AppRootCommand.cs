@@ -2,12 +2,15 @@
 using System.CommandLine.Invocation;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using TuToProxy.Core;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
-        public AppRootCommand() : base("Тестовый tcp-сервер") {
+        const string description = "Тестовый tcp-сервер";
+        public AppRootCommand() : base(description) {
+            Add(new Argument<string>("ip", "Listen TCP IP address"));
             Add(new Argument<int>("port", "Listen TCP IP port"));
             var argDelay = new Argument<int>("delay", () => 10, "Delay before response, ms. Min value is 0ms");
             Add(argDelay);
@@ -27,6 +30,7 @@ namespace TutoProxy.Server.CommandLine {
             readonly ILogger logger;
             readonly IHostApplicationLifetime applicationLifetime;
 
+            public string Ip { get; set; } = string.Empty;
             public int Port { get; set; }
             public int Delay { get; set; }
 
@@ -41,7 +45,10 @@ namespace TutoProxy.Server.CommandLine {
             }
 
             public async Task<int> InvokeAsync(InvocationContext context) {
-                var tcpServer = new TcpListener(IPAddress.Any, Port);
+                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
+                logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
+
+                var tcpServer = new TcpListener(IPAddress.Parse(Ip), Port);
                 tcpServer.Start();
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
                     var socket = await tcpServer.AcceptSocketAsync(applicationLifetime.ApplicationStopping);

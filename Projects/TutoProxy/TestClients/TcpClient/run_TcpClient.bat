@@ -1,1 +1,1 @@
-.\bin\Release\net6.0\TcpClient.exe 127.0.0.1 700 0 1000
+.\bin\Release\net6.0\TcpClient.exe 192.168.244.128 700 0 4096

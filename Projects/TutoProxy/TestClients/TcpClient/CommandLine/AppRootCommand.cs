@@ -8,7 +8,8 @@ using Microsoft.Extensions.Hosting;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
-        public AppRootCommand() : base("Тестовый tcp-клиент") {
+        const string description = "Тестовый tcp-клиент";
+        public AppRootCommand() : base(description) {
             Add(new Argument<string>("ip", "Remote TCP IP address"));
             Add(new Argument<int>("port", "Remote TCP IP port"));
             var argDelay = new Argument<int>("delay", () => 1000, "Delay before repeat, ms. Min value is 0ms");
@@ -53,8 +54,11 @@ namespace TutoProxy.Server.CommandLine {
             public async Task<int> InvokeAsync(InvocationContext context) {
                 var remoteEndPoint = new IPEndPoint(IPAddress.Parse(Ip), Port);
 
+                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
+                logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
+
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                    using(var tcpClient = new Socket(SocketType.Stream, ProtocolType.Tcp)) {
+                    using(var tcpClient = new Socket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)) {
                         try {
                             await tcpClient.ConnectAsync(remoteEndPoint, applicationLifetime.ApplicationStopping);
                         } catch(SocketException) {
