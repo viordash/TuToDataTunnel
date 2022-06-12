@@ -64,7 +64,7 @@ namespace TutoProxy.Server.Communication {
             if(cancellationToken.IsCancellationRequested) {
                 return;
             }
-            if(!remoteSockets.TryGetValue(response.RemotePort, out Socket? remoteSocket)) {
+            if(!remoteSockets.TryGetValue(response.OriginPort, out Socket? remoteSocket)) {
                 return;
             }
             if(!remoteSocket.Connected) {

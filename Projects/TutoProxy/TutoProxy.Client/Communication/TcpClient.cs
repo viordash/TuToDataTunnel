@@ -9,24 +9,23 @@ namespace TutoProxy.Client.Communication {
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
 
-        public int Port { get { return remoteEndPoint.Port; } }
 
-        public TcpClient(IPEndPoint remoteEndPoint, ILogger logger)
-            : base(remoteEndPoint, logger) {
+        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger)
+            : base(serverEndPoint, originPort, logger) {
 
             tcpClient = new Socket(SocketType.Stream, ProtocolType.Tcp);
         }
 
         public async Task SendRequest(byte[] payload, CancellationToken cancellationToken) {
             if(!tcpClient.Connected) {
-                await tcpClient.ConnectAsync(remoteEndPoint, cancellationToken);
+                await tcpClient.ConnectAsync(serverEndPoint, cancellationToken);
                 localPort = (tcpClient.LocalEndPoint as IPEndPoint)!.Port;
             }
             var txCount = await tcpClient.SendAsync(payload, SocketFlags.None, cancellationToken);
 
             if(requestLogTimer <= DateTime.Now) {
                 requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp({localPort}) request to {remoteEndPoint}, bytes:{txCount}");
+                logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{txCount}");
             }
         }
 

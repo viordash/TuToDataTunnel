@@ -3,11 +3,15 @@
 namespace TutoProxy.Client.Communication {
 
     public abstract class BaseClient : IDisposable {
-        protected readonly IPEndPoint remoteEndPoint;
+        protected readonly IPEndPoint serverEndPoint;
         protected readonly ILogger logger;
 
-        public BaseClient(IPEndPoint remoteEndPoint, ILogger logger) {
-            this.remoteEndPoint = remoteEndPoint;
+        public int Port { get { return serverEndPoint.Port; } }
+        public int OriginPort { get; private set; }
+
+        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger) {
+            this.serverEndPoint = serverEndPoint;
+            OriginPort = originPort;
             this.logger = logger;
         }
 

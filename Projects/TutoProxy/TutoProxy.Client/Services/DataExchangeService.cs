@@ -33,11 +33,11 @@ namespace TutoProxy.Client.Services {
 
 
             _ = Task.Run(async () => {
-                var client = clientsService.GetTcpClient(request.Payload.Port);
+                var client = clientsService.GetTcpClient(request.Payload);
                 await client.SendRequest(request.Payload.Data, cancellationToken);
 
                 var response = await client.GetResponse(cancellationToken, TcpSocketParams.ReceiveTimeout);
-                var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
+                var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.OriginPort, response));
 
                 await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
             }, cancellationToken);
@@ -54,10 +54,10 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
 
             _ = Task.Run(async () => {
-                var client = clientsService.GetUdpClient(request.Payload.Port);
+                var client = clientsService.ObtainUdpClient(request.Payload);
                 await client.SendRequest(request.Payload.Data, cancellationToken);
                 var response = await client.GetResponse(cancellationToken, UdpSocketParams.ReceiveTimeout);
-                var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.RemotePort, response));
+                var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.OriginPort, response));
 
                 await dataTunnelClient.SendUdpResponse(transferResponse, cancellationToken);
             }, cancellationToken);

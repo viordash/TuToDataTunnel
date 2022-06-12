@@ -76,7 +76,7 @@ namespace TutoProxy.Server.Communication {
             if(cancellationToken.IsCancellationRequested) {
                 return;
             }
-            if(!remoteEndPoints.TryGetValue(response.RemotePort, out RemoteEndPoint? remoteEndPoint)) {
+            if(!remoteEndPoints.TryGetValue(response.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
                 return;
             }
             var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);
