@@ -23,6 +23,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TcpClient", "TestClients\Tc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TcpServer", "TestClients\TcpServer\TcpServer.csproj", "{E2B6A04F-E836-4A45-A567-4EBBC9B944CC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TutoProxy.Client.Tests", "TutoProxy.Client.Tests\TutoProxy.Client.Tests.csproj", "{45F8C499-A2F5-4ADF-9C76-C116479B72BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -65,6 +67,10 @@ Global
 		{E2B6A04F-E836-4A45-A567-4EBBC9B944CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E2B6A04F-E836-4A45-A567-4EBBC9B944CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E2B6A04F-E836-4A45-A567-4EBBC9B944CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45F8C499-A2F5-4ADF-9C76-C116479B72BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45F8C499-A2F5-4ADF-9C76-C116479B72BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45F8C499-A2F5-4ADF-9C76-C116479B72BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45F8C499-A2F5-4ADF-9C76-C116479B72BA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -76,6 +82,7 @@ Global
 		{2EADA73C-75FD-4276-A6D3-C6B3402B24C2} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 		{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 		{E2B6A04F-E836-4A45-A567-4EBBC9B944CC} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
+		{45F8C499-A2F5-4ADF-9C76-C116479B72BA} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {55C62922-39E4-45DC-BED4-4413A760F011}

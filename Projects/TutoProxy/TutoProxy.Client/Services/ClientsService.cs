@@ -13,14 +13,14 @@ namespace TutoProxy.Client.Services {
         void Stop();
     }
 
-    internal class ClientsService : IClientsService {
+    public class ClientsService : IClientsService {
         readonly ILogger logger;
         IPAddress localIpAddress;
         List<int>? tcpPorts;
         List<int>? udpPorts;
         readonly List<TcpClient> tcpClients = new();
 
-        readonly ConcurrentDictionary<int, ConcurrentDictionary<int, UdpClient>> udpClients = new();
+        protected readonly ConcurrentDictionary<int, ConcurrentDictionary<int, UdpClient>> udpClients = new();
 
         public ClientsService(ILogger logger) {
             Guard.NotNull(logger, nameof(logger));
