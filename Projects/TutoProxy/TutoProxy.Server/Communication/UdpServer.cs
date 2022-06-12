@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Timers;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Services;
@@ -9,37 +10,34 @@ using TuToProxy.Core.Services;
 namespace TutoProxy.Server.Communication {
     public class UdpServer : BaseServer {
         #region inner classes
-        public class RemoteEndPoint {
-            readonly IDateTimeService dateTimeService;
-            readonly CancellationToken extCancellationToken;
+        public class RemoteEndPoint : IDisposable {
             readonly Action<int> timeoutAction;
             public IPEndPoint EndPoint { get; private set; }
+            System.Timers.Timer timeoutTimer;
 
-            CancellationTokenSource? cts = null;
-
-            public RemoteEndPoint(IPEndPoint endPoint, IDateTimeService dateTimeService, CancellationToken extCancellationToken, Action<int> timeoutAction) {
+            public RemoteEndPoint(IPEndPoint endPoint, IDateTimeService dateTimeService, Action<int> timeoutAction) {
                 EndPoint = endPoint;
-                this.dateTimeService = dateTimeService;
                 this.timeoutAction = timeoutAction;
-                this.extCancellationToken = extCancellationToken;
+
+                timeoutTimer = new(dateTimeService.RequestTimeout.TotalMilliseconds);
+                timeoutTimer.Elapsed += OnTimedEvent;
+                timeoutTimer.AutoReset = false;
 
                 StartTimeoutTimer();
+            }
 
+            void OnTimedEvent(object? source, ElapsedEventArgs e) {
+                timeoutAction(EndPoint.Port);
             }
 
             public void StartTimeoutTimer() {
-                cts?.Cancel();
-                cts?.Dispose();
+                timeoutTimer.Enabled = false;
+                timeoutTimer.Enabled = true;
+            }
 
-                cts = CancellationTokenSource.CreateLinkedTokenSource(extCancellationToken);
-                var cancellationToken = cts.Token;
-
-                _ = Task.Run(async () => {
-                    await Task.Delay(dateTimeService.RequestTimeout, cancellationToken);
-                    if(!cancellationToken.IsCancellationRequested) {
-                        timeoutAction(EndPoint.Port);
-                    }
-                }, cancellationToken);
+            public void Dispose() {
+                timeoutTimer.Enabled = false;
+                timeoutTimer.Elapsed -= OnTimedEvent;
             }
         }
         #endregion
@@ -65,7 +63,7 @@ namespace TutoProxy.Server.Communication {
                 while(!cancellationToken.IsCancellationRequested) {
                     var result = await udpServer.ReceiveAsync(cancellationToken);
                     await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.RemoteEndPoint.Port, result.Buffer));
-                    AddRemoteEndPoint(result.RemoteEndPoint, cancellationToken);
+                    AddRemoteEndPoint(result.RemoteEndPoint);
                     if(requestLogTimer <= DateTime.Now) {
                         requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
                         logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
@@ -92,16 +90,19 @@ namespace TutoProxy.Server.Communication {
             cts.Cancel();
             cts.Dispose();
             udpServer.Dispose();
+            foreach(var item in remoteEndPoints.Values) {
+                item.Dispose();
+            }
         }
 
-        protected void AddRemoteEndPoint(IPEndPoint endPoint, CancellationToken cancellationToken) {
+        protected void AddRemoteEndPoint(IPEndPoint endPoint) {
             remoteEndPoints.AddOrUpdate(endPoint.Port,
                 (k) => {
                     Debug.WriteLine($"AddRemoteEndPoint: add {k}");
-                    return new RemoteEndPoint(endPoint, dateTimeService, cancellationToken, RemoveExpiredRemoteEndPoint);
+                    return new RemoteEndPoint(endPoint, dateTimeService, RemoveExpiredRemoteEndPoint);
                 },
                 (k, v) => {
-                    Debug.WriteLine($"AddRemoteEndPoint: update {k}");
+                    //Debug.WriteLine($"AddRemoteEndPoint: update {k}");
                     v.StartTimeoutTimer();
                     return v;
                 }
