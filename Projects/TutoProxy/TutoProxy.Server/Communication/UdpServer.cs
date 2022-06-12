@@ -82,7 +82,7 @@ namespace TutoProxy.Server.Communication {
             var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);
             if(responseLogTimer <= DateTime.Now) {
                 responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                logger.Information($"udp response to {remoteEndPoint}, bytes:{txCount}");
+                logger.Information($"udp response to {remoteEndPoint.EndPoint}, bytes:{txCount}");
             }
         }
 
