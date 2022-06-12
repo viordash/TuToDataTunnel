@@ -118,6 +118,13 @@ namespace TutoProxy.Server.CommandLine {
                                     errors = 0;
                                     //break;
                                 }
+
+                                await Task.Run(async () => {
+                                    while(!cts.Token.IsCancellationRequested && udpClient.Available > 0) {
+                                        var result = await udpClient.ReceiveAsync(cts.Token);
+                                        logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, flush bytes:{result.Buffer.Length}");
+                                    };
+                                }, cts.Token);
                             }
                         } catch(OperationCanceledException) {
                             logger.Warning($"udp({localPort}) response timeout");
