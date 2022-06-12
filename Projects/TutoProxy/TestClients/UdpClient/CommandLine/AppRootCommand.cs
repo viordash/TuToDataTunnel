@@ -114,7 +114,9 @@ namespace TutoProxy.Server.CommandLine {
                                 logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}. Wrong");
                                 await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
                                 if(errors++ > 3) {
-                                    break;
+                                    await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
+                                    errors = 0;
+                                    //break;
                                 }
                             }
                         } catch(OperationCanceledException) {
