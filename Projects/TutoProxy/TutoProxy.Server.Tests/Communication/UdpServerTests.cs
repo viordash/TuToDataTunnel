@@ -2,10 +2,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
-using Moq;
-using NUnit.Framework;
 using Serilog;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;

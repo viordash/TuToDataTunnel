@@ -7,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
-using Moq;
-using NUnit.Framework;
 using Serilog;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
@@ -16,7 +14,7 @@ using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Tests.Services {
-    public class ClientsServiceTests {
+    public class HubClientsServiceTests {
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
