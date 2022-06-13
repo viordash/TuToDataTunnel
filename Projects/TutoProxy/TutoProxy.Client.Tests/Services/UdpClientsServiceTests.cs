@@ -7,7 +7,7 @@ using TutoProxy.Core.Models;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Tests.Services {
-    public class ClientsServiceTests {
+    public class UdpClientsServiceTests {
 
         public class TestableUdpClient : UdpClient {
 
@@ -55,15 +55,15 @@ namespace TutoProxy.Client.Tests.Services {
         public void ObtainUdpClient_With_Banned_UdpPort_Are_Throws_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
-            Assert.Throws<ClientNotFoundException>(() => testable.ObtainUdpClient(new UdpDataRequestModel(999, 50999, new byte[] { 0, 1 })));
-            Assert.Throws<ClientNotFoundException>(() => testable.ObtainUdpClient(new UdpDataRequestModel(1005, 51005, new byte[] { 0, 1 })));
+            Assert.Throws<ClientNotFoundException>(() => testable.ObtainClient(new UdpDataRequestModel(999, 50999, new byte[] { 0, 1 })));
+            Assert.Throws<ClientNotFoundException>(() => testable.ObtainClient(new UdpDataRequestModel(1005, 51005, new byte[] { 0, 1 })));
         }
 
         [Test]
         public void ObtainUdpClient_Only_Once_Creating_List_With_Same_Port_Clients_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
-            var client0 = testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 }));
+            var client0 = testable.ObtainClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 }));
             Assert.IsNotNull(client0);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
@@ -72,7 +72,7 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
             Assert.That(testable.PublicMorozovUdpClients[1000][51000], Is.SameAs(client0));
 
-            var client1 = testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51001, new byte[] { 0, 1 }));
+            var client1 = testable.ObtainClient(new UdpDataRequestModel(1000, 51001, new byte[] { 0, 1 }));
             Assert.IsNotNull(client1);
             Assert.That(client1.Port, Is.EqualTo(1000));
             Assert.That(client1.OriginPort, Is.EqualTo(51001));
@@ -86,12 +86,12 @@ namespace TutoProxy.Client.Tests.Services {
         public void ObtainUdpClient_Only_Once_Creating_Same_Port_Client_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
-            var client0 = testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 }));
+            var client0 = testable.ObtainClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 }));
             Assert.IsNotNull(client0);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
-            var client1 = testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 }));
+            var client1 = testable.ObtainClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 }));
             Assert.That(client1, Is.SameAs(client0));
 
             Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
@@ -105,7 +105,7 @@ namespace TutoProxy.Client.Tests.Services {
 
             for(int port = 0; port < 50; port++) {
                 for(int origPort = 0; origPort < 10; origPort++) {
-                    Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000 + port, 51000 + origPort, new byte[] { 0, 1 })));
+                    Assert.IsNotNull(testable.ObtainClient(new UdpDataRequestModel(1000 + port, 51000 + origPort, new byte[] { 0, 1 })));
                 }
             }
             Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(Enumerable.Range(1000, 50)));
@@ -121,7 +121,7 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task UdpClient_Timeout_Timer_Is_Refreshed_During_Obtaining_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 1).ToList());
 
-            Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
+            Assert.IsNotNull(testable.ObtainClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
 
             Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
             Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
@@ -129,11 +129,11 @@ namespace TutoProxy.Client.Tests.Services {
             await Task.Delay(500);
             Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
 
-            Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
+            Assert.IsNotNull(testable.ObtainClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
             await Task.Delay(500);
             Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
 
-            Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
+            Assert.IsNotNull(testable.ObtainClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
             await Task.Delay(500);
             Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
             await Task.Delay(600);

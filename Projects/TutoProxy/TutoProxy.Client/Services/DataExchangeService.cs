@@ -33,7 +33,7 @@ namespace TutoProxy.Client.Services {
 
 
             _ = Task.Run(async () => {
-                var client = clientsService.GetTcpClient(request.Payload);
+                var client = clientsService.ObtainClient(request.Payload);
                 await client.SendRequest(request.Payload.Data, cancellationToken);
 
                 var response = await client.GetResponse(cancellationToken, TcpSocketParams.ReceiveTimeout);
@@ -54,7 +54,7 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
 
             _ = Task.Run(async () => {
-                var client = clientsService.ObtainUdpClient(request.Payload);
+                var client = clientsService.ObtainClient(request.Payload);
                 await client.SendRequest(request.Payload.Data, cancellationToken);
                 var response = await client.GetResponse(cancellationToken, UdpSocketParams.ReceiveTimeout);
                 var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.OriginPort, response));

@@ -14,7 +14,7 @@ namespace TutoProxy.Client.Communication {
         }
 
         public TcpClient Create(IPAddress localIpAddress, TcpDataRequestModel request, Action<int, int> timeoutAction) {
-            throw new NotImplementedException();
+            return new TcpClient(new IPEndPoint(localIpAddress, request.Port), request.OriginPort, logger, timeoutAction);
         }
 
         public UdpClient Create(IPAddress localIpAddress, UdpDataRequestModel request, Action<int, int> timeoutAction) {

@@ -8,8 +8,8 @@ using TuToProxy.Core.Models;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
-        TcpClient GetTcpClient(TcpDataRequestModel request);
-        UdpClient ObtainUdpClient(UdpDataRequestModel request);
+        TcpClient ObtainClient(TcpDataRequestModel request);
+        UdpClient ObtainClient(UdpDataRequestModel request);
         void Stop();
     }
 
@@ -19,8 +19,8 @@ namespace TutoProxy.Client.Services {
         IPAddress localIpAddress;
         List<int>? tcpPorts;
         List<int>? udpPorts;
-        readonly List<TcpClient> tcpClients = new();
 
+        protected readonly ConcurrentDictionary<int, ConcurrentDictionary<int, TcpClient>> tcpClients = new();
         protected readonly ConcurrentDictionary<int, ConcurrentDictionary<int, UdpClient>> udpClients = new();
 
         public ClientsService(
@@ -42,29 +42,50 @@ namespace TutoProxy.Client.Services {
             this.udpPorts = udpPorts;
         }
 
-        public TcpClient GetTcpClient(TcpDataRequestModel request) {
-            var client = tcpClients.FirstOrDefault(x => x.Port == request.Port);
-            if(client == null) {
-                throw new ClientNotFoundException(DataProtocol.Tcp, request.Port);
-            }
+        public TcpClient ObtainClient(TcpDataRequestModel request) {
+            var commonPortClients = tcpClients.GetOrAdd(request.Port,
+                    _ => {
+                        if(tcpPorts == null || !tcpPorts.Contains(request.Port)) {
+                            throw new ClientNotFoundException(DataProtocol.Tcp, request.Port);
+                        }
+                        Debug.WriteLine($"ObtainClient: add tcp for port {request.Port}");
+                        return new ConcurrentDictionary<int, TcpClient>();
+                    }
+                );
+
+            var client = commonPortClients.GetOrAdd(request.OriginPort,
+                _ => {
+                    Debug.WriteLine($"ObtainClient: add tcp for OriginPort {request.OriginPort}");
+                    return clientFactory.Create(localIpAddress, request, TimeoutTcpClient);
+                }
+            );
             client.Refresh();
             return client;
         }
 
-        public UdpClient ObtainUdpClient(UdpDataRequestModel request) {
+        void TimeoutTcpClient(int port, int originPort) {
+            if(tcpClients.TryGetValue(port, out ConcurrentDictionary<int, TcpClient>? removingClients)) {
+                if(removingClients.TryRemove(originPort, out TcpClient? removedClient)) {
+                    Debug.WriteLine($"TimeoutTcpClient: remove: {port}, {originPort}");
+                    removedClient.Dispose();
+                }
+            }
+        }
+
+        public UdpClient ObtainClient(UdpDataRequestModel request) {
             var commonPortClients = udpClients.GetOrAdd(request.Port,
                     _ => {
                         if(udpPorts == null || !udpPorts.Contains(request.Port)) {
                             throw new ClientNotFoundException(DataProtocol.Udp, request.Port);
                         }
-                        Debug.WriteLine($"ObtainUdpClient: add for port {request.Port}");
+                        Debug.WriteLine($"ObtainClient: add udp for port {request.Port}");
                         return new ConcurrentDictionary<int, UdpClient>();
                     }
                 );
 
             var client = commonPortClients.GetOrAdd(request.OriginPort,
                 _ => {
-                    Debug.WriteLine($"ObtainUdpClient: add for OriginPort {request.OriginPort}");
+                    Debug.WriteLine($"ObtainClient: add udp for OriginPort {request.OriginPort}");
                     return clientFactory.Create(localIpAddress, request, TimeoutUdpClient);
                 }
             );
@@ -82,7 +103,7 @@ namespace TutoProxy.Client.Services {
         }
 
         public void Stop() {
-            foreach(var client in tcpClients) {
+            foreach(var client in tcpClients.Values.SelectMany(x => x.Values)) {
                 client.Dispose();
             }
             tcpClients.Clear();
