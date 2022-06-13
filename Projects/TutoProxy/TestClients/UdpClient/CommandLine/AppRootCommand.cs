@@ -60,81 +60,82 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
 
 
-                using var udpClient = new UdpClient(remoteEndPoint.AddressFamily);
-                uint IOC_IN = 0x80000000;
-                uint IOC_VENDOR = 0x18000000;
-                uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-                udpClient.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                udpClient.ExclusiveAddressUse = false;
-                udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                udpClient.Client.SendTimeout = 5000;
-                udpClient.Client.ReceiveTimeout = 5000;
-
-
-                var sRateStopWatch = new Stopwatch();
-                var logTimer = DateTime.Now.AddSeconds(1);
-                double sRate = 0;
-                int packetsCount = 0;
-                int errors = 0;
-
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                    var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
-                        .SelectMany(x => x)
-                        .Take(Packet).ToArray();
-                    sRateStopWatch.Restart();
-                    var txCount = await udpClient.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
+                    using var udpClient = new UdpClient(remoteEndPoint.AddressFamily);
+                    uint IOC_IN = 0x80000000;
+                    uint IOC_VENDOR = 0x18000000;
+                    uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+                    udpClient.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                    udpClient.ExclusiveAddressUse = false;
+                    udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    udpClient.Client.SendTimeout = 5000;
+                    udpClient.Client.ReceiveTimeout = 30000;
 
-                    var localPort = (udpClient.Client.LocalEndPoint as IPEndPoint)!.Port;
 
-                    if(!Firenforget) {
-                        try {
-                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
-                            cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
+                    var sRateStopWatch = new Stopwatch();
+                    var logTimer = DateTime.Now.AddSeconds(1);
+                    double sRate = 0;
+                    int packetsCount = 0;
+                    int errors = 0;
 
-                            await Task.Run(async () => {
-                                while(!cts.Token.IsCancellationRequested && udpClient.Available < Packet) {
-                                    await Task.Yield();
-                                };
-                            }, cts.Token);
+                    while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
+                        var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
+                            .SelectMany(x => x)
+                            .Take(Packet).ToArray();
+                        sRateStopWatch.Restart();
+                        var txCount = await udpClient.SendAsync(dataPacket, remoteEndPoint, applicationLifetime.ApplicationStopping);
 
-                            var result = await udpClient.ReceiveAsync(cts.Token);
-                            sRateStopWatch.Stop();
-                            if(dataPacket.SequenceEqual(result.Buffer)) {
-                                var ts = sRateStopWatch.Elapsed;
-                                sRate += result.Buffer.Length / ts.TotalMilliseconds;
-                                packetsCount++;
-                                if(logTimer <= DateTime.Now) {
-                                    logTimer = DateTime.Now.AddSeconds(1);
-                                    logger.Information($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
-                                    sRate = 0;
-                                    packetsCount = 0;
-                                }
-                                errors = 0;
-                            } else {
-                                logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}. Wrong");
-                                await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
-                                if(errors++ > 3) {
-                                    await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
-                                    errors = 0;
-                                    //break;
-                                }
+                        var localPort = (udpClient.Client.LocalEndPoint as IPEndPoint)!.Port;
+
+                        if(!Firenforget) {
+                            try {
+                                using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
+                                cts.CancelAfter(TimeSpan.FromMilliseconds(30000));
 
                                 await Task.Run(async () => {
-                                    while(!cts.Token.IsCancellationRequested && udpClient.Available > 0) {
-                                        var result = await udpClient.ReceiveAsync(cts.Token);
-                                        logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, flush bytes:{result.Buffer.Length}");
+                                    while(!cts.Token.IsCancellationRequested && udpClient.Available < Packet) {
+                                        await Task.Yield();
                                     };
                                 }, cts.Token);
+
+                                var result = await udpClient.ReceiveAsync(cts.Token);
+                                sRateStopWatch.Stop();
+                                if(dataPacket.SequenceEqual(result.Buffer)) {
+                                    var ts = sRateStopWatch.Elapsed;
+                                    sRate += result.Buffer.Length / ts.TotalMilliseconds;
+                                    packetsCount++;
+                                    if(logTimer <= DateTime.Now) {
+                                        logTimer = DateTime.Now.AddSeconds(1);
+                                        logger.Information($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
+                                        sRate = 0;
+                                        packetsCount = 0;
+                                    }
+                                    errors = 0;
+                                } else {
+                                    logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}. Wrong");
+                                    await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
+                                    if(errors++ > 3) {
+                                        errors = 0;
+                                        break;
+                                    }
+
+                                    await Task.Run(async () => {
+                                        while(!cts.Token.IsCancellationRequested && udpClient.Available > 0) {
+                                            var result = await udpClient.ReceiveAsync(cts.Token);
+                                            logger.Warning($"udp({localPort}) response from {result.RemoteEndPoint}, flush bytes:{result.Buffer.Length}");
+                                        };
+                                    }, cts.Token);
+                                }
+                            } catch(OperationCanceledException) {
+                                logger.Warning($"udp({localPort}) response timeout");
                             }
-                        } catch(OperationCanceledException) {
-                            logger.Warning($"udp({localPort}) response timeout");
+                        } else {
+                            logger.Information($"udp({localPort}) request to {remoteEndPoint}, bytes:{txCount}");
+                            await Task.Delay(10);
                         }
-                    } else {
-                        logger.Information($"udp({localPort}) request to {remoteEndPoint}, bytes:{txCount}");
-                        await Task.Delay(10);
-                    }
-                    if(Delay > 0) {
-                        await Task.Delay(Delay);
+                        if(Delay > 0) {
+                            await Task.Delay(Delay);
+                        }
                     }
                 }
 
