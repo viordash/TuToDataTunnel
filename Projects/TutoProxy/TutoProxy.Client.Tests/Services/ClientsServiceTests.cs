@@ -9,9 +9,22 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Tests.Services {
     public class ClientsServiceTests {
 
+        public class TestableUdpClient : UdpClient {
+
+            public TestableUdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, Action<int, int> timeoutAction)
+                : base(serverEndPoint, originPort, logger, timeoutAction) {
+            }
+
+            protected override TimeSpan ReceiveTimeout { get { return TimeSpan.FromMilliseconds(1000); } }
+
+            protected override System.Net.Sockets.UdpClient CreateSocket() {
+                return new System.Net.Sockets.UdpClient();
+            }
+        }
+
         class TestableClientsService : ClientsService {
-            public TestableClientsService(ILogger logger)
-                : base(logger) {
+            public TestableClientsService(ILogger logger, IClientFactory clientFactory)
+                : base(logger, clientFactory) {
             }
 
             public ConcurrentDictionary<int, ConcurrentDictionary<int, UdpClient>> PublicMorozovUdpClients {
@@ -20,14 +33,22 @@ namespace TutoProxy.Client.Tests.Services {
         }
 
         Mock<ILogger> loggerMock;
+        Mock<IClientFactory> clientFactoryMock;
 
         TestableClientsService testable;
 
         [SetUp]
         public void Setup() {
             loggerMock = new();
+            clientFactoryMock = new();
 
-            testable = new TestableClientsService(loggerMock.Object);
+            clientFactoryMock
+                .Setup(x => x.Create(It.IsAny<IPAddress>(), It.IsAny<UdpDataRequestModel>(), It.IsAny<Action<int, int>>()))
+                .Returns<IPAddress, UdpDataRequestModel, Action<int, int>>((localIpAddress, request, timeoutAction) => {
+                    return new TestableUdpClient(new IPEndPoint(localIpAddress, request.Port), request.OriginPort, loggerMock.Object, timeoutAction);
+                });
+
+            testable = new TestableClientsService(loggerMock.Object, clientFactoryMock.Object);
         }
 
         [Test]
@@ -76,6 +97,24 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
             Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
             Assert.That(testable.PublicMorozovUdpClients[1000][51000], Is.SameAs(client0));
+        }
+
+        [Test]
+        public async Task UdpClients_Is_Auto_Removed_After_Timeout_Test() {
+            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 50).ToList());
+
+            for(int port = 0; port < 50; port++) {
+                for(int origPort = 0; origPort < 10; origPort++) {
+                    Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000 + port, 51000 + origPort, new byte[] { 0, 1 })));
+                }
+            }
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(Enumerable.Range(1000, 50)));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(Enumerable.Range(51000, 10)));
+
+            await Task.Delay(1100);
+            for(int i = 0; i < 50; i++) {
+                Assert.That(testable.PublicMorozovUdpClients[1000 + i].Keys, Is.Empty);
+            }
         }
     }
 }

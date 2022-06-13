@@ -26,6 +26,7 @@ class Program {
                     services.AddSingleton<ISignalRClient, SignalRClient>();
                     services.AddSingleton<IDataExchangeService, DataExchangeService>();
                     services.AddSingleton<IClientsService, ClientsService>();
+                    services.AddSingleton<IClientFactory, ClientFactory>();
                 })
             )
             .UseDefaults()
