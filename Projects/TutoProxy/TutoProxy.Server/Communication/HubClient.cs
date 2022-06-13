@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
@@ -24,14 +25,14 @@ namespace TutoProxy.Server.Communication {
             var dateTimeService = serviceProvider.GetRequiredService<IDateTimeService>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
-                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger, dateTimeService));
+                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger));
             } else {
                 tcpServers = new();
             }
 
             if(udpPorts != null) {
                 udpServers = udpPorts
-                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, dateTimeService));
+                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, UdpSocketParams.ReceiveTimeout));
             } else {
                 udpServers = new();
             }

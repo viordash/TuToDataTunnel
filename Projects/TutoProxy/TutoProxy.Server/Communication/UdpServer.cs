@@ -13,13 +13,13 @@ namespace TutoProxy.Server.Communication {
         public class RemoteEndPoint : IDisposable {
             readonly Action<int> timeoutAction;
             public IPEndPoint EndPoint { get; private set; }
-            System.Timers.Timer timeoutTimer;
+            readonly System.Timers.Timer timeoutTimer;
 
-            public RemoteEndPoint(IPEndPoint endPoint, IDateTimeService dateTimeService, Action<int> timeoutAction) {
+            public RemoteEndPoint(IPEndPoint endPoint, TimeSpan receiveTimeout, Action<int> timeoutAction) {
                 EndPoint = endPoint;
                 this.timeoutAction = timeoutAction;
 
-                timeoutTimer = new(dateTimeService.RequestTimeout.TotalMilliseconds);
+                timeoutTimer = new(receiveTimeout.TotalMilliseconds);
                 timeoutTimer.Elapsed += OnTimedEvent;
                 timeoutTimer.AutoReset = false;
 
@@ -45,17 +45,19 @@ namespace TutoProxy.Server.Communication {
         readonly UdpClient udpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
+        readonly TimeSpan receiveTimeout;
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
 
         protected readonly ConcurrentDictionary<int, RemoteEndPoint> remoteEndPoints = new();
 
-        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IDateTimeService dateTimeService)
-            : base(port, localEndPoint, dataTransferService, logger, dateTimeService) {
+        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, TimeSpan receiveTimeout)
+            : base(port, localEndPoint, dataTransferService, logger) {
             udpServer = new UdpClient(new IPEndPoint(localEndPoint.Address, port));
             udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             cts = new CancellationTokenSource();
             cancellationToken = cts.Token;
+            this.receiveTimeout = receiveTimeout;
         }
 
         public Task Listen() {
@@ -105,7 +107,7 @@ namespace TutoProxy.Server.Communication {
             remoteEndPoints.AddOrUpdate(endPoint.Port,
                 (k) => {
                     Debug.WriteLine($"AddRemoteEndPoint: add {k}");
-                    return new RemoteEndPoint(endPoint, dateTimeService, RemoveExpiredRemoteEndPoint);
+                    return new RemoteEndPoint(endPoint, receiveTimeout, RemoveExpiredRemoteEndPoint);
                 },
                 (k, v) => {
                     //Debug.WriteLine($"AddRemoteEndPoint: update {k}");
