@@ -61,12 +61,18 @@ namespace TutoProxy.Server.Communication {
         public Task Listen() {
             return Task.Run(async () => {
                 while(!cancellationToken.IsCancellationRequested) {
-                    var result = await udpServer.ReceiveAsync(cancellationToken);
-                    await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.RemoteEndPoint.Port, result.Buffer));
-                    AddRemoteEndPoint(result.RemoteEndPoint);
-                    if(requestLogTimer <= DateTime.Now) {
-                        requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                        logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                    try {
+                        while(!cancellationToken.IsCancellationRequested) {
+                            var result = await udpServer.ReceiveAsync(cancellationToken);
+                            await dataTransferService.SendUdpRequest(new UdpDataRequestModel(port, result.RemoteEndPoint.Port, result.Buffer));
+                            AddRemoteEndPoint(result.RemoteEndPoint);
+                            if(requestLogTimer <= DateTime.Now) {
+                                requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                                logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                            }
+                        }
+                    } catch(SocketException ex) {
+                        logger.Error($"udp: {ex.Message}");
                     }
                 }
             }, cancellationToken);

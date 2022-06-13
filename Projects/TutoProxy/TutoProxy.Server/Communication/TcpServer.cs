@@ -25,13 +25,21 @@ namespace TutoProxy.Server.Communication {
 
         public Task Listen() {
             return Task.Run(async () => {
-
-                tcpServer.Start();
                 while(!cancellationToken.IsCancellationRequested) {
-                    var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
+                    try {
+                        tcpServer.Start();
+                        while(!cancellationToken.IsCancellationRequested) {
+                            var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
 
-                    logger.Information($"tcp accept {socket}");
-                    _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken));
+                            logger.Information($"tcp accept {socket}");
+                            _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken));
+                        }
+                    } catch(SocketException ex) {
+                        logger.Error($"tcp: {ex.Message}");
+                        try {
+                            tcpServer.Stop();
+                        } catch { }
+                    }
                 }
             }, cancellationToken);
         }
@@ -54,6 +62,9 @@ namespace TutoProxy.Server.Communication {
                     }
                 }
                 remoteSockets.TryRemove(port, out _);
+            } catch(SocketException ex) {
+                remoteSockets.TryRemove(port, out _);
+                logger.Error($"tcp socket: {ex.Message}");
             } catch {
                 remoteSockets.TryRemove(port, out _);
                 throw;
