@@ -116,5 +116,30 @@ namespace TutoProxy.Client.Tests.Services {
                 Assert.That(testable.PublicMorozovUdpClients[1000 + i].Keys, Is.Empty);
             }
         }
+
+        [Test]
+        public async Task UdpClient_Timeout_Timer_Is_Refreshed_During_Obtaining_Test() {
+            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 1).ToList());
+
+            Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
+
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+
+            await Task.Delay(500);
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+
+            Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
+            await Task.Delay(500);
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+
+            Assert.IsNotNull(testable.ObtainUdpClient(new UdpDataRequestModel(1000, 51000, new byte[] { 0, 1 })));
+            await Task.Delay(500);
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            await Task.Delay(600);
+
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.Empty);
+
+        }
     }
 }
