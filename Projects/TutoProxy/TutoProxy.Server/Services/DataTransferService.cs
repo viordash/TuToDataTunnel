@@ -47,7 +47,7 @@ namespace TutoProxy.Server.Services {
         public async Task HandleTcpResponse(TransferTcpResponseModel response) {
             var client = clientsService.GetTcpClient(response.Payload.Port);
             if(client == null) {
-                throw new ClientNotFoundException(DataProtocol.Udp, response.Payload.Port);
+                throw new ClientNotFoundException(DataProtocol.Tcp, response.Payload.Port);
             }
             await client.SendTcpResponse(response.Payload);
         }
