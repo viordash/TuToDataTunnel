@@ -48,33 +48,47 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
                 logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
 
-                var tcpServer = new TcpListener(IPAddress.Parse(Ip), Port);
-                tcpServer.Start();
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                    var socket = await tcpServer.AcceptSocketAsync(applicationLifetime.ApplicationStopping);
+                    var tcpServer = new TcpListener(IPAddress.Parse(Ip), Port);
+                    tcpServer.Start();
+                    try {
+                        while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
+                            var socket = await tcpServer.AcceptSocketAsync(applicationLifetime.ApplicationStopping);
 
-                    logger.Information($"tcp accept {socket.RemoteEndPoint}");
-                    _ = Task.Run(async () => await HandleSocketAsync(socket, applicationLifetime.ApplicationStopping));
+                            logger.Information($"tcp accept {socket.RemoteEndPoint}");
+                            _ = Task.Run(async () => await HandleSocketAsync(socket, applicationLifetime.ApplicationStopping));
+                        }
+                    } catch(SocketException ex) {
+                        logger.Error(ex.Message);
+                        try {
+                            tcpServer.Stop();
+                        } catch { }
+                    }
                 }
                 return 0;
             }
 
             async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
                 Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
-                var logTimer = DateTime.Now.AddSeconds(1);
-                while(socket.Connected) {
-                    var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
-                    if(receivedBytes == 0) {
-                        break;
+
+                try {
+                    var logTimer = DateTime.Now.AddSeconds(1);
+                    while(socket.Connected) {
+                        var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                        if(receivedBytes == 0) {
+                            break;
+                        }
+                        if(logTimer <= DateTime.Now) {
+                            logTimer = DateTime.Now.AddSeconds(1);
+                            logger.Information($"tcp({Port}) request from {(IPEndPoint)socket.RemoteEndPoint!}, bytes:{receivedBytes}");
+                        }
+                        if(Delay > 0) {
+                            await Task.Delay(Delay);
+                        }
+                        var txCount = await socket.SendAsync(receiveBuffer[..receivedBytes], SocketFlags.None, cancellationToken);
                     }
-                    if(logTimer <= DateTime.Now) {
-                        logTimer = DateTime.Now.AddSeconds(1);
-                        logger.Information($"tcp({Port}) request from {(IPEndPoint)socket.RemoteEndPoint!}, bytes:{receivedBytes}");
-                    }
-                    if(Delay > 0) {
-                        await Task.Delay(Delay);
-                    }
-                    var txCount = await socket.SendAsync(receiveBuffer[..receivedBytes], SocketFlags.None, cancellationToken);
+                } catch(SocketException ex) {
+                    logger.Error($"socket: {ex.Message}");
                 }
                 logger.Information($"tcp disconnected {socket.RemoteEndPoint}");
             }

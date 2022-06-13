@@ -47,24 +47,30 @@ namespace TutoProxy.Server.CommandLine {
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
                 logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
 
-                using var udpServer = new UdpClient(new IPEndPoint(IPAddress.Parse(Ip), Port));
-                uint IOC_IN = 0x80000000;
-                uint IOC_VENDOR = 0x18000000;
-                uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-                udpServer.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-
-                var logTimer = DateTime.Now.AddSeconds(1);
                 while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                    var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
-                    if(logTimer <= DateTime.Now) {
-                        logTimer = DateTime.Now.AddSeconds(1);
-                        logger.Information($"udp({Port}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                    using var udpServer = new UdpClient(new IPEndPoint(IPAddress.Parse(Ip), Port));
+                    uint IOC_IN = 0x80000000;
+                    uint IOC_VENDOR = 0x18000000;
+                    uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+                    udpServer.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                    udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
+                    try {
+                        var logTimer = DateTime.Now.AddSeconds(1);
+                        while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
+                            var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
+                            if(logTimer <= DateTime.Now) {
+                                logTimer = DateTime.Now.AddSeconds(1);
+                                logger.Information($"udp({Port}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                            }
+                            if(Delay > 0) {
+                                await Task.Delay(Delay);
+                            }
+                            var txCount = await udpServer.SendAsync(result.Buffer, result.RemoteEndPoint, applicationLifetime.ApplicationStopping);
+                        }
+                    } catch(SocketException ex) {
+                        logger.Error(ex.Message);
                     }
-                    if(Delay > 0) {
-                        await Task.Delay(Delay);
-                    }
-                    var txCount = await udpServer.SendAsync(result.Buffer, result.RemoteEndPoint, applicationLifetime.ApplicationStopping);
                 }
 
                 return 0;
