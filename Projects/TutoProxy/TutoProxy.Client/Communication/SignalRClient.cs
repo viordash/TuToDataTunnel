@@ -64,8 +64,8 @@ namespace TutoProxy.Client.Communication {
                 await dataExchangeService.HandleTcpRequest(request, this, cancellationToken);
             });
 
-            connection.On<TransferUdpRequestModel>("UdpRequest", (request) => {
-                dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
+            connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
+                await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {

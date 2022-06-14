@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using TuToProxy.Core;
+using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Communication {
     public class UdpClient : BaseClient<System.Net.Sockets.UdpClient> {
@@ -8,6 +9,7 @@ namespace TutoProxy.Client.Communication {
         DateTime responseLogTimer = DateTime.Now;
 
         protected override TimeSpan ReceiveTimeout { get { return UdpSocketParams.ReceiveTimeout; } }
+        public bool Listening { get; private set; } = false;
 
         public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, Action<int, int> timeoutAction)
             : base(serverEndPoint, originPort, logger, timeoutAction) {
@@ -33,18 +35,39 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task<byte[]> GetResponse(CancellationToken cancellationToken, TimeSpan timeout) {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(timeout);
-
-            var result = await socket.ReceiveAsync(cts.Token);
-
-            if(responseLogTimer <= DateTime.Now) {
-                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}.");
-
+        public void Listen(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+            if(Listening) {
+                throw new TuToException($"udp 0, port: {request.Payload.Port}, o-port: {request.Payload.OriginPort}, already listening");
             }
-            return result.Buffer;
+            Listening = true;
+            _ = Task.Run(async () => {
+                try {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    while(!cts.IsCancellationRequested) {
+                        cts.CancelAfter(UdpSocketParams.ReceiveTimeout);
+                        var result = await socket.ReceiveAsync(cts.Token);
+                        if(result.Buffer.Length == 0) {
+                            break;
+                        }
+                        var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.OriginPort,
+                                result.Buffer));
+                        await dataTunnelClient.SendUdpResponse(transferResponse, cancellationToken);
+
+                        if(responseLogTimer <= DateTime.Now) {
+                            responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                            logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}.");
+                        }
+                    };
+                    Listening = false;
+                    logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) disconnected");
+                } catch(SocketException ex) {
+                    Listening = false;
+                    logger.Error($"udp socket: {ex.Message}");
+                } catch {
+                    Listening = false;
+                    throw;
+                }
+            });
         }
 
         public override void Dispose() {
