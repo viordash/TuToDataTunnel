@@ -43,9 +43,7 @@ namespace TutoProxy.Client.Communication {
             _ = Task.Run(async () => {
                 Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
                 try {
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    while(socket.Connected) {
-                        cts.CancelAfter(TcpSocketParams.ReceiveTimeout);
+                    while(socket.Connected && !cancellationToken.IsCancellationRequested) {
                         var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
                         if(receivedBytes == 0) {
                             break;
@@ -58,6 +56,7 @@ namespace TutoProxy.Client.Communication {
                             responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
                             logger.Information($"tcp({localPort}) response from {socket.RemoteEndPoint}, bytes:{receivedBytes}.");
                         }
+                        Refresh();
                     }
                     Listening = false;
                     logger.Information($"tcp({localPort}) disconnected from {socket.RemoteEndPoint}");

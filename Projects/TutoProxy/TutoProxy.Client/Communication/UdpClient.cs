@@ -7,6 +7,7 @@ namespace TutoProxy.Client.Communication {
     public class UdpClient : BaseClient<System.Net.Sockets.UdpClient> {
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
+        bool connected = false;
 
         protected override TimeSpan ReceiveTimeout { get { return UdpSocketParams.ReceiveTimeout; } }
         public bool Listening { get; private set; } = false;
@@ -42,10 +43,9 @@ namespace TutoProxy.Client.Communication {
             Listening = true;
             _ = Task.Run(async () => {
                 try {
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    while(!cts.IsCancellationRequested) {
-                        cts.CancelAfter(UdpSocketParams.ReceiveTimeout);
-                        var result = await socket.ReceiveAsync(cts.Token);
+                    connected = true;
+                    while(connected && !cancellationToken.IsCancellationRequested) {
+                        var result = await socket.ReceiveAsync(cancellationToken);
                         if(result.Buffer.Length == 0) {
                             break;
                         }
@@ -59,18 +59,22 @@ namespace TutoProxy.Client.Communication {
                         }
                     };
                     Listening = false;
+                    connected = false;
                     logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) disconnected");
                 } catch(SocketException ex) {
                     Listening = false;
+                    connected = false;
                     logger.Error($"udp socket: {ex.Message}");
                 } catch {
                     Listening = false;
+                    connected = false;
                     throw;
                 }
             });
         }
 
         public override void Dispose() {
+            connected = false;
             base.Dispose();
             logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, destroyed");
         }
