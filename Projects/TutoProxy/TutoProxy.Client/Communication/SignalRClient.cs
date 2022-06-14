@@ -60,8 +60,8 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferTcpRequestModel>("TcpRequest", (request) => {
-                dataExchangeService.HandleTcpRequest(request, this, cancellationToken);
+            connection.On<TransferTcpRequestModel>("TcpRequest", async (request) => {
+                await dataExchangeService.HandleTcpRequest(request, this, cancellationToken);
             });
 
             connection.On<TransferUdpRequestModel>("UdpRequest", (request) => {

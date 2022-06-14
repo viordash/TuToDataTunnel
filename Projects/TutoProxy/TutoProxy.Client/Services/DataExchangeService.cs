@@ -3,8 +3,8 @@ using TuToProxy.Core;
 
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
+        Task HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
         void HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
-        void HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -21,7 +21,7 @@ namespace TutoProxy.Client.Services {
             this.clientsService = clientsService;
         }
 
-        public void HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+        public async Task HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleTcpRequestAsync :{request}");
 
             //_ = Task.Run(async () => {
@@ -31,16 +31,11 @@ namespace TutoProxy.Client.Services {
             //    await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
             //}, cancellationToken);
 
-
-            _ = Task.Run(async () => {
-                var client = clientsService.ObtainClient(request.Payload);
-                await client.SendRequest(request.Payload.Data, cancellationToken);
-
-                var response = await client.GetResponse(cancellationToken, TcpSocketParams.ReceiveTimeout);
-                var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.OriginPort, response));
-
-                await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
-            }, cancellationToken);
+            var client = clientsService.ObtainClient(request.Payload);
+            await client.SendRequest(request.Payload.Data, cancellationToken);
+            if(!client.Listening) {
+                client.Listen(request, dataTunnelClient, cancellationToken);
+            }
         }
 
         public void HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
