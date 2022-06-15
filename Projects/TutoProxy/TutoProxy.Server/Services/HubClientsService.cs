@@ -8,13 +8,13 @@ using TutoProxy.Core.CommandLine;
 using TutoProxy.Server.Communication;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
+using TuToProxy.Core.Models;
 
 namespace TutoProxy.Server.Services {
     public interface IHubClientsService : IDisposable {
         void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
         void Disconnect(string connectionId);
-        HubClient? GetTcpClient(int port);
-        HubClient? GetUdpClient(int port);
+        HubClient GetClient(string connectionId);
     }
 
     public class HubClientsService : IHubClientsService {
@@ -151,14 +151,11 @@ namespace TutoProxy.Server.Services {
             }
         }
 
-        public HubClient? GetTcpClient(int port) {
-            var hubClients = connectedClients.Values.ToList();
-            return hubClients.FirstOrDefault(x => x.TcpPorts?.Contains(port) == true);
-        }
-
-        public HubClient? GetUdpClient(int port) {
-            var hubClients = connectedClients.Values.ToList();
-            return hubClients.FirstOrDefault(x => x.UdpPorts?.Contains(port) == true);
+        public HubClient GetClient(string connectionId) {
+            if(!connectedClients.TryGetValue(connectionId, out HubClient? hubClient)) {
+                throw new HubClientNotFoundException(connectionId);
+            }
+            return hubClient;
         }
     }
 }

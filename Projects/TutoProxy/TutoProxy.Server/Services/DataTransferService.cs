@@ -7,9 +7,9 @@ using TuToProxy.Core.Services;
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
         Task SendTcpRequest(TcpDataRequestModel request);
-        Task HandleTcpResponse(TransferTcpResponseModel response);
+        Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response);
         Task SendUdpRequest(UdpDataRequestModel request);
-        Task HandleUdpResponse(TransferUdpResponseModel response);
+        Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -44,11 +44,8 @@ namespace TutoProxy.Server.Services {
             await signalHub.Clients.All.SendAsync("TcpRequest", transferRequest);
         }
 
-        public async Task HandleTcpResponse(TransferTcpResponseModel response) {
-            var client = clientsService.GetTcpClient(response.Payload.Port);
-            if(client == null) {
-                throw new ClientNotFoundException(DataProtocol.Tcp, response.Payload.Port);
-            }
+        public async Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response) {
+            var client = clientsService.GetClient(connectionId);
             await client.SendTcpResponse(response.Payload);
         }
 
@@ -58,11 +55,8 @@ namespace TutoProxy.Server.Services {
             await signalHub.Clients.All.SendAsync("UdpRequest", transferRequest);
         }
 
-        public async Task HandleUdpResponse(TransferUdpResponseModel response) {
-            var client = clientsService.GetUdpClient(response.Payload.Port);
-            if(client == null) {
-                throw new ClientNotFoundException(DataProtocol.Udp, response.Payload.Port);
-            }
+        public async Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response) {
+            var client = clientsService.GetClient(connectionId);
             await client.SendUdpResponse(response.Payload);
         }
     }

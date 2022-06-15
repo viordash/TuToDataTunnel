@@ -124,9 +124,8 @@ namespace TutoProxy.Server.Tests.Services {
             Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "udpquery=180,181,1443"), "banned udp ports");
         }
 
-
         [Test]
-        public void GetUdpClient_Test() {
+        public void GetClient_Test() {
             using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
@@ -135,8 +134,20 @@ namespace TutoProxy.Server.Tests.Services {
             testable.PublicMorozovConnectedClients.TryAdd("connectionId1", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(2000, 1).ToList(), Enumerable.Range(2000, 1), serviceProviderMock.Object));
 
-            Assert.IsNull(testable.GetUdpClient(1));
-            Assert.That(testable.GetUdpClient(1000)?.UdpPorts, Has.Member(1000));
+            Assert.That(testable.GetClient("connectionId0")?.TcpPorts, Has.Member(1000));
+            Assert.That(testable.GetClient("connectionId1")?.TcpPorts, Has.Member(2000));
+            Assert.That(testable.GetClient("connectionId0")?.UdpPorts, Has.Member(1000));
+            Assert.That(testable.GetClient("connectionId1")?.UdpPorts, Has.Member(2000));
+        }
+
+        [Test]
+        public void GetClient_Throws_HubClientNotFoundException_If_No_Clients_Test() {
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
+
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
+                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+
+            Assert.Throws<HubClientNotFoundException>(() => testable.GetClient("connectionId19"));
         }
     }
 }

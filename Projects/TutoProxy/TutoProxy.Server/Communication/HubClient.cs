@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Exceptions;
+using TuToProxy.Core.Models;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
@@ -22,7 +24,6 @@ namespace TutoProxy.Server.Communication {
 
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
             var logger = serviceProvider.GetRequiredService<ILogger>();
-            var dateTimeService = serviceProvider.GetRequiredService<IDateTimeService>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
                     .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger));
@@ -48,15 +49,17 @@ namespace TutoProxy.Server.Communication {
         }
 
         public async Task SendTcpResponse(TcpDataResponseModel response) {
-            if(tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
-                await server.SendResponse(response);
+            if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
             }
+            await server.SendResponse(response);
         }
 
         public async Task SendUdpResponse(UdpDataResponseModel response) {
-            if(udpServers.TryGetValue(response.Port, out UdpServer? server)) {
-                await server.SendResponse(response);
+            if(!udpServers.TryGetValue(response.Port, out UdpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Udp, response.Port);
             }
+            await server.SendResponse(response);
         }
 
         public void Dispose() {
