@@ -48,14 +48,14 @@ namespace TutoProxy.Server.Communication {
         }
 
         public async Task SendTcpResponse(TcpDataResponseModel response) {
-            if(tcpServers.TryGetValue(response.Port, out TcpServer? connection)) {
-                await connection.SendResponse(response);
+            if(tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
+                await server.SendResponse(response);
             }
         }
 
         public async Task SendUdpResponse(UdpDataResponseModel response) {
-            if(udpServers.TryGetValue(response.Port, out UdpServer? connection)) {
-                await connection.SendResponse(response);
+            if(udpServers.TryGetValue(response.Port, out UdpServer? server)) {
+                await server.SendResponse(response);
             }
         }
 
