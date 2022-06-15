@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
-using TuToProxy.Core.Exceptions;
-using TuToProxy.Core.Models;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Services {
@@ -41,7 +39,8 @@ namespace TutoProxy.Server.Services {
         public async Task SendTcpRequest(TcpDataRequestModel request) {
             var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
             logger.Debug($"TcpRequest :{transferRequest}");
-            await signalHub.Clients.All.SendAsync("TcpRequest", transferRequest);
+            var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", transferRequest);
         }
 
         public async Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response) {
@@ -52,7 +51,8 @@ namespace TutoProxy.Server.Services {
         public async Task SendUdpRequest(UdpDataRequestModel request) {
             var transferRequest = new TransferUdpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
             logger.Debug($"UdpRequest :{transferRequest}");
-            await signalHub.Clients.All.SendAsync("UdpRequest", transferRequest);
+            var connectionId = clientsService.GetConnectionIdForUdp(request.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", transferRequest);
         }
 
         public async Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response) {

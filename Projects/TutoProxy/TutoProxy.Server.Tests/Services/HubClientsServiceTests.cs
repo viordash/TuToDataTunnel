@@ -141,13 +141,53 @@ namespace TutoProxy.Server.Tests.Services {
         }
 
         [Test]
-        public void GetClient_Throws_HubClientNotFoundException_If_No_Clients_Test() {
+        public void GetClient_Throws_HubClientNotFoundException_If_No_Clients() {
             using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
 
             Assert.Throws<HubClientNotFoundException>(() => testable.GetClient("connectionId19"));
+        }
+
+        [Test]
+        public void GetConnectionIdForTcp_Test() {
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
+
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
+                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+
+            Assert.That(testable.GetConnectionIdForTcp(1000), Is.EqualTo("connectionId0"));
+        }
+
+        [Test]
+        public void GetConnectionIdForTcp_Throws_HubClientNotFoundException_If_Port_Not_Bound() {
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
+
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
+                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+
+            Assert.Throws<HubClientNotFoundException>(() => testable.GetConnectionIdForTcp(1001), "hub-client for Tcp(1001) not found");
+        }
+
+        [Test]
+        public void GetConnectionIdForUdp_Test() {
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
+
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
+                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+
+            Assert.That(testable.GetConnectionIdForUdp(1000), Is.EqualTo("connectionId0"));
+        }
+
+        [Test]
+        public void GetConnectionIdForUdp_Throws_HubClientNotFoundException_If_Port_Not_Bound() {
+            using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, localEndPoint, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4));
+
+            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
+                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+
+            Assert.Throws<HubClientNotFoundException>(() => testable.GetConnectionIdForUdp(1001), "hub-client for Udp(1001) not found");
         }
     }
 }

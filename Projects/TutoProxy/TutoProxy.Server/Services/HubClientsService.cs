@@ -15,6 +15,8 @@ namespace TutoProxy.Server.Services {
         void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
         void Disconnect(string connectionId);
         HubClient GetClient(string connectionId);
+        string GetConnectionIdForTcp(int port);
+        string GetConnectionIdForUdp(int port);
     }
 
     public class HubClientsService : IHubClientsService {
@@ -156,6 +158,30 @@ namespace TutoProxy.Server.Services {
                 throw new HubClientNotFoundException(connectionId);
             }
             return hubClient;
+        }
+
+        public string GetConnectionIdForTcp(int port) {
+            var hubClients = connectedClients.ToList();
+            var connectionId = hubClients
+                .Where(x => x.Value.TcpPorts?.Contains(port) == true)
+                .Select(x => x.Key)
+                .FirstOrDefault();
+            if(connectionId == null) {
+                throw new HubClientNotFoundException(DataProtocol.Tcp, port);
+            }
+            return connectionId;
+        }
+
+        public string GetConnectionIdForUdp(int port) {
+            var hubClients = connectedClients.ToList();
+            var connectionId = hubClients
+                .Where(x => x.Value.UdpPorts?.Contains(port) == true)
+                .Select(x => x.Key)
+                .FirstOrDefault();
+            if(connectionId == null) {
+                throw new HubClientNotFoundException(DataProtocol.Udp, port);
+            }
+            return connectionId;
         }
     }
 }
