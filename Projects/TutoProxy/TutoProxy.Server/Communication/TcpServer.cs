@@ -31,15 +31,14 @@ namespace TutoProxy.Server.Communication {
                         while(!cancellationToken.IsCancellationRequested) {
                             var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
 
-                            logger.Information($"tcp accept {socket}");
+                            logger.Information($"tcp({port}) accept {socket}");
                             _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken));
                         }
                     } catch(SocketException ex) {
-                        logger.Error($"tcp: {ex.Message}");
-                        try {
-                            tcpServer.Stop();
-                        } catch { }
-                    }
+                        logger.Error($"tcp({port}): {ex.Message}");
+                    } catch { }
+                    tcpServer.Stop();
+                    logger.Information($"tcp({port}) close");
                 }
             }, cancellationToken);
         }
@@ -58,13 +57,17 @@ namespace TutoProxy.Server.Communication {
 
                     if(requestLogTimer <= DateTime.Now) {
                         requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                        logger.Information($"tcp request from {socket.RemoteEndPoint}, bytes:{receivedBytes}");
+                        logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{receivedBytes}");
                     }
                 }
                 remoteSockets.TryRemove(port, out _);
             } catch(SocketException ex) {
                 remoteSockets.TryRemove(port, out _);
-                logger.Error($"tcp socket: {ex.Message}");
+                try {
+                    socket.Shutdown(SocketShutdown.Both);
+                    socket.Disconnect(true);
+                } catch { }
+                logger.Error($"tcp({port}) socket: {ex.Message}");
             } catch {
                 remoteSockets.TryRemove(port, out _);
                 throw;
@@ -85,7 +88,7 @@ namespace TutoProxy.Server.Communication {
 
             if(responseLogTimer <= DateTime.Now) {
                 responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp response to {remoteSocket.RemoteEndPoint}, bytes:{txCount}");
+                logger.Information($"tcp({port}) response to {remoteSocket.RemoteEndPoint}, bytes:{txCount}");
             }
         }
 
