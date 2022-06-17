@@ -32,11 +32,11 @@ namespace TutoProxy.Server.Communication {
                             var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
 
                             logger.Information($"tcp({port}) accept {socket}");
-                            _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken));
+                            _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken), cancellationToken);
                         }
-                    } catch(SocketException ex) {
+                    } catch(Exception ex) {
                         logger.Error($"tcp({port}): {ex.Message}");
-                    } catch { }
+                    }
                     tcpServer.Stop();
                     logger.Information($"tcp({port}) close");
                 }
@@ -46,12 +46,16 @@ namespace TutoProxy.Server.Communication {
         async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             try {
-                while(socket.Connected) {
-                    var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                cancellationToken.Register(() => {
+                    socket.Dispose();
+                });
+                while(socket.Connected && !cancellationToken.IsCancellationRequested) {
+                    var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None);
                     if(receivedBytes == 0) {
                         break;
                     }
-                    await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, receiveBuffer[..receivedBytes].ToArray()));
+                    await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port,
+                        receiveBuffer[..receivedBytes].ToArray()));
 
                     remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
 
@@ -63,14 +67,10 @@ namespace TutoProxy.Server.Communication {
                 remoteSockets.TryRemove(port, out _);
             } catch(SocketException ex) {
                 remoteSockets.TryRemove(port, out _);
-                try {
-                    socket.Shutdown(SocketShutdown.Both);
-                    socket.Disconnect(true);
-                } catch { }
                 logger.Error($"tcp({port}) socket: {ex.Message}");
-            } catch {
+            } catch(OperationCanceledException ex) {
                 remoteSockets.TryRemove(port, out _);
-                throw;
+                logger.Error($"tcp({port}) socket: {ex.Message}");
             }
         }
 
