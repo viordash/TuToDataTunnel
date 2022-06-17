@@ -88,26 +88,26 @@ namespace TutoProxy.Server.CommandLine {
                                 var txCount = await tcpClient.SendAsync(dataPacket, SocketFlags.None, cts.Token);
                                 cts.CancelAfter(TimeSpan.FromMilliseconds(30000));
 
-                                int pos = 0;
+                                int totalBytes = 0;
                                 int receivedBytes;
                                 do {
-                                    receivedBytes = await tcpClient.ReceiveAsync(receiveBuffer, SocketFlags.None, cts.Token) + pos;
-                                    pos += receivedBytes;
+                                    receivedBytes = await tcpClient.ReceiveAsync(receiveBuffer.Slice(totalBytes), SocketFlags.None, cts.Token);
+                                    totalBytes += receivedBytes;
                                 } while(receivedBytes != dataPacket.Length && !cts.Token.IsCancellationRequested);
                                 sRateStopWatch.Stop();
-                                if(dataPacket.SequenceEqual(receiveBuffer[..receivedBytes].ToArray())) {
+                                if(dataPacket.SequenceEqual(receiveBuffer[..totalBytes].ToArray())) {
                                     var ts = sRateStopWatch.Elapsed;
-                                    sRate += receivedBytes / ts.TotalMilliseconds;
+                                    sRate += totalBytes / ts.TotalMilliseconds;
                                     packetsCount++;
                                     if(logTimer <= DateTime.Now) {
                                         logTimer = DateTime.Now.AddSeconds(1);
-                                        logger.Information($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{receivedBytes}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
+                                        logger.Information($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{totalBytes}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
                                         sRate = 0;
                                         packetsCount = 0;
                                     }
                                     errors = 0;
                                 } else {
-                                    logger.Warning($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{receivedBytes}. Wrong");
+                                    logger.Warning($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{totalBytes}. Wrong");
                                     await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
                                     if(errors++ > 3) {
                                         break;
