@@ -78,25 +78,22 @@ namespace TutoProxy.Server.CommandLine {
 
                         Memory<byte> receiveBuffer = new byte[Math.Max(16384, Packet)];
 
-                        while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
+                        while(!applicationLifetime.ApplicationStopping.IsCancellationRequested && tcpClient.Connected) {
                             var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
                                 .SelectMany(x => x)
                                 .Take(Packet).ToArray();
                             sRateStopWatch.Restart();
-                            var txCount = await tcpClient.SendAsync(dataPacket, SocketFlags.None, applicationLifetime.ApplicationStopping);
-
                             try {
-                                using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
-                                cts.CancelAfter(TimeSpan.FromMilliseconds(5000));
+                                var txCount = await tcpClient.SendAsync(dataPacket, SocketFlags.None, cts.Token);
+                                cts.CancelAfter(TimeSpan.FromMilliseconds(30000));
 
-                                await Task.Run(async () => {
-                                    while(!cts.Token.IsCancellationRequested && tcpClient.Available < Packet) {
-                                        await Task.Yield();
-                                    };
-                                }, cts.Token);
-
-                                var receivedBytes = await tcpClient.ReceiveAsync(receiveBuffer, SocketFlags.None, cts.Token);
-
+                                int pos = 0;
+                                int receivedBytes;
+                                do {
+                                    receivedBytes = await tcpClient.ReceiveAsync(receiveBuffer, SocketFlags.None, cts.Token) + pos;
+                                    pos += receivedBytes;
+                                } while(receivedBytes != dataPacket.Length && !cts.Token.IsCancellationRequested);
                                 sRateStopWatch.Stop();
                                 if(dataPacket.SequenceEqual(receiveBuffer[..receivedBytes].ToArray())) {
                                     var ts = sRateStopWatch.Elapsed;
@@ -116,8 +113,9 @@ namespace TutoProxy.Server.CommandLine {
                                         break;
                                     }
                                 }
-                            } catch(OperationCanceledException) {
-                                logger.Warning($"tcp({localPort}) response timeout");
+                            } catch(Exception ex) when(ex is SocketException || ex is OperationCanceledException) {
+                                logger.Warning($"tcp({localPort}) response error");
+                                await Task.Delay(TimeSpan.FromMilliseconds(1000), applicationLifetime.ApplicationStopping);
                                 if(errors++ > 3) {
                                     break;
                                 }
