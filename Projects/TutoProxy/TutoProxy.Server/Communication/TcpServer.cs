@@ -63,7 +63,7 @@ namespace TutoProxy.Server.Communication {
 
                     if(requestLogTimer <= DateTime.Now) {
                         requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                        logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()})");
+                        logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                     }
                 }
                 remoteSockets.TryRemove(port, out _);

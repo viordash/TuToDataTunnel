@@ -1,1 +1,1 @@
-.\bin\Release\net6.0\TcpServer.exe 700 0
+.\bin\Release\net6.0\TcpServer.exe ::1 700 0
