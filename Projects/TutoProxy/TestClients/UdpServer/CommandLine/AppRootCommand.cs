@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -61,7 +62,7 @@ namespace TutoProxy.Server.CommandLine {
                             var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
                             if(logTimer <= DateTime.Now) {
                                 logTimer = DateTime.Now.AddSeconds(1);
-                                logger.Information($"udp({Port}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                                logger.Information($"udp({Port}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}");
                             }
                             if(Delay > 0) {
                                 await Task.Delay(Delay);

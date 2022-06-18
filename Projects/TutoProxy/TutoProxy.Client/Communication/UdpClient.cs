@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Client.Communication {
     public class UdpClient : BaseClient<System.Net.Sockets.UdpClient> {
@@ -32,7 +33,7 @@ namespace TutoProxy.Client.Communication {
             var txCount = await socket!.SendAsync(payload, serverEndPoint, cancellationToken);
             if(requestLogTimer <= DateTime.Now) {
                 requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) request to {serverEndPoint}, bytes:{txCount}");
+                logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
             }
         }
 
@@ -55,7 +56,7 @@ namespace TutoProxy.Client.Communication {
 
                         if(responseLogTimer <= DateTime.Now) {
                             responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                            logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}.");
+                            logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) response from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}.");
                         }
                     };
                     Listening = false;

@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -109,13 +110,13 @@ namespace TutoProxy.Server.CommandLine {
                                     packetsCount++;
                                     if(logTimer <= DateTime.Now) {
                                         logTimer = DateTime.Now.AddSeconds(1);
-                                        logger.Information($"udp({localPort}) response from {remoteEndPoint}, bytes:{receiveBuffer.Length}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
+                                        logger.Information($"udp({localPort}) response from {remoteEndPoint}, bytes:{receiveBuffer.ToShortDescriptions()}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
                                         sRate = 0;
                                         packetsCount = 0;
                                     }
                                     errors = 0;
                                 } else {
-                                    logger.Warning($"udp({localPort}) response from {remoteEndPoint}, bytes:{receiveBuffer.Length}. Wrong");
+                                    logger.Warning($"udp({localPort}) response from {remoteEndPoint}, bytes:{receiveBuffer.ToShortDescriptions()}. Wrong");
                                     await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
                                     if(errors++ > 3) {
                                         errors = 0;
@@ -126,7 +127,7 @@ namespace TutoProxy.Server.CommandLine {
                                 logger.Warning($"udp({localPort}) response timeout");
                             }
                         } else {
-                            logger.Information($"udp({localPort}) request to {serverEndPoint}, bytes:{txCount}");
+                            logger.Information($"udp({localPort}) request to {serverEndPoint}, bytes:{dataPacket.ToShortDescriptions()}");
                             await Task.Delay(10);
                         }
                         if(Delay > 0) {

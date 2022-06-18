@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using TuToProxy.Core;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -78,14 +79,15 @@ namespace TutoProxy.Server.CommandLine {
                         if(receivedBytes == 0) {
                             break;
                         }
+                        var data = receiveBuffer[..receivedBytes].ToArray();
                         if(logTimer <= DateTime.Now) {
                             logTimer = DateTime.Now.AddSeconds(1);
-                            logger.Information($"tcp({Port}) request from {(IPEndPoint)socket.RemoteEndPoint!}, bytes:{receivedBytes}");
+                            logger.Information($"tcp({Port}) request from {(IPEndPoint)socket.RemoteEndPoint!}, bytes:{data.ToShortDescriptions()}");
                         }
                         if(Delay > 0) {
                             await Task.Delay(Delay);
                         }
-                        var txCount = await socket.SendAsync(receiveBuffer[..receivedBytes], SocketFlags.None, cancellationToken);
+                        var txCount = await socket.SendAsync(data, SocketFlags.None, cancellationToken);
                     }
                 } catch(SocketException ex) {
                     logger.Error($"socket: {ex.Message}");

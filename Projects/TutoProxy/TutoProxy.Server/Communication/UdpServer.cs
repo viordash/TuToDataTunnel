@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Timers;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Extensions;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
@@ -70,7 +71,7 @@ namespace TutoProxy.Server.Communication {
                             AddRemoteEndPoint(result.RemoteEndPoint);
                             if(requestLogTimer <= DateTime.Now) {
                                 requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                                logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.Length}");
+                                logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}");
                             }
                         }
                     } catch(SocketException ex) {
@@ -87,10 +88,10 @@ namespace TutoProxy.Server.Communication {
             if(!remoteEndPoints.TryGetValue(response.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
                 return;
             }
-            var txCount = await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);
+            await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);
             if(responseLogTimer <= DateTime.Now) {
                 responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                logger.Information($"udp response to {remoteEndPoint.EndPoint}, bytes:{txCount}");
+                logger.Information($"udp response to {remoteEndPoint.EndPoint}, bytes:{response.Data.ToShortDescriptions()}");
             }
         }
 

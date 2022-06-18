@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Client.Communication {
     public class TcpClient : BaseClient<Socket> {
@@ -31,7 +32,7 @@ namespace TutoProxy.Client.Communication {
 
             if(requestLogTimer <= DateTime.Now) {
                 requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{txCount}");
+                logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
             }
         }
 
@@ -48,13 +49,13 @@ namespace TutoProxy.Client.Communication {
                         if(receivedBytes == 0) {
                             break;
                         }
-                        var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.OriginPort,
-                                receiveBuffer[..receivedBytes].ToArray()));
+                        var data = receiveBuffer[..receivedBytes].ToArray();
+                        var transferResponse = new TransferTcpResponseModel(request, new TcpDataResponseModel(request.Payload.Port, request.Payload.OriginPort, data));
                         await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
 
                         if(responseLogTimer <= DateTime.Now) {
                             responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                            logger.Information($"tcp({localPort}) response from {socket.RemoteEndPoint}, bytes:{receivedBytes}.");
+                            logger.Information($"tcp({localPort}) response from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}.");
                         }
                         Refresh();
                     }

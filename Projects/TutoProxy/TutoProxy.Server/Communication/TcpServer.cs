@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Extensions;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
@@ -54,14 +55,15 @@ namespace TutoProxy.Server.Communication {
                     if(receivedBytes == 0) {
                         break;
                     }
+                    var data = receiveBuffer[..receivedBytes].ToArray();
                     await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port,
-                        receiveBuffer[..receivedBytes].ToArray()));
+                        data));
 
                     remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
 
                     if(requestLogTimer <= DateTime.Now) {
                         requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                        logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{receivedBytes}");
+                        logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()})");
                     }
                 }
                 remoteSockets.TryRemove(port, out _);
@@ -84,11 +86,11 @@ namespace TutoProxy.Server.Communication {
             if(!remoteSocket.Connected) {
                 return;
             }
-            var txCount = await remoteSocket.SendAsync(response.Data, SocketFlags.None, cancellationToken);
+            await remoteSocket.SendAsync(response.Data, SocketFlags.None, cancellationToken);
 
             if(responseLogTimer <= DateTime.Now) {
                 responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp({port}) response to {remoteSocket.RemoteEndPoint}, bytes:{txCount}");
+                logger.Information($"tcp({port}) response to {remoteSocket.RemoteEndPoint}, bytes:{response.Data.ToShortDescriptions()}");
             }
         }
 

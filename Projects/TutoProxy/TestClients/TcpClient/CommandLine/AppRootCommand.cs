@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -95,19 +96,20 @@ namespace TutoProxy.Server.CommandLine {
                                     totalBytes += receivedBytes;
                                 } while(totalBytes < dataPacket.Length && !cts.Token.IsCancellationRequested);
                                 sRateStopWatch.Stop();
-                                if(dataPacket.SequenceEqual(receiveBuffer[..totalBytes].ToArray())) {
+                                var data = receiveBuffer[..totalBytes].ToArray();
+                                if(dataPacket.SequenceEqual(data)) {
                                     var ts = sRateStopWatch.Elapsed;
                                     sRate += totalBytes / ts.TotalMilliseconds;
                                     packetsCount++;
                                     if(logTimer <= DateTime.Now) {
                                         logTimer = DateTime.Now.AddSeconds(1);
-                                        logger.Information($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{totalBytes}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
+                                        logger.Information($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}, packets:{packetsCount}, srate:{(sRate / packetsCount):0} KB/s. Success");
                                         sRate = 0;
                                         packetsCount = 0;
                                     }
                                     errors = 0;
                                 } else {
-                                    logger.Warning($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{totalBytes}. Wrong");
+                                    logger.Warning($"tcp({localPort}) response from {tcpClient.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}. Wrong");
                                     await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
                                     if(errors++ > 3) {
                                         break;
