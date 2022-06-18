@@ -89,11 +89,10 @@ namespace TutoProxy.Server.CommandLine {
                                 cts.CancelAfter(TimeSpan.FromMilliseconds(30000));
 
                                 int totalBytes = 0;
-                                int receivedBytes;
                                 do {
-                                    receivedBytes = await tcpClient.ReceiveAsync(receiveBuffer.Slice(totalBytes), SocketFlags.None, cts.Token);
+                                    var receivedBytes = await tcpClient.ReceiveAsync(receiveBuffer.Slice(totalBytes), SocketFlags.None, cts.Token);
                                     totalBytes += receivedBytes;
-                                } while(receivedBytes != dataPacket.Length && !cts.Token.IsCancellationRequested);
+                                } while(totalBytes < dataPacket.Length && !cts.Token.IsCancellationRequested);
                                 sRateStopWatch.Stop();
                                 if(dataPacket.SequenceEqual(receiveBuffer[..totalBytes].ToArray())) {
                                     var ts = sRateStopWatch.Elapsed;
