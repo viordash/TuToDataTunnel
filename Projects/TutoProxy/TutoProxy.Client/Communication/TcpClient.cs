@@ -18,7 +18,7 @@ namespace TutoProxy.Client.Communication {
         }
 
         protected override Socket CreateSocket() {
-            var tcpClient = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            var tcpClient = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             logger.Information($"tcp for server: {serverEndPoint}, o-port: {OriginPort}, created");
             return tcpClient;
         }
