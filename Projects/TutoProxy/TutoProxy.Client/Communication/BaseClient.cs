@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Timers;
 
 namespace TutoProxy.Client.Communication {
 
@@ -7,9 +6,8 @@ namespace TutoProxy.Client.Communication {
         protected readonly IPEndPoint serverEndPoint;
         protected readonly ILogger logger;
         protected readonly TSocket socket;
-        readonly Action<int, int> timeoutAction;
 
-        protected readonly System.Timers.Timer timeoutTimer;
+        protected readonly Timer timeoutTimer;
         protected abstract TimeSpan ReceiveTimeout { get; }
 
         public int Port { get { return serverEndPoint.Port; } }
@@ -19,25 +17,30 @@ namespace TutoProxy.Client.Communication {
             this.serverEndPoint = serverEndPoint;
             OriginPort = originPort;
             this.logger = logger;
-            this.timeoutAction = timeoutAction;
 
-            timeoutTimer = new(ReceiveTimeout.TotalMilliseconds);
-            timeoutTimer.Elapsed += OnTimedEvent;
-            timeoutTimer.AutoReset = false;
-            timeoutTimer.Start();
+            timeoutTimer = new(OnTimedEvent, timeoutAction, ReceiveTimeout, Timeout.InfiniteTimeSpan);
 
             socket = CreateSocket();
         }
 
-        void OnTimedEvent(object? source, ElapsedEventArgs e) {
-            timeoutAction(Port, OriginPort);
+        void OnTimedEvent(object? state) {
+            if(state is Action<int, int> timeoutAction) {
+                timeoutAction(Port, OriginPort);
+            }
         }
 
         protected abstract TSocket CreateSocket();
 
         public void Refresh() {
-            timeoutTimer.Stop();
-            timeoutTimer.Start();
+            if(!timeoutTimer.Change(ReceiveTimeout, Timeout.InfiniteTimeSpan)) {
+                logger.Error(
+                    this switch {
+                        TcpClient => $"tcp: {serverEndPoint}, o-port: {OriginPort}, Refresh error",
+                        UdpClient => $"udp: {serverEndPoint}, o-port: {OriginPort}, Refresh error",
+                        _ => $"???: {serverEndPoint}, o-port: {OriginPort}, Refresh error",
+                    }
+                );
+            }
         }
 
         public virtual void Dispose() {
