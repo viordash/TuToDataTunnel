@@ -35,6 +35,10 @@ namespace TutoProxy.Server.Tests.Services {
                 .SetupGet(x => x.All)
                 .Returns(() => clientProxyMock.Object);
 
+            hubClientsMock
+                .Setup(x => x.Client(It.IsAny<string>()))
+                .Returns(() => clientProxyMock.Object);
+
             hubContextMock
                 .SetupGet(x => x.Clients)
                 .Returns(() => hubClientsMock.Object);
@@ -55,6 +59,10 @@ namespace TutoProxy.Server.Tests.Services {
                 .Callback<string, object?[], CancellationToken>((method, args, cancellationToken) => {
                     sendedTransferUdpRequest = args[0] as TransferUdpRequestModel;
                 });
+
+            clientsServiceMock
+                .Setup(x => x.GetConnectionIdForUdp(It.IsAny<int>()))
+                .Returns<int>((port) => $"udp-{port}");
 
             testable = new DataTransferService(loggerMock.Object, idServiceMock.Object, dateTimeServiceMock.Object, hubContextMock.Object, clientsServiceMock.Object);
         }

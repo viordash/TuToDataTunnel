@@ -93,7 +93,7 @@ namespace TutoProxy.Client.Tests.Communication {
             }, cts.Token))
                 .ToList();
 
-            Parallel.ForEach(tasks, task => {
+            _ = Parallel.ForEach(tasks, task => {
                 task.Start();
             });
             await Task.Delay(100);
