@@ -69,6 +69,7 @@ namespace TutoProxy.Client.Tests.Communication {
         }
 
         [Test]
+        //[Repeat(2)]
         public async Task Refresh_Concurrent_Test() {
             bool timeout = false;
             var testable = new TestableClient(new IPEndPoint(IPAddress.Any, 700), 100, loggerMock.Object,
@@ -79,22 +80,29 @@ namespace TutoProxy.Client.Tests.Communication {
                 });
 
 
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromMilliseconds(30000));
+
+            var ewh = new EventWaitHandle(false, EventResetMode.ManualReset);
             int startedCount = 0;
-            var tasks = Enumerable.Range(1, 20).Select(x => new Task(async () => {
-                Debug.WriteLine($"t:{x}");
-                await Task.Delay(10);
+            var tasks = Enumerable.Range(1, 100).Select(x => new Task(async () => {
+                ewh.WaitOne();
+                await Task.Delay(1);
                 testable.Refresh();
                 startedCount++;
-            }))
+            }, cts.Token))
                 .ToList();
+
             Parallel.ForEach(tasks, task => {
                 task.Start();
             });
+            await Task.Delay(100);
+            ewh.Set();
             await Task.WhenAll(tasks);
 
             await Task.Delay(500);
             Assert.That(timeout, Is.True);
-            Assert.That(startedCount, Is.EqualTo(20));
+            Assert.That(startedCount, Is.EqualTo(100));
         }
     }
 }
