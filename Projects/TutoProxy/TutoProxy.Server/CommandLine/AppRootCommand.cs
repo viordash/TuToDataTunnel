@@ -21,6 +21,8 @@ namespace TutoProxy.Server.CommandLine {
             var udpOption = PortsArgument.CreateOption("--udp", $"Allowed ports, format like '--udp=700-900,65500'");
             Add(tcpOption);
             Add(udpOption);
+            Add(AllowedClientsOption.Create("--clients", $"Allowed Clients IDs, format like '--clients=Client1,Client2'"));
+
             AddValidator((result) => {
                 try {
                     if(!result.Children.Any(x => x.GetValueForOption(tcpOption) != null || x.GetValueForOption(udpOption) != null)) {
@@ -39,6 +41,7 @@ namespace TutoProxy.Server.CommandLine {
             public string? Host { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
+            public AllowedClientsOption? Clients { get; set; }
 
             public Handler(
                 ILogger logger,
@@ -55,7 +58,8 @@ namespace TutoProxy.Server.CommandLine {
                 Guard.NotNull(Tcp ?? Udp, "Tcp ?? Udp");
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"Прокси сервер TuTo, хост {Host}, доступные tcp-порты {Tcp}, udp-порты {Udp}");
+                logger.Information($"Прокси сервер TuTo, хост {Host}, доступные tcp-порты {Tcp}, udp-порты {Udp}{(Clients != null ? ", клиенты " + Clients : "")}");
+
 
                 var builder = WebApplication.CreateBuilder();
 
@@ -74,7 +78,8 @@ namespace TutoProxy.Server.CommandLine {
                     sp.GetRequiredService<IServiceProvider>(),
                     new IPEndPoint(IpAddressHelpers.ParseUrl(Host!), 0),
                     Tcp?.Ports,
-                    Udp?.Ports)
+                    Udp?.Ports,
+                    Clients?.Clients)
                 );
 
                 var app = builder.Build();

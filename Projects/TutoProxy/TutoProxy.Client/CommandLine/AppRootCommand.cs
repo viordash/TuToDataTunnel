@@ -13,6 +13,7 @@ namespace TutoProxy.Server.CommandLine {
         public AppRootCommand() : base("Прокси клиент TuTo") {
             Add(new Argument<string>("server", "Remote server address"));
             Add(new Argument<string>("ip", "Local IP address"));
+            Add(new Option<string>("--id", "Client ID"));
             var tcpOption = PortsArgument.CreateOption("--tcp", $"Tunneling ports, format like '--tcp=80,81,443,8000-8100'");
             var udpOption = PortsArgument.CreateOption("--udp", $"Tunneling ports, format like '--udp=700-900,65500'");
             Add(tcpOption);
@@ -36,6 +37,7 @@ namespace TutoProxy.Server.CommandLine {
 
             public string? Server { get; set; }
             public string? Ip { get; set; }
+            public string? Id { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
 
@@ -61,7 +63,7 @@ namespace TutoProxy.Server.CommandLine {
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"Прокси клиент TuTo, сервер {Server}");
+                logger.Information($"Прокси клиент TuTo [{Id}], сервер {Server}");
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
                     await signalrClient.StopAsync();
@@ -70,7 +72,7 @@ namespace TutoProxy.Server.CommandLine {
 
                 while(!appStoppingReg.Token.IsCancellationRequested) {
                     try {
-                        await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, appStoppingReg.Token);
+                        await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, appStoppingReg.Token);
                         break;
                     } catch(HttpRequestException) {
                         logger.Error("Connection failed");

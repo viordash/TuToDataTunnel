@@ -27,6 +27,7 @@ namespace TutoProxy.Server.Services {
         readonly IPEndPoint localEndPoint;
         readonly IEnumerable<int>? alowedTcpPorts;
         readonly IEnumerable<int>? alowedUdpPorts;
+        readonly IEnumerable<string>? alowedClients;
 
         public HubClientsService(
             ILogger logger,
@@ -34,7 +35,8 @@ namespace TutoProxy.Server.Services {
             IServiceProvider serviceProvider,
             IPEndPoint localEndPoint,
             IEnumerable<int>? alowedTcpPorts,
-            IEnumerable<int>? alowedUdpPorts) {
+            IEnumerable<int>? alowedUdpPorts,
+            IEnumerable<string>? alowedClients) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
             Guard.NotNull(serviceProvider, nameof(serviceProvider));
@@ -46,6 +48,7 @@ namespace TutoProxy.Server.Services {
             this.localEndPoint = localEndPoint;
             this.alowedTcpPorts = alowedTcpPorts;
             this.alowedUdpPorts = alowedUdpPorts;
+            this.alowedClients = alowedClients;
         }
 
         public void Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
@@ -55,9 +58,20 @@ namespace TutoProxy.Server.Services {
             var query = QueryHelpers.ParseQuery(queryString);
             var tcpPresent = query.TryGetValue(SignalRParams.TcpQuery, out StringValues tcpQuery);
             var udpPresent = query.TryGetValue(SignalRParams.UdpQuery, out StringValues udpQuery);
+            var clientIdPresent = query.TryGetValue(SignalRParams.ClientId, out StringValues clientId);
+
+            if(alowedClients != null) {
+                if(!clientIdPresent) {
+                    throw new ClientConnectionException(connectionId, "clientId param requried");
+                }
+
+                if(!alowedClients.Contains(clientId.FirstOrDefault())) {
+                    throw new ClientConnectionException(clientId, connectionId, "Access denied");
+                }
+            }
 
             if(!tcpPresent && !udpPresent) {
-                throw new ClientConnectionException(connectionId, "tcp or udp options requried");
+                throw new ClientConnectionException(clientId, connectionId, "tcp or udp options requried");
             }
 
             List<int>? tcpPorts = null;
@@ -71,20 +85,20 @@ namespace TutoProxy.Server.Services {
             }
 
             if(tcpPorts == null && udpPorts == null) {
-                throw new ClientConnectionException(connectionId, "tcp or udp options error");
+                throw new ClientConnectionException(clientId, connectionId, "tcp or udp options error");
             }
 
 
             var bannedTcpPorts = GetBannedPorts(alowedTcpPorts, tcpPorts);
             if(bannedTcpPorts.Any()) {
                 var message = $"banned tcp ports [{string.Join(",", bannedTcpPorts)}]";
-                throw new ClientConnectionException(connectionId, message);
+                throw new ClientConnectionException(clientId, connectionId, message);
             }
 
             var bannedUdpPorts = GetBannedPorts(alowedUdpPorts, udpPorts);
             if(bannedUdpPorts.Any()) {
                 var message = $"banned udp ports [{string.Join(",", bannedUdpPorts)}]";
-                throw new ClientConnectionException(connectionId, message);
+                throw new ClientConnectionException(clientId, connectionId, message);
             }
 
             var hubClients = connectedClients.Values.ToList();
@@ -92,18 +106,18 @@ namespace TutoProxy.Server.Services {
             var alreadyUsedTcpPorts = GetAlreadyUsedTcpPorts(hubClients, tcpPorts);
             if(alreadyUsedTcpPorts.Any()) {
                 var message = $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]";
-                throw new ClientConnectionException(connectionId, message);
+                throw new ClientConnectionException(clientId, connectionId, message);
             }
 
             var alreadyUsedUdpPorts = GetAlreadyUsedUdpPorts(hubClients, udpPorts);
             if(alreadyUsedUdpPorts.Any()) {
                 var message = $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]";
-                throw new ClientConnectionException(connectionId, message);
+                throw new ClientConnectionException(clientId, connectionId, message);
             }
 
             var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
             if(connectedClients.TryAdd(connectionId, hubClient)) {
-                logger.Information($"Connect hubClient :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
+                logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
                 hubClient.Listen();
             }
         }

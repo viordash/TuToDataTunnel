@@ -6,7 +6,7 @@ using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient {
-        Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken);
+        Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken);
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
@@ -40,7 +40,7 @@ namespace TutoProxy.Client.Communication {
             this.dataExchangeService = dataExchangeService;
         }
 
-        public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, CancellationToken cancellationToken) {
+        public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken) {
             Guard.NotNullOrEmpty(server, nameof(server));
             Guard.NotNull(tcpQuery ?? udpQuery, $"Tcp ?? Udp");
 
@@ -51,7 +51,8 @@ namespace TutoProxy.Client.Communication {
 
             var query = QueryString.Create(new[] {
                 KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery),
-                KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery)
+                KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery),
+                KeyValuePair.Create(SignalRParams.ClientId, clientId)
             });
             ub.Query = query.ToString();
 
