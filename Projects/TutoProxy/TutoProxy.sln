@@ -23,7 +23,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TcpClient", "TestClients\Tc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TcpServer", "TestClients\TcpServer\TcpServer.csproj", "{E2B6A04F-E836-4A45-A567-4EBBC9B944CC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TutoProxy.Client.Tests", "TutoProxy.Client.Tests\TutoProxy.Client.Tests.csproj", "{45F8C499-A2F5-4ADF-9C76-C116479B72BA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TutoProxy.Client.Tests", "TutoProxy.Client.Tests\TutoProxy.Client.Tests.csproj", "{45F8C499-A2F5-4ADF-9C76-C116479B72BA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HttpProxy", "TestClients\HttpProxy\HttpProxy.csproj", "{2A579B89-3E1E-4B6B-9EE2-F4DD1A29B766}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,6 +73,10 @@ Global
 		{45F8C499-A2F5-4ADF-9C76-C116479B72BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{45F8C499-A2F5-4ADF-9C76-C116479B72BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{45F8C499-A2F5-4ADF-9C76-C116479B72BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A579B89-3E1E-4B6B-9EE2-F4DD1A29B766}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A579B89-3E1E-4B6B-9EE2-F4DD1A29B766}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A579B89-3E1E-4B6B-9EE2-F4DD1A29B766}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A579B89-3E1E-4B6B-9EE2-F4DD1A29B766}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -83,6 +89,7 @@ Global
 		{FCE94E03-D11D-4E48-9C99-AB00EE9D38D9} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 		{E2B6A04F-E836-4A45-A567-4EBBC9B944CC} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 		{45F8C499-A2F5-4ADF-9C76-C116479B72BA} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
+		{2A579B89-3E1E-4B6B-9EE2-F4DD1A29B766} = {34EABC39-B485-497E-A04A-C09A3EFEAADE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {55C62922-39E4-45DC-BED4-4413A760F011}
