@@ -1,1 +1,0 @@
-.\bin\Release\net6.0\HttpProxy.exe ::1 700 0
