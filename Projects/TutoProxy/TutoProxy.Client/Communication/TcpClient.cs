@@ -19,6 +19,11 @@ namespace TutoProxy.Client.Communication {
 
         protected override Socket CreateSocket() {
             var tcpClient = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+            tcpClient.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            tcpClient.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 10);
+            tcpClient.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 10);
+
             logger.Information($"tcp for server: {serverEndPoint}, o-port: {OriginPort}, created");
             return tcpClient;
         }
@@ -64,13 +69,14 @@ namespace TutoProxy.Client.Communication {
                 } catch(SocketException ex) {
                     Listening = false;
 
-                    var transferCommand = new TransferTcpCommandModel(request, new TcpCommandModel(request.Payload.Port, request.Payload.OriginPort, SocketCommand.Disconnect));
-                    await dataTunnelClient.SendTcpCommand(transferCommand, cancellationToken);
                     logger.Error($"tcp socket: {ex.Message}");
                 } catch {
                     Listening = false;
                     throw;
                 }
+                socket.Close();
+                var transferCommand = new TransferTcpCommandModel(request, new TcpCommandModel(request.Payload.Port, request.Payload.OriginPort, SocketCommand.Disconnect));
+                await dataTunnelClient.SendTcpCommand(transferCommand, cancellationToken);
             });
         }
 
