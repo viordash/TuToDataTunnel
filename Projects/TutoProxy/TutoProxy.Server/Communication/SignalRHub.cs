@@ -29,10 +29,28 @@ namespace TutoProxy.Server.Hubs {
             }
         }
 
+        public async Task TcpCommand(TransferTcpCommandModel model) {
+            logger.Debug($"TcpCommand: {model}");
+            try {
+                await dataTransferService.HandleTcpCommand(Context.ConnectionId, model);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
+        }
+
         public async Task UdpResponse(TransferUdpResponseModel model) {
             logger.Debug($"UdpResponse: {model}");
             try {
                 await dataTransferService.HandleUdpResponse(Context.ConnectionId, model);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
+        }
+
+        public async Task UdpCommand(TransferUdpCommandModel model) {
+            logger.Debug($"UdpCommand: {model}");
+            try {
+                await dataTransferService.HandleUdpCommand(Context.ConnectionId, model);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
             }

@@ -6,8 +6,10 @@ namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
         Task SendTcpRequest(TcpDataRequestModel request);
         Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response);
+        Task HandleTcpCommand(string connectionId, TransferTcpCommandModel command);
         Task SendUdpRequest(UdpDataRequestModel request);
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
+        Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -48,6 +50,11 @@ namespace TutoProxy.Server.Services {
             await client.SendTcpResponse(response.Payload);
         }
 
+        public async Task HandleTcpCommand(string connectionId, TransferTcpCommandModel command) {
+            var client = clientsService.GetClient(connectionId);
+            await client.ProcessTcpCommand(command.Payload);
+        }
+
         public async Task SendUdpRequest(UdpDataRequestModel request) {
             var transferRequest = new TransferUdpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
             logger.Debug($"UdpRequest :{transferRequest}");
@@ -58,6 +65,11 @@ namespace TutoProxy.Server.Services {
         public async Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response) {
             var client = clientsService.GetClient(connectionId);
             await client.SendUdpResponse(response.Payload);
+        }
+
+        public async Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command) {
+            var client = clientsService.GetClient(connectionId);
+            await client.ProcessUdpCommand(command.Payload);
         }
     }
 }

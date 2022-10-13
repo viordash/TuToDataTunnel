@@ -4,8 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
-using TuToProxy.Core.Models;
-using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
     public class HubClient : IDisposable {
@@ -55,11 +53,40 @@ namespace TutoProxy.Server.Communication {
             await server.SendResponse(response);
         }
 
+        public Task ProcessTcpCommand(TcpCommandModel command) {
+            if(!tcpServers.TryGetValue(command.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, command.Port);
+            }
+            switch(command.Command) {
+                case SocketCommand.Disconnect:
+                    server.Disconnect(command);
+                    break;
+                default:
+                    break;
+            }
+            return Task.CompletedTask;
+        }
+
         public async Task SendUdpResponse(UdpDataResponseModel response) {
             if(!udpServers.TryGetValue(response.Port, out UdpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Udp, response.Port);
             }
             await server.SendResponse(response);
+        }
+
+        public Task ProcessUdpCommand(UdpCommandModel command) {
+            if(!udpServers.TryGetValue(command.Port, out UdpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Udp, command.Port);
+            }
+
+            switch(command.Command) {
+                case SocketCommand.Disconnect:
+                    server.Disconnect(command);
+                    break;
+                default:
+                    break;
+            }
+            return Task.CompletedTask;
         }
 
         public void Dispose() {

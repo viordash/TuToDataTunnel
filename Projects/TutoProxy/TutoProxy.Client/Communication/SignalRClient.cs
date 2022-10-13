@@ -9,7 +9,9 @@ namespace TutoProxy.Client.Communication {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken);
+        Task SendTcpCommand(TransferTcpCommandModel command, CancellationToken cancellationToken);
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
+        Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -102,9 +104,21 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
+        public async Task SendTcpCommand(TransferTcpCommandModel command, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.InvokeAsync("TcpCommand", command, cancellationToken);
+            }
+        }
+
         public async Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("UdpResponse", response, cancellationToken);
+            }
+        }
+
+        public async Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.InvokeAsync("UdpCommand", command, cancellationToken);
             }
         }
     }

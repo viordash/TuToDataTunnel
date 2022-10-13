@@ -65,6 +65,9 @@ namespace TutoProxy.Client.Communication {
                 } catch(SocketException ex) {
                     Listening = false;
                     connected = false;
+
+                    var transferCommand = new TransferUdpCommandModel(request, new UdpCommandModel(request.Payload.Port, request.Payload.OriginPort, SocketCommand.Disconnect));
+                    await dataTunnelClient.SendUdpCommand(transferCommand, cancellationToken);
                     logger.Error($"udp socket: {ex.Message}");
                 } catch {
                     Listening = false;

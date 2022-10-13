@@ -4,7 +4,6 @@ using System.Net.Sockets;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
-using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
     internal class TcpServer : BaseServer {
@@ -92,6 +91,21 @@ namespace TutoProxy.Server.Communication {
                 responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
                 logger.Information($"tcp({port}) response to {remoteSocket.RemoteEndPoint}, bytes:{response.Data.ToShortDescriptions()}");
             }
+        }
+
+        public void Disconnect(TcpCommandModel command) {
+            if(cancellationToken.IsCancellationRequested) {
+                return;
+            }
+            if(!remoteSockets.TryRemove(command.OriginPort, out Socket? remoteSocket)) {
+                return;
+            }
+            logger.Information($"tcp({port}) disconnect {remoteSocket.RemoteEndPoint}");
+            if(!remoteSocket.Connected) {
+                return;
+            }
+            remoteSocket.Shutdown(SocketShutdown.Both);
+            remoteSocket.Close();
         }
 
         public override void Dispose() {

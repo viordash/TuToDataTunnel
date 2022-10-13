@@ -63,6 +63,9 @@ namespace TutoProxy.Client.Communication {
                     logger.Information($"tcp({localPort}) disconnected from {socket.RemoteEndPoint}");
                 } catch(SocketException ex) {
                     Listening = false;
+
+                    var transferCommand = new TransferTcpCommandModel(request, new TcpCommandModel(request.Payload.Port, request.Payload.OriginPort, SocketCommand.Disconnect));
+                    await dataTunnelClient.SendTcpCommand(transferCommand, cancellationToken);
                     logger.Error($"tcp socket: {ex.Message}");
                 } catch {
                     Listening = false;

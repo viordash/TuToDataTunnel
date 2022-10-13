@@ -6,7 +6,6 @@ using System.Timers;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
-using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Communication {
     public class UdpServer : BaseServer {
@@ -93,6 +92,17 @@ namespace TutoProxy.Server.Communication {
                 responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
                 logger.Information($"udp response to {remoteEndPoint.EndPoint}, bytes:{response.Data.ToShortDescriptions()}");
             }
+        }
+
+        public void Disconnect(UdpCommandModel command) {
+            if(cancellationToken.IsCancellationRequested) {
+                return;
+            }
+            if(!remoteEndPoints.TryRemove(command.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
+                return;
+            }
+
+            remoteEndPoint.Dispose();
         }
 
         public override void Dispose() {
