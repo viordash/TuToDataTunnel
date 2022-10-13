@@ -1,4 +1,4 @@
-﻿namespace TutoProxy.Core.Models {
+﻿namespace TuToProxy.Core.Models {
     public abstract class TransferBase {
         public string Id { get; set; }
         public DateTime Created { get; set; }

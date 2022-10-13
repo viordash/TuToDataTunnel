@@ -1,4 +1,4 @@
-﻿namespace TutoProxy.Core.Models {
+﻿namespace TuToProxy.Core.Models {
     public class TransferUdpResponseModel : TransferBase {
         public UdpDataResponseModel Payload { get; set; }
 

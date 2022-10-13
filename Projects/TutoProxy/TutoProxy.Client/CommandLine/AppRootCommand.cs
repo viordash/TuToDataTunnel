@@ -5,7 +5,7 @@ using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
-using TutoProxy.Core.CommandLine;
+using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Helpers;
 
 namespace TutoProxy.Server.CommandLine {

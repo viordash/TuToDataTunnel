@@ -2,8 +2,8 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("TutoProxy.Server.Tests")]
-[assembly: InternalsVisibleTo("TutoProxy.Core.Tests")]
-namespace TutoProxy.Core.CommandLine {
+[assembly: InternalsVisibleTo("TuToProxy.Core.Tests")]
+namespace TuToProxy.Core.CommandLine {
     public class AllowedClientsOption {
         public List<string> Clients { get; set; } = new List<string>();
         public string Option { get; private set; }

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Primitives;
-using TutoProxy.Core.CommandLine;
+using TuToProxy.Core.CommandLine;
 using TutoProxy.Server.Communication;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;

@@ -5,7 +5,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using TutoProxy.Core.CommandLine;
+using TuToProxy.Core.CommandLine;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;

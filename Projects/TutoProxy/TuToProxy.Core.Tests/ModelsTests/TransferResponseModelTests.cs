@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 using NUnit.Framework;
-using TutoProxy.Core.Models;
+using TuToProxy.Core.Models;
 
 namespace TuToProxy.Core.Tests.ModelsTests {
     public class TransferResponseModelTests {

@@ -4,7 +4,7 @@ using System.Net;
 using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
-using TutoProxy.Core.Models;
+using TuToProxy.Core.Models;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;

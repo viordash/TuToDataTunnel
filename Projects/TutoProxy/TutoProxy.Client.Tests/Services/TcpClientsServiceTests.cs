@@ -3,7 +3,7 @@ using System.Net;
 using Serilog;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
-using TutoProxy.Core.Models;
+using TuToProxy.Core.Models;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Tests.Services {

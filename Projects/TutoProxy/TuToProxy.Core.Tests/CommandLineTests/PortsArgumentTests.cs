@@ -1,6 +1,6 @@
 using System;
 using NUnit.Framework;
-using TutoProxy.Core.CommandLine;
+using TuToProxy.Core.CommandLine;
 
 namespace TuToProxy.Core.Tests.CommandLineTests {
     public class PortsArgumentTests {

@@ -3,9 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
-using TutoProxy.Core.Models;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
+using TuToProxy.Core.Models;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Tests.Services {
