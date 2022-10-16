@@ -65,12 +65,12 @@ namespace TutoProxy.Server.Communication {
                         logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                     }
                 }
-                remoteSockets.TryRemove(port, out _);
+                remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
             } catch(SocketException ex) {
-                remoteSockets.TryRemove(port, out _);
+                remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
                 logger.Error($"tcp({port}) socket: {ex.Message}");
             } catch(OperationCanceledException ex) {
-                remoteSockets.TryRemove(port, out _);
+                remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
                 logger.Error($"tcp({port}) socket: {ex.Message}");
             }
         }
