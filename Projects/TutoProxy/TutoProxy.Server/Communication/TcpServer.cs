@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.DataProtection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
@@ -65,26 +66,29 @@ namespace TutoProxy.Server.Communication {
                         logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                     }
                 }
-                remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
             } catch(SocketException ex) {
-                remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
-                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, SocketCommand.Disconnect));
                 logger.Error($"tcp({port}) error from {socket.RemoteEndPoint}: {ex.Message}");
             } catch(OperationCanceledException ex) {
-                remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
-                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, SocketCommand.Disconnect));
                 logger.Error($"tcp({port}) error from {socket.RemoteEndPoint}: {ex.Message}");
             }
+            await dataTransferService.SendTcpCommand(new TcpCommandModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, SocketCommand.Disconnect));
+            remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
         }
 
         public async Task SendResponse(TcpDataResponseModel response) {
             if(cancellationToken.IsCancellationRequested) {
+                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
+                logger.Error($"tcp({port}) response to canceled {response.OriginPort}");
                 return;
             }
             if(!remoteSockets.TryGetValue(response.OriginPort, out Socket? remoteSocket)) {
+                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
+                logger.Error($"tcp({port}) response to missed {response.OriginPort}");
                 return;
             }
             if(!remoteSocket.Connected) {
+                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
+                logger.Error($"tcp({port}) response to disconnected {response.OriginPort}");
                 return;
             }
             await remoteSocket.SendAsync(response.Data, SocketFlags.None, cancellationToken);
