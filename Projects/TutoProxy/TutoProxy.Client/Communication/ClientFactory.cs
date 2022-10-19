@@ -2,8 +2,8 @@
 
 namespace TutoProxy.Client.Communication {
     public interface IClientFactory {
-        TcpClient Create(IPAddress localIpAddress, TcpDataRequestModel request, Action<int, int> timeoutAction);
-        UdpClient Create(IPAddress localIpAddress, UdpDataRequestModel request, Action<int, int> timeoutAction);
+        TcpClient CreateTcp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction);
+        UdpClient CreateUdp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction);
     }
     public class ClientFactory : IClientFactory {
         readonly ILogger logger;
@@ -13,12 +13,12 @@ namespace TutoProxy.Client.Communication {
             this.logger = logger;
         }
 
-        public TcpClient Create(IPAddress localIpAddress, TcpDataRequestModel request, Action<int, int> timeoutAction) {
-            return new TcpClient(new IPEndPoint(localIpAddress, request.Port), request.OriginPort, logger, timeoutAction);
+        public TcpClient CreateTcp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction) {
+            return new TcpClient(new IPEndPoint(localIpAddress, port), originPort, logger, timeoutAction);
         }
 
-        public UdpClient Create(IPAddress localIpAddress, UdpDataRequestModel request, Action<int, int> timeoutAction) {
-            return new UdpClient(new IPEndPoint(localIpAddress, request.Port), request.OriginPort, logger, timeoutAction);
+        public UdpClient CreateUdp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction) {
+            return new UdpClient(new IPEndPoint(localIpAddress, port), originPort, logger, timeoutAction);
         }
     }
 }

@@ -4,7 +4,9 @@ using TuToProxy.Core;
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
         Task HandleTcpRequest(TransferTcpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        Task HandleTcpCommand(TransferTcpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
         Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -31,11 +33,24 @@ namespace TutoProxy.Client.Services {
             //    await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
             //}, cancellationToken);
 
-            var client = clientsService.ObtainClient(request.Payload);
+            var client = clientsService.ObtainTcpClient(request.Payload.Port, request.Payload.OriginPort);
             await client.SendRequest(request.Payload.Data, cancellationToken);
             if(!client.Listening) {
                 client.Listen(request, dataTunnelClient, cancellationToken);
             }
+        }
+
+        public Task HandleTcpCommand(TransferTcpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+            logger.Debug($"HandleTcpCommand :{command}");
+
+            switch(command.Payload.Command) {
+                case SocketCommand.Disconnect:
+                    clientsService.RemoveTcpClient(command.Payload.Port, command.Payload.OriginPort);
+                    break;
+                default:
+                    break;
+            }
+            return Task.CompletedTask;
         }
 
         public async Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
@@ -49,11 +64,24 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
 
 
-            var client = clientsService.ObtainClient(request.Payload);
+            var client = clientsService.ObtainUdpClient(request.Payload.Port, request.Payload.OriginPort);
             await client.SendRequest(request.Payload.Data, cancellationToken);
             if(!client.Listening) {
                 client.Listen(request, dataTunnelClient, cancellationToken);
             }
+        }
+
+        public Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+            logger.Debug($"HandleUdpCommand :{command}");
+
+            switch(command.Payload.Command) {
+                case SocketCommand.Disconnect:
+                    clientsService.RemoveUdpClient(command.Payload.Port, command.Payload.OriginPort);
+                    break;
+                default:
+                    break;
+            }
+            return Task.CompletedTask;
         }
     }
 }

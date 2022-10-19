@@ -68,10 +68,12 @@ namespace TutoProxy.Server.Communication {
                 remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
             } catch(SocketException ex) {
                 remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
-                logger.Error($"tcp({port}) socket: {ex.Message}");
+                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, SocketCommand.Disconnect));
+                logger.Error($"tcp({port}) error from {socket.RemoteEndPoint}: {ex.Message}");
             } catch(OperationCanceledException ex) {
                 remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
-                logger.Error($"tcp({port}) socket: {ex.Message}");
+                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, SocketCommand.Disconnect));
+                logger.Error($"tcp({port}) error from {socket.RemoteEndPoint}: {ex.Message}");
             }
         }
 

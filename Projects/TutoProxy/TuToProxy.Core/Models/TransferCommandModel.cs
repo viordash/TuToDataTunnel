@@ -8,8 +8,8 @@ namespace TuToProxy.Core.Models {
             Payload = new(0, 0, SocketCommand.Empty);
         }
 
-        public TransferUdpCommandModel(TransferUdpRequestModel requestModel, UdpCommandModel payload)
-            : base(requestModel.Id, requestModel.Created) {
+        public TransferUdpCommandModel(string id, DateTime created, UdpCommandModel payload)
+            : base(id, created) {
             Payload = payload;
         }
 
@@ -25,8 +25,8 @@ namespace TuToProxy.Core.Models {
             Payload = new(0, 0, SocketCommand.Empty);
         }
 
-        public TransferTcpCommandModel(TransferTcpRequestModel requestModel, TcpCommandModel payload)
-            : base(requestModel.Id, requestModel.Created) {
+        public TransferTcpCommandModel(string id, DateTime created, TcpCommandModel payload)
+            : base(id, created) {
             Payload = payload;
         }
 

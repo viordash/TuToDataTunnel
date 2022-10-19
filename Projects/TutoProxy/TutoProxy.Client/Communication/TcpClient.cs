@@ -75,7 +75,7 @@ namespace TutoProxy.Client.Communication {
                     throw;
                 }
                 socket.Close();
-                var transferCommand = new TransferTcpCommandModel(request, new TcpCommandModel(request.Payload.Port, request.Payload.OriginPort, SocketCommand.Disconnect));
+                var transferCommand = new TransferTcpCommandModel(request.Id, request.Created, new TcpCommandModel(request.Payload.Port, request.Payload.OriginPort, SocketCommand.Disconnect));
                 await dataTunnelClient.SendTcpCommand(transferCommand, cancellationToken);
             });
         }

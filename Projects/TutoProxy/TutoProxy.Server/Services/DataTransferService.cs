@@ -5,9 +5,11 @@ using TuToProxy.Core.Services;
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
         Task SendTcpRequest(TcpDataRequestModel request);
+        Task SendTcpCommand(TcpCommandModel command);
         Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response);
         Task HandleTcpCommand(string connectionId, TransferTcpCommandModel command);
         Task SendUdpRequest(UdpDataRequestModel request);
+        Task SendUdpCommand(UdpCommandModel command);
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
     }
@@ -45,6 +47,13 @@ namespace TutoProxy.Server.Services {
             await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", transferRequest);
         }
 
+        public async Task SendTcpCommand(TcpCommandModel command) {
+            var transferCommand = new TransferTcpCommandModel(idService.TransferRequest, dateTimeService.Now, command);
+            logger.Debug($"TcpCommand :{transferCommand}");
+            var connectionId = clientsService.GetConnectionIdForTcp(command.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("TcpCommand", transferCommand);
+        }
+
         public async Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response) {
             var client = clientsService.GetClient(connectionId);
             await client.SendTcpResponse(response.Payload);
@@ -60,6 +69,13 @@ namespace TutoProxy.Server.Services {
             logger.Debug($"UdpRequest :{transferRequest}");
             var connectionId = clientsService.GetConnectionIdForUdp(request.Port);
             await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", transferRequest);
+        }
+
+        public async Task SendUdpCommand(UdpCommandModel command) {
+            var transferCommand = new TransferUdpCommandModel(idService.TransferRequest, dateTimeService.Now, command);
+            logger.Debug($"UdpCommand :{transferCommand}");
+            var connectionId = clientsService.GetConnectionIdForUdp(command.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("UdpCommand", transferCommand);
         }
 
         public async Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response) {

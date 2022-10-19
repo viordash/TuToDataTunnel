@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.CommandLine;
+using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
@@ -67,8 +68,16 @@ namespace TutoProxy.Client.Communication {
                 await dataExchangeService.HandleTcpRequest(request, this, cancellationToken);
             });
 
+            connection.On<TransferTcpCommandModel>("TcpCommand", async (command) => {
+                await dataExchangeService.HandleTcpCommand(command, this, cancellationToken);
+            });
+
             connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
                 await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
+            });
+
+            connection.On<TransferUdpCommandModel>("UdpCommand", async (command) => {
+                await dataExchangeService.HandleUdpCommand(command, this, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {
