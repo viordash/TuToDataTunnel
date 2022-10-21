@@ -1,7 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using Microsoft.AspNetCore.DataProtection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
@@ -47,9 +46,6 @@ namespace TutoProxy.Server.Communication {
         async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             try {
-                cancellationToken.Register(() => {
-                    socket.Dispose();
-                });
                 while(socket.Connected && !cancellationToken.IsCancellationRequested) {
                     var receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None);
                     if(receivedBytes == 0) {
@@ -73,6 +69,8 @@ namespace TutoProxy.Server.Communication {
             }
             await dataTransferService.SendTcpCommand(new TcpCommandModel(port, ((IPEndPoint)socket.RemoteEndPoint!).Port, SocketCommand.Disconnect));
             remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
+            logger.Information($"tcp({port}) disconnected {socket.RemoteEndPoint}");
+            socket.Dispose();
         }
 
         public async Task SendResponse(TcpDataResponseModel response) {
