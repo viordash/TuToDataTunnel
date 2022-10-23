@@ -129,14 +129,14 @@ namespace TutoProxy.Server.Communication {
 
 
 
-
         async Task HandleTcpClientAsync(TcpClient tcpClient) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             try {
                 //var stream = tcpClient.GetStream();
                 //var reader = new StreamReader(tcpClient.GetStream());
 
-                await dataTransferService.CreateStream(new TcpDataRequestModel(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, new byte[] { 1, 2 }));
+                await dataTransferService.CreateStream(new TcpDataRequestModel(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port,
+                        new byte[] { 1, 2 }));
 
 
                 //var streamToClient = TcpStreamToClient(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, cts.Token);

@@ -1,4 +1,4 @@
-﻿using System.Threading.Channels;
+﻿using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
@@ -73,30 +73,17 @@ namespace TutoProxy.Server.Hubs {
             return base.OnDisconnectedAsync(exception);
         }
 
-        public ChannelReader<byte[]> TcpStream(int port, int originPort, CancellationToken cancellationToken) {
-            var channel = Channel.CreateUnbounded<byte[]>();
+        public async IAsyncEnumerable<byte[]> TcpStream(int port, int originPort, [EnumeratorCancellation] CancellationToken cancellationToken) {
+            for(var i = 0; i < port; i++) {
+                // Check the cancellation token regularly so that the server will stop
+                // producing items if the client disconnects.
+                cancellationToken.ThrowIfCancellationRequested();
 
-            // We don't want to await WriteItemsAsync, otherwise we'd end up waiting 
-            // for all the items to be written before returning the channel back to
-            // the client.
-            _ = WriteItemsAsync(channel.Writer, port, originPort, cancellationToken);
-            return channel.Reader;
-        }
+                yield return new byte[] { (byte)i, (byte)(i >> 8) };
 
-        private async Task WriteItemsAsync(ChannelWriter<byte[]> writer, int port, int originPort, CancellationToken cancellationToken) {
-            Exception? localException = null;
-            try {
-                for(var i = 0; i < port; i++) {
-                    await writer.WriteAsync(new byte[] { (byte)i, (byte)(i >> 8) }, cancellationToken);
-
-                    // Use the cancellationToken in other APIs that accept cancellation
-                    // tokens so the cancellation can flow down to them.
-                    await Task.Delay(originPort, cancellationToken);
-                }
-            } catch(Exception ex) {
-                localException = ex;
-            } finally {
-                writer.Complete(localException);
+                // Use the cancellationToken in other APIs that accept cancellation
+                // tokens so the cancellation can flow down to them.
+                await Task.Delay(1000, cancellationToken);
             }
         }
     }

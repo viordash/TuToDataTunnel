@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
 using TuToProxy.Core;
@@ -87,29 +88,21 @@ namespace TutoProxy.Client.Communication {
         }
 
 
-
-        public async Task CreateStream(ChannelReader<byte[]> channel, CancellationToken cancellationToken) {
+        public async Task CreateStream(IAsyncEnumerable<byte[]> stream, CancellationTokenSource cts) {
             if(!socket.Connected) {
-                await socket.ConnectAsync(serverEndPoint, cancellationToken);
+                await socket.ConnectAsync(serverEndPoint, cts.Token);
                 localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
             }
 
-            // Wait asynchronously for data to become available
-            while(await channel.WaitToReadAsync()) {
-                // Read all currently available data synchronously, before waiting for more data
-                while(channel.TryRead(out var count)) {
-                    Console.WriteLine($"{count?.ToShortDescriptions(true)}");
+            await foreach(var data in stream) {
+                Console.WriteLine($"{data?.ToShortDescriptions(true)}");
 
-                    //if(requestLogTimer <= DateTime.Now) {
-                    //    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    //    logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
-                    //}
+                if(data?[0] > 10) {
+                    cts.Cancel();
                 }
             }
 
             Console.WriteLine("Streaming completed");
-
-
         }
     }
 }
