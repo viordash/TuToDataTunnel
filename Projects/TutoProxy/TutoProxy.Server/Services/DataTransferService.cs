@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.CommandLine;
+using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
 using TuToProxy.Core.Services;
 
@@ -13,7 +15,8 @@ namespace TutoProxy.Server.Services {
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
 
-        Task CreateStream(TcpDataRequestModel request);
+        Task CreateTcpStream(TcpStreamParam streamParam);
+        IAsyncEnumerable<byte[]> AcceptTcpStream(string connectionId, TcpStreamParam streamParam, CancellationToken cancellationToken);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -91,11 +94,15 @@ namespace TutoProxy.Server.Services {
         }
 
 
-        public async Task CreateStream(TcpDataRequestModel request) {
-            var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Debug($"CreateStream :{transferRequest}");
-            var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("CreateStream", transferRequest);
+        public async Task CreateTcpStream(TcpStreamParam streamParam) {
+            logger.Debug($"CreateStream :{streamParam}");
+            var connectionId = clientsService.GetConnectionIdForTcp(streamParam.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("CreateStream", streamParam);
+        }
+
+        public IAsyncEnumerable<byte[]> AcceptTcpStream(string connectionId, TcpStreamParam streamParam, CancellationToken cancellationToken) {
+            var client = clientsService.GetClient(connectionId);
+            return client.AcceptTcpStream(streamParam, cancellationToken);
         }
     }
 }

@@ -1,10 +1,8 @@
 ﻿using System.CommandLine;
-using System.Threading;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
-using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient {
@@ -87,10 +85,10 @@ namespace TutoProxy.Client.Communication {
             });
 
 
-            connection.On<TransferTcpRequestModel>("CreateStream", async (request) => {
+            connection.On<TcpStreamParam>("CreateStream", async (streamParam) => {
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var stream = connection.StreamAsync<byte[]>("TcpStream", request.Payload.Port, request.Payload.OriginPort, cts.Token);
-                await dataExchangeService.CreateStream(request, stream, this, cts);
+                var stream = connection.StreamAsync<byte[]>("TcpStream", streamParam, cts.Token);
+                await dataExchangeService.CreateStream(streamParam, stream, this, cts);
             });
 
             connection.Reconnecting += e => {

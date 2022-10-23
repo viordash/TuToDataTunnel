@@ -1,7 +1,5 @@
-﻿using System.IO;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-using System.Threading.Channels;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
@@ -94,15 +92,18 @@ namespace TutoProxy.Client.Communication {
                 localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
             }
 
+            int totalBytes = 0;
             await foreach(var data in stream) {
-                Console.WriteLine($"{data?.ToShortDescriptions(true)}");
+                await socket.SendAsync(data, SocketFlags.None, cts.Token);
 
-                if(data?[0] > 10) {
-                    cts.Cancel();
+                totalBytes += data.Length;
+                if(requestLogTimer <= DateTime.Now) {
+                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{data?.ToShortDescriptions()}");
                 }
             }
-
-            Console.WriteLine("Streaming completed");
+            cts.Cancel();
+            logger.Information($"tcp({localPort}) request to {serverEndPoint} completed, transfered {totalBytes} b");
         }
     }
 }

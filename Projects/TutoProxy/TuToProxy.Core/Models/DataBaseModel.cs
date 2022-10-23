@@ -1,17 +1,27 @@
 ﻿namespace TuToProxy.Core.Models {
-    public abstract class DataBaseModel {
+    public abstract class SocketAddressModel {
         public int Port { get; set; }
         public int OriginPort { get; set; }
-        public byte[] Data { get; set; }
 
-        public DataBaseModel(int port, int originPort, byte[] data) {
+        public SocketAddressModel(int port, int originPort) {
             Port = port;
             OriginPort = originPort;
+        }
+
+        public override string ToString() {
+            return $"port:{Port}, o-port:{OriginPort}";
+        }
+    }
+
+    public abstract class DataBaseModel : SocketAddressModel {
+        public byte[] Data { get; set; }
+
+        public DataBaseModel(int port, int originPort, byte[] data) : base(port, originPort) {
             Data = data;
         }
 
         public override string ToString() {
-            return $"port:{Port}, o-port:{OriginPort}, {Data.Length} b";
+            return $"{base.ToString()}, {Data.Length} b";
         }
     }
 }

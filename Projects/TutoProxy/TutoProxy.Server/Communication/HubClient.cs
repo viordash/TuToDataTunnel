@@ -89,6 +89,14 @@ namespace TutoProxy.Server.Communication {
             return Task.CompletedTask;
         }
 
+
+        public IAsyncEnumerable<byte[]> AcceptTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken) {
+            if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
+            }
+            return server.AcceptStream(streamParam, cancellationToken);
+        }
+
         public void Dispose() {
             foreach(var item in tcpServers.Values) {
                 item.Dispose();

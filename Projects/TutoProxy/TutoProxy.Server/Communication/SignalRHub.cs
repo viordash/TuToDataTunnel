@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
@@ -73,18 +74,9 @@ namespace TutoProxy.Server.Hubs {
             return base.OnDisconnectedAsync(exception);
         }
 
-        public async IAsyncEnumerable<byte[]> TcpStream(int port, int originPort, [EnumeratorCancellation] CancellationToken cancellationToken) {
-            for(var i = 0; i < port; i++) {
-                // Check the cancellation token regularly so that the server will stop
-                // producing items if the client disconnects.
-                cancellationToken.ThrowIfCancellationRequested();
-
-                yield return new byte[] { (byte)i, (byte)(i >> 8) };
-
-                // Use the cancellationToken in other APIs that accept cancellation
-                // tokens so the cancellation can flow down to them.
-                await Task.Delay(1000, cancellationToken);
-            }
+        public IAsyncEnumerable<byte[]> TcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken) {
+            logger.Debug($"TcpStream: {streamParam}");
+            return dataTransferService.AcceptTcpStream(Context.ConnectionId, streamParam, cancellationToken);
         }
     }
 }

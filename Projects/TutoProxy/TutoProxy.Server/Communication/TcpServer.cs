@@ -1,4 +1,6 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -17,6 +19,7 @@ namespace TutoProxy.Server.Communication {
         DateTime responseLogTimer = DateTime.Now;
 
         protected readonly ConcurrentDictionary<int, Socket> remoteSockets = new();
+        protected readonly ConcurrentDictionary<int, TcpClient> remoteClients = new();
 
         public TcpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger)
             : base(port, localEndPoint, dataTransferService, logger) {
@@ -130,28 +133,51 @@ namespace TutoProxy.Server.Communication {
 
 
         async Task HandleTcpClientAsync(TcpClient tcpClient) {
-            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
-            try {
-                //var stream = tcpClient.GetStream();
-                //var reader = new StreamReader(tcpClient.GetStream());
+            await dataTransferService.CreateTcpStream(new TcpStreamParam(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port));
 
-                await dataTransferService.CreateStream(new TcpDataRequestModel(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port,
-                        new byte[] { 1, 2 }));
+            remoteClients.TryAdd(((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, tcpClient);
+        }
 
-
-                //var streamToClient = TcpStreamToClient(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, cts.Token);
-
-                //var task1 = stream.CopyToAsync(proxyToClientStream, cts.Token);
-                //var task2 = proxyToClientStream.CopyToAsync(stream, cts.Token);
-                //await Task.WhenAll(task1, task2);
-
-            } catch(SocketException ex) {
-                logger.Error($"tcp({port}) error from {tcpClient.Client.RemoteEndPoint}: {ex.Message}");
-            } catch(OperationCanceledException ex) {
-                logger.Error($"tcp({port}) error from {tcpClient.Client.RemoteEndPoint}: {ex.Message}");
+        public async IAsyncEnumerable<byte[]> AcceptStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken) {
+            if(cancellationToken.IsCancellationRequested) {
+                logger.Error($"tcp({port}) stream on canceled socket {streamParam.OriginPort}");
+                yield break;
             }
-            logger.Information($"tcp({port}) disconnected {tcpClient.Client.RemoteEndPoint}");
-            //tcpClient.Dispose();
+            if(!remoteClients.TryGetValue(streamParam.OriginPort, out TcpClient? tcpClient)) {
+                logger.Error($"tcp({port}) stream on missed socket {streamParam.OriginPort}");
+                yield break;
+            }
+            if(!tcpClient.Connected) {
+                logger.Error($"tcp({port}) stream on disconnected socket {streamParam.OriginPort}");
+                yield break;
+            }
+
+            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+
+            int receivedBytes;
+            int totalBytes = 0;
+            while(tcpClient.Connected && !cancellationToken.IsCancellationRequested) {
+                try {
+                    receivedBytes = await tcpClient.Client.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                    if(receivedBytes == 0) {
+                        break;
+                    }
+                } catch(OperationCanceledException) {
+                    break;
+                }
+                totalBytes += receivedBytes;
+                var data = receiveBuffer[..receivedBytes].ToArray();
+                yield return data;
+
+                if(requestLogTimer <= DateTime.Now) {
+                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    logger.Information($"tcp({port}) request from {tcpClient.Client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
+                }
+            }
+
+            logger.Information($"tcp({port}) disconnected {tcpClient.Client.RemoteEndPoint}, transfered {totalBytes} b");
+            remoteClients.TryRemove(((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, out _);
+            tcpClient.Dispose();
         }
     }
 }
