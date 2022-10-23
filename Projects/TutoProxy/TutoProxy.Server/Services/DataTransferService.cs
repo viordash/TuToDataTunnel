@@ -12,6 +12,8 @@ namespace TutoProxy.Server.Services {
         Task SendUdpCommand(UdpCommandModel command);
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
+
+        Task CreateStream(TcpDataRequestModel request);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -86,6 +88,14 @@ namespace TutoProxy.Server.Services {
         public async Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command) {
             var client = clientsService.GetClient(connectionId);
             await client.ProcessUdpCommand(command.Payload);
+        }
+
+
+        public async Task CreateStream(TcpDataRequestModel request) {
+            var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
+            logger.Debug($"CreateStream :{transferRequest}");
+            var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("CreateStream", transferRequest);
         }
     }
 }

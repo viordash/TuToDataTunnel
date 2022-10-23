@@ -1,9 +1,9 @@
 ﻿using System.CommandLine;
-using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient {
@@ -85,6 +85,12 @@ namespace TutoProxy.Client.Communication {
                 await StopAsync();
             });
 
+
+            connection.On<TransferTcpRequestModel>("CreateStream", async (request) => {
+                var channel = await connection.StreamAsChannelAsync<byte[]>("TcpStream", request.Payload.Port, request.Payload.OriginPort, cancellationToken);
+                await dataExchangeService.CreateStream(request, channel, this, cancellationToken);
+            });
+
             connection.Reconnecting += e => {
                 logger.Warning($"Connection lost. Reconnecting");
                 return Task.CompletedTask;
@@ -130,5 +136,31 @@ namespace TutoProxy.Client.Communication {
                 await connection.InvokeAsync("UdpCommand", command, cancellationToken);
             }
         }
+
+
+
+
+        //public IAsyncEnumerable<TcpDataModel> GetTcpStreamToClient(int port, int originPort, CancellationToken cancellationToken) {
+        //    if(connection?.State != HubConnectionState.Connected) {
+        //        throw new HubConnectionException(connection?.ConnectionId);
+        //    }
+        //    var stream = connection.StreamAsync<TcpDataModel>("TcpStreamToClient", port, originPort, cancellationToken);
+        //    return stream;
+        //}
+
+        //public async Task CreateTcpStreamToHub(IAsyncEnumerable<TcpDataModel> stream, CancellationToken cancellationToken) {
+        //    if(connection?.State != HubConnectionState.Connected) {
+        //        throw new HubConnectionException(connection?.ConnectionId);
+        //    }
+        //    await connection.SendAsync("TcpStreamToHub", stream);
+        //}
+
+        //public async Task<IAsyncEnumerable<TcpDataModel>> CreateTcpStream(int port, int originPort, IAsyncEnumerable<TcpDataModel> stream, CancellationToken cancellationToken) {
+        //    if(connection?.State != HubConnectionState.Connected) {
+        //        throw new HubConnectionException(connection?.ConnectionId);
+        //    }
+        //    await connection.SendAsync("TcpStreamToHub", stream);
+        //    return GetTcpStreamToClient(port, originPort, cancellationToken);
+        //}
     }
 }

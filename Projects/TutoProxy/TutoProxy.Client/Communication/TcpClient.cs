@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Threading.Channels;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
@@ -69,7 +70,7 @@ namespace TutoProxy.Client.Communication {
                 } catch(SocketException ex) {
                     Listening = false;
 
-                    logger.Error($"tcp socket: {ex.Message}");
+                    logger.Error($"tcp({localPort}), o-port: {OriginPort}, error:  {ex.Message}");
                 } catch {
                     Listening = false;
                     throw;
@@ -83,6 +84,32 @@ namespace TutoProxy.Client.Communication {
         public override void Dispose() {
             base.Dispose();
             logger.Information($"tcp for server: {serverEndPoint}, o-port: {OriginPort}, destroyed");
+        }
+
+
+
+        public async Task CreateStream(ChannelReader<byte[]> channel, CancellationToken cancellationToken) {
+            if(!socket.Connected) {
+                await socket.ConnectAsync(serverEndPoint, cancellationToken);
+                localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
+            }
+
+            // Wait asynchronously for data to become available
+            while(await channel.WaitToReadAsync()) {
+                // Read all currently available data synchronously, before waiting for more data
+                while(channel.TryRead(out var count)) {
+                    Console.WriteLine($"{count?.ToShortDescriptions(true)}");
+
+                    //if(requestLogTimer <= DateTime.Now) {
+                    //    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    //    logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
+                    //}
+                }
+            }
+
+            Console.WriteLine("Streaming completed");
+
+
         }
     }
 }

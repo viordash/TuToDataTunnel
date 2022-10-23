@@ -1,6 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
+using Microsoft.AspNetCore.DataProtection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
@@ -29,11 +32,18 @@ namespace TutoProxy.Server.Communication {
                     try {
                         tcpServer.Start();
                         while(!cancellationToken.IsCancellationRequested) {
-                            var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
+                            var tcpClient = await tcpServer.AcceptTcpClientAsync(cancellationToken);
 
-                            logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
-                            _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken), cancellationToken);
+                            logger.Information($"tcp({port}) accept {tcpClient.Client.RemoteEndPoint}");
+                            _ = Task.Run(async () => await HandleTcpClientAsync(tcpClient), cts.Token);
                         }
+
+                        //while(!cancellationToken.IsCancellationRequested) {
+                        //    var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
+
+                        //    logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
+                        //    _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken), cancellationToken);
+                        //}
                     } catch(Exception ex) {
                         logger.Error($"tcp({port}): {ex.Message}");
                     }
@@ -115,6 +125,33 @@ namespace TutoProxy.Server.Communication {
         public override void Dispose() {
             cts.Cancel();
             cts.Dispose();
+        }
+
+
+
+
+        async Task HandleTcpClientAsync(TcpClient tcpClient) {
+            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+            try {
+                //var stream = tcpClient.GetStream();
+                //var reader = new StreamReader(tcpClient.GetStream());
+
+                await dataTransferService.CreateStream(new TcpDataRequestModel(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, new byte[] { 1, 2 }));
+
+
+                //var streamToClient = TcpStreamToClient(port, ((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, cts.Token);
+
+                //var task1 = stream.CopyToAsync(proxyToClientStream, cts.Token);
+                //var task2 = proxyToClientStream.CopyToAsync(stream, cts.Token);
+                //await Task.WhenAll(task1, task2);
+
+            } catch(SocketException ex) {
+                logger.Error($"tcp({port}) error from {tcpClient.Client.RemoteEndPoint}: {ex.Message}");
+            } catch(OperationCanceledException ex) {
+                logger.Error($"tcp({port}) error from {tcpClient.Client.RemoteEndPoint}: {ex.Message}");
+            }
+            logger.Information($"tcp({port}) disconnected {tcpClient.Client.RemoteEndPoint}");
+            //tcpClient.Dispose();
         }
     }
 }
