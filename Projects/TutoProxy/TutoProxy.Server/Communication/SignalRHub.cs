@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
@@ -74,8 +75,8 @@ namespace TutoProxy.Server.Hubs {
             return base.OnDisconnectedAsync(exception);
         }
 
-        public IAsyncEnumerable<byte[]> TcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken) {
-            logger.Debug($"TcpStream: {streamParam}");
+        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam, CancellationToken cancellationToken) {
+            logger.Debug($"TcpStream2Cln: {streamParam}");
             return dataTransferService.AcceptTcpStream(Context.ConnectionId, streamParam, cancellationToken);
         }
     }
