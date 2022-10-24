@@ -153,7 +153,6 @@ namespace TutoProxy.Server.Communication {
             }
 
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
-
             int receivedBytes;
             int totalBytes = 0;
             while(tcpClient.Connected && !cancellationToken.IsCancellationRequested) {

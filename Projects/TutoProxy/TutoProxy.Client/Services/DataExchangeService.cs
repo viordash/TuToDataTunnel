@@ -91,7 +91,7 @@ namespace TutoProxy.Client.Services {
             logger.Debug($"CreateStream :{streamParam}");
 
             var client = clientsService.ObtainTcpClient(streamParam.Port, streamParam.OriginPort);
-            await client.CreateStream(stream, cts);
+            await client.CreateStream(streamParam, stream, dataTunnelClient, cts);
         }
     }
 }

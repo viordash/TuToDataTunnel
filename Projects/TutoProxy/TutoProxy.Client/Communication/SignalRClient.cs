@@ -1,4 +1,5 @@
 ﻿using System.CommandLine;
+using System.Threading;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
@@ -12,6 +13,8 @@ namespace TutoProxy.Client.Communication {
         Task SendTcpCommand(TransferTcpCommandModel command, CancellationToken cancellationToken);
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
+
+        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationTokenSource cts);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -137,30 +140,10 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-
-
-
-        //public IAsyncEnumerable<TcpDataModel> GetTcpStreamToClient(int port, int originPort, CancellationToken cancellationToken) {
-        //    if(connection?.State != HubConnectionState.Connected) {
-        //        throw new HubConnectionException(connection?.ConnectionId);
-        //    }
-        //    var stream = connection.StreamAsync<TcpDataModel>("TcpStreamToClient", port, originPort, cancellationToken);
-        //    return stream;
-        //}
-
-        //public async Task CreateTcpStreamToHub(IAsyncEnumerable<TcpDataModel> stream, CancellationToken cancellationToken) {
-        //    if(connection?.State != HubConnectionState.Connected) {
-        //        throw new HubConnectionException(connection?.ConnectionId);
-        //    }
-        //    await connection.SendAsync("TcpStreamToHub", stream);
-        //}
-
-        //public async Task<IAsyncEnumerable<TcpDataModel>> CreateTcpStream(int port, int originPort, IAsyncEnumerable<TcpDataModel> stream, CancellationToken cancellationToken) {
-        //    if(connection?.State != HubConnectionState.Connected) {
-        //        throw new HubConnectionException(connection?.ConnectionId);
-        //    }
-        //    await connection.SendAsync("TcpStreamToHub", stream);
-        //    return GetTcpStreamToClient(port, originPort, cancellationToken);
-        //}
+        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationTokenSource cts) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.SendAsync("TcpStream2Srv", streamParam, stream, cts.Token);
+            }
+        }
     }
 }

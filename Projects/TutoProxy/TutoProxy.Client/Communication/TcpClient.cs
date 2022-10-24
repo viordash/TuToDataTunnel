@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
@@ -86,11 +87,13 @@ namespace TutoProxy.Client.Communication {
         }
 
 
-        public async Task CreateStream(IAsyncEnumerable<byte[]> stream, CancellationTokenSource cts) {
+        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
             if(!socket.Connected) {
                 await socket.ConnectAsync(serverEndPoint, cts.Token);
                 localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
             }
+
+            _ = Task.Run(async () => await CreateStreamToSrv(streamParam, dataTunnelClient, cts), cts.Token);
 
             int totalBytes = 0;
             await foreach(var data in stream) {
@@ -104,6 +107,37 @@ namespace TutoProxy.Client.Communication {
             }
             cts.Cancel();
             logger.Information($"tcp({localPort}) request to {serverEndPoint} completed, transfered {totalBytes} b");
+        }
+
+        async Task CreateStreamToSrv(TcpStreamParam streamParam, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
+            await dataTunnelClient.CreateStream(streamParam, ClientStreamData(cts.Token), cts);
+
+        }
+
+        async IAsyncEnumerable<byte[]> ClientStreamData([EnumeratorCancellation] CancellationToken cancellationToken) {
+            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+            int receivedBytes;
+            int totalBytes = 0;
+            while(socket.Connected && !cancellationToken.IsCancellationRequested) {
+                try {
+                    receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                    if(receivedBytes == 0) {
+                        break;
+                    }
+                } catch(OperationCanceledException) {
+                    break;
+                }
+                totalBytes += receivedBytes;
+                var data = receiveBuffer[..receivedBytes].ToArray();
+                yield return data;
+
+                if(requestLogTimer <= DateTime.Now) {
+                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    logger.Information($"tcp({localPort}) response from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}.");
+                }
+            }
+            logger.Information($"tcp({localPort}) disconnected {socket.RemoteEndPoint}, received {totalBytes} b");
+            socket.Close();
         }
     }
 }
