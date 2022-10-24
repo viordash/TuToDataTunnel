@@ -16,7 +16,7 @@ namespace TutoProxy.Server.Services {
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
 
-        Task CreateTcpStream(TcpStreamParam streamParam);
+        Task CreateTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken);
         IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam, CancellationToken cancellationToken);
         Task TcpStream2Srv(string connectionId, TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream);
     }
@@ -96,10 +96,10 @@ namespace TutoProxy.Server.Services {
         }
 
 
-        public async Task CreateTcpStream(TcpStreamParam streamParam) {
+        public async Task CreateTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken) {
             logger.Debug($"CreateStream :{streamParam}");
             var connectionId = clientsService.GetConnectionIdForTcp(streamParam.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("CreateStream", streamParam);
+            await signalHub.Clients.Client(connectionId).SendAsync("CreateStream", streamParam, cancellationToken);
         }
 
         public IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam, CancellationToken cancellationToken) {
