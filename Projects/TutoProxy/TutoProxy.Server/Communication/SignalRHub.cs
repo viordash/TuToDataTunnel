@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.Threading;
+using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
@@ -75,15 +76,12 @@ namespace TutoProxy.Server.Hubs {
 
         public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam, CancellationToken cancellationToken) {
             logger.Debug($"TcpStream2Cln: {streamParam}");
-            return dataTransferService.AcceptTcpStream(Context.ConnectionId, streamParam, cancellationToken);
+            return dataTransferService.TcpStream2Cln(Context.ConnectionId, streamParam, cancellationToken);
         }
 
         public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            logger.Information($"TcpStream2Srv: {Context.ConnectionId}");
-
-            await foreach(var item in stream) {
-                Console.WriteLine(item.ToShortDescriptions(true));
-            }
+            logger.Debug($"TcpStream2Srv: {streamParam}");
+            await dataTransferService.TcpStream2Srv(Context.ConnectionId, streamParam, stream);
         }
     }
 }

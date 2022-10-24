@@ -8,6 +8,7 @@ using System.Threading.Channels;
 using Microsoft.AspNetCore.DataProtection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Communication {
@@ -138,7 +139,7 @@ namespace TutoProxy.Server.Communication {
             remoteClients.TryAdd(((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, tcpClient);
         }
 
-        public async IAsyncEnumerable<byte[]> AcceptStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken) {
+        public async IAsyncEnumerable<byte[]> CreateStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken) {
             if(cancellationToken.IsCancellationRequested) {
                 logger.Error($"tcp({port}) stream on canceled socket {streamParam.OriginPort}");
                 yield break;
@@ -177,6 +178,29 @@ namespace TutoProxy.Server.Communication {
             logger.Information($"tcp({port}) disconnected {tcpClient.Client.RemoteEndPoint}, transfered {totalBytes} b");
             remoteClients.TryRemove(((IPEndPoint)tcpClient.Client.RemoteEndPoint!).Port, out _);
             tcpClient.Dispose();
+        }
+
+        public async Task AcceptClientStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
+            if(cancellationToken.IsCancellationRequested) {
+                logger.Error($"tcp({port}) client stream on canceled socket {streamParam.OriginPort}");
+                return;
+            }
+            if(!remoteClients.TryGetValue(streamParam.OriginPort, out TcpClient? tcpClient)) {
+                logger.Error($"tcp({port}) client stream on missed socket {streamParam.OriginPort}");
+                return;
+            }
+            if(!tcpClient.Connected) {
+                logger.Error($"tcp({port}) client stream on disconnected socket {streamParam.OriginPort}");
+                return;
+            }
+
+            await foreach(var data in stream) {
+                await tcpClient.Client.SendAsync(data, SocketFlags.None, cancellationToken);
+                if(responseLogTimer <= DateTime.Now) {
+                    responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    logger.Information($"tcp({port}) response to {tcpClient.Client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
+                }
+            }
         }
     }
 }
