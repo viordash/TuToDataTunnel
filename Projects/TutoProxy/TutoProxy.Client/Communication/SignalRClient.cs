@@ -9,8 +9,6 @@ namespace TutoProxy.Client.Communication {
     public interface ISignalRClient {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
-        Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken);
-        Task SendTcpCommand(TransferTcpCommandModel command, CancellationToken cancellationToken);
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
 
@@ -66,14 +64,6 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferTcpRequestModel>("TcpRequest", async (request) => {
-                await dataExchangeService.HandleTcpRequest(request, this, cancellationToken);
-            });
-
-            connection.On<TransferTcpCommandModel>("TcpCommand", async (command) => {
-                await dataExchangeService.HandleTcpCommand(command, this, cancellationToken);
-            });
-
             connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
                 await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
             });
@@ -113,18 +103,6 @@ namespace TutoProxy.Client.Communication {
                 await connection.DisposeAsync();
                 logger.Information("Connection stopped");
                 connection = null;
-            }
-        }
-
-        public async Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken) {
-            if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("TcpResponse", response, cancellationToken);
-            }
-        }
-
-        public async Task SendTcpCommand(TransferTcpCommandModel command, CancellationToken cancellationToken) {
-            if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("TcpCommand", command, cancellationToken);
             }
         }
 

@@ -22,24 +22,6 @@ namespace TutoProxy.Server.Hubs {
             this.clientsService = clientsService;
         }
 
-        public async Task TcpResponse(TransferTcpResponseModel model) {
-            logger.Debug($"TcpResponse: {model}");
-            try {
-                await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
-            } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
-            }
-        }
-
-        public async Task TcpCommand(TransferTcpCommandModel model) {
-            logger.Debug($"TcpCommand: {model}");
-            try {
-                await dataTransferService.HandleTcpCommand(Context.ConnectionId, model);
-            } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
-            }
-        }
-
         public async Task UdpResponse(TransferUdpResponseModel model) {
             logger.Debug($"UdpResponse: {model}");
             try {

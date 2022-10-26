@@ -7,10 +7,6 @@ using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
-        Task SendTcpRequest(TcpDataRequestModel request);
-        Task SendTcpCommand(TcpCommandModel command);
-        Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response);
-        Task HandleTcpCommand(string connectionId, TransferTcpCommandModel command);
         Task SendUdpRequest(UdpDataRequestModel request);
         Task SendUdpCommand(UdpCommandModel command);
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
@@ -45,30 +41,6 @@ namespace TutoProxy.Server.Services {
             this.dateTimeService = dateTimeService;
             this.signalHub = hubContext;
             this.clientsService = clientsService;
-        }
-
-        public async Task SendTcpRequest(TcpDataRequestModel request) {
-            var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Debug($"TcpRequest :{transferRequest}");
-            var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", transferRequest);
-        }
-
-        public async Task SendTcpCommand(TcpCommandModel command) {
-            var transferCommand = new TransferTcpCommandModel(idService.TransferRequest, dateTimeService.Now, command);
-            logger.Debug($"TcpCommand :{transferCommand}");
-            var connectionId = clientsService.GetConnectionIdForTcp(command.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("TcpCommand", transferCommand);
-        }
-
-        public async Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response) {
-            var client = clientsService.GetClient(connectionId);
-            await client.SendTcpResponse(response.Payload);
-        }
-
-        public async Task HandleTcpCommand(string connectionId, TransferTcpCommandModel command) {
-            var client = clientsService.GetClient(connectionId);
-            await client.ProcessTcpCommand(command.Payload);
         }
 
         public async Task SendUdpRequest(UdpDataRequestModel request) {

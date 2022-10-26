@@ -50,51 +50,10 @@ namespace TutoProxy.Server.Communication {
             }, cancellationToken);
         }
 
-        public async Task SendResponse(TcpDataResponseModel response) {
-            if(cancellationToken.IsCancellationRequested) {
-                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
-                logger.Error($"tcp({port}) response to canceled {response.OriginPort}");
-                return;
-            }
-            if(!remoteSockets.TryGetValue(response.OriginPort, out Socket? remoteSocket)) {
-                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
-                logger.Error($"tcp({port}) response to missed {response.OriginPort}");
-                return;
-            }
-            if(!remoteSocket.Connected) {
-                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
-                logger.Error($"tcp({port}) response to disconnected {response.OriginPort}");
-                return;
-            }
-            await remoteSocket.SendAsync(response.Data, SocketFlags.None, cancellationToken);
-
-            if(responseLogTimer <= DateTime.Now) {
-                responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp({port}) response to {remoteSocket.RemoteEndPoint}, bytes:{response.Data.ToShortDescriptions()}");
-            }
-        }
-
-        public void Disconnect(TcpCommandModel command) {
-            if(cancellationToken.IsCancellationRequested) {
-                return;
-            }
-            if(!remoteSockets.TryRemove(command.OriginPort, out Socket? remoteSocket)) {
-                return;
-            }
-            logger.Information($"tcp({port}) disconnect {remoteSocket.RemoteEndPoint}");
-            if(!remoteSocket.Connected) {
-                return;
-            }
-            remoteSocket.Shutdown(SocketShutdown.Both);
-            remoteSocket.Close();
-        }
-
         public override void Dispose() {
             cts.Cancel();
             cts.Dispose();
         }
-
-
 
         async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
             await dataTransferService.CreateTcpStream(new TcpStreamParam(port, ((IPEndPoint)socket.RemoteEndPoint!).Port), cancellationToken);
