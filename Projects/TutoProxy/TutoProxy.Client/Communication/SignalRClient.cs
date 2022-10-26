@@ -14,7 +14,7 @@ namespace TutoProxy.Client.Communication {
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
 
-        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationTokenSource cts);
+        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -140,9 +140,9 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationTokenSource cts) {
+        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.SendAsync("TcpStream2Srv", streamParam, stream, cts.Token);
+                await connection.SendAsync("TcpStream2Srv", streamParam, stream, cancellationToken);
             }
         }
     }

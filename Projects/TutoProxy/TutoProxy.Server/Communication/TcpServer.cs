@@ -102,11 +102,7 @@ namespace TutoProxy.Server.Communication {
             remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
         }
 
-        public async IAsyncEnumerable<byte[]> CreateStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken) {
-            if(cancellationToken.IsCancellationRequested) {
-                logger.Error($"tcp({port}) stream on canceled socket {streamParam.OriginPort}");
-                yield break;
-            }
+        public async IAsyncEnumerable<byte[]> CreateStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
             if(!remoteSockets.TryGetValue(streamParam.OriginPort, out Socket? socket)) {
                 logger.Error($"tcp({port}) stream on missed socket {streamParam.OriginPort}");
                 yield break;
@@ -137,7 +133,6 @@ namespace TutoProxy.Server.Communication {
                     logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                 }
             }
-
             logger.Information($"tcp({port}) disconnected {socket.RemoteEndPoint}, transfered {totalBytes} b");
             remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
             socket.Dispose();
@@ -157,7 +152,7 @@ namespace TutoProxy.Server.Communication {
                 return;
             }
 
-            await foreach(var data in stream) {
+            await foreach(var data in stream.WithCancellation(cancellationToken)) {
                 await socket.SendAsync(data, SocketFlags.None, cancellationToken);
                 if(responseLogTimer <= DateTime.Now) {
                     responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);

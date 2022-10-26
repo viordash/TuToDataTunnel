@@ -74,9 +74,9 @@ namespace TutoProxy.Server.Hubs {
             return base.OnDisconnectedAsync(exception);
         }
 
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam, CancellationToken cancellationToken) {
+        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
             logger.Debug($"TcpStream2Cln: {streamParam}");
-            return dataTransferService.TcpStream2Cln(Context.ConnectionId, streamParam, cancellationToken);
+            return dataTransferService.TcpStream2Cln(Context.ConnectionId, streamParam);
         }
 
         public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {

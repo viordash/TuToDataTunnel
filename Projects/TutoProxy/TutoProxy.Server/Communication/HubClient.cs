@@ -90,11 +90,11 @@ namespace TutoProxy.Server.Communication {
         }
 
 
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam, CancellationToken cancellationToken) {
+        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
             if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
             }
-            return server.CreateStream(streamParam, cancellationToken);
+            return server.CreateStream(streamParam);
         }
 
         public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {

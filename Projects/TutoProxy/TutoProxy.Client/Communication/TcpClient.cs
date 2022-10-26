@@ -96,7 +96,7 @@ namespace TutoProxy.Client.Communication {
             _ = Task.Run(async () => await CreateStreamToSrv(streamParam, dataTunnelClient, cts), cts.Token);
 
             int totalBytes = 0;
-            await foreach(var data in stream) {
+            await foreach(var data in stream.WithCancellation(cts.Token)) {
                 await socket.SendAsync(data, SocketFlags.None, cts.Token);
 
                 totalBytes += data.Length;
@@ -110,11 +110,11 @@ namespace TutoProxy.Client.Communication {
         }
 
         async Task CreateStreamToSrv(TcpStreamParam streamParam, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
-            await dataTunnelClient.CreateStream(streamParam, ClientStreamData(cts.Token), cts);
+            await dataTunnelClient.CreateStream(streamParam, ClientStreamData(cts), cts.Token);
 
         }
 
-        async IAsyncEnumerable<byte[]> ClientStreamData([EnumeratorCancellation] CancellationToken cancellationToken) {
+        async IAsyncEnumerable<byte[]> ClientStreamData(CancellationTokenSource cts, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             int receivedBytes;
             int totalBytes = 0;
@@ -138,6 +138,7 @@ namespace TutoProxy.Client.Communication {
             }
             logger.Information($"tcp({localPort}) disconnected {socket.RemoteEndPoint}, received {totalBytes} b");
             socket.Close();
+            cts.Cancel();
         }
     }
 }
