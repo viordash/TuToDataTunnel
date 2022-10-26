@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using TutoProxy.Client.Services;
 
 namespace TutoProxy.Client.Communication {
 
@@ -10,24 +11,23 @@ namespace TutoProxy.Client.Communication {
         protected readonly Timer timeoutTimer;
         protected abstract TimeSpan ReceiveTimeout { get; }
 
+        protected readonly IClientsService clientsService;
+
         public int Port { get { return serverEndPoint.Port; } }
         public int OriginPort { get; private set; }
 
-        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, Action<int, int> timeoutAction) {
+        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService) {
             this.serverEndPoint = serverEndPoint;
             OriginPort = originPort;
             this.logger = logger;
+            this.clientsService = clientsService;
 
-            timeoutTimer = new(OnTimedEvent, timeoutAction, ReceiveTimeout, Timeout.InfiniteTimeSpan);
+            timeoutTimer = new(OnTimedEvent, null, ReceiveTimeout, Timeout.InfiniteTimeSpan);
 
             socket = CreateSocket();
         }
 
-        void OnTimedEvent(object? state) {
-            if(state is Action<int, int> timeoutAction) {
-                timeoutAction(Port, OriginPort);
-            }
-        }
+        protected abstract void OnTimedEvent(object? state);
 
         protected abstract TSocket CreateSocket();
 

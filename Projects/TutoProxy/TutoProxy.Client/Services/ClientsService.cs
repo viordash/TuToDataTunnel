@@ -57,7 +57,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}");
-                    return clientFactory.CreateTcp(localIpAddress, port, originPort, TimeoutTcpClient);
+                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this);
                 }
             );
             client.Refresh();
@@ -70,10 +70,6 @@ namespace TutoProxy.Client.Services {
                 removedClient.Dispose();
                 Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}");
             }
-        }
-
-        void TimeoutTcpClient(int port, int originPort) {
-            RemoveTcpClient(port, originPort);
         }
 
         public UdpClient ObtainUdpClient(int port, int originPort) {
@@ -90,7 +86,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     Debug.WriteLine($"ObtainClient: add udp for OriginPort {originPort}");
-                    return clientFactory.CreateUdp(localIpAddress, port, originPort, TimeoutUdpClient);
+                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this);
                 }
             );
             client.Refresh();
@@ -104,10 +100,6 @@ namespace TutoProxy.Client.Services {
                     removedClient.Dispose();
                 }
             }
-        }
-
-        void TimeoutUdpClient(int port, int originPort) {
-            RemoveUdpClient(port, originPort);
         }
 
         public void Stop() {

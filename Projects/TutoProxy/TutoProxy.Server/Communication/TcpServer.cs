@@ -123,6 +123,8 @@ namespace TutoProxy.Server.Communication {
                     }
                 } catch(OperationCanceledException) {
                     break;
+                } catch(SocketException) {
+                    break;
                 }
                 totalBytes += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
@@ -152,12 +154,16 @@ namespace TutoProxy.Server.Communication {
                 return;
             }
 
-            await foreach(var data in stream.WithCancellation(cancellationToken)) {
-                await socket.SendAsync(data, SocketFlags.None, cancellationToken);
-                if(responseLogTimer <= DateTime.Now) {
-                    responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({port}) response to {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
+            try {
+                await foreach(var data in stream.WithCancellation(cancellationToken)) {
+                    await socket.SendAsync(data, SocketFlags.None, cancellationToken);
+                    if(responseLogTimer <= DateTime.Now) {
+                        responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                        logger.Information($"tcp({port}) response to {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
+                    }
                 }
+            } catch(Exception ex) {
+                logger.Error(ex.ToString());
             }
         }
     }

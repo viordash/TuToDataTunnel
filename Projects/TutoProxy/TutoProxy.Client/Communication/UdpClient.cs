@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using TutoProxy.Client.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
@@ -13,8 +14,12 @@ namespace TutoProxy.Client.Communication {
         protected override TimeSpan ReceiveTimeout { get { return UdpSocketParams.ReceiveTimeout; } }
         public bool Listening { get; private set; } = false;
 
-        public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, Action<int, int> timeoutAction)
-            : base(serverEndPoint, originPort, logger, timeoutAction) {
+        public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService)
+            : base(serverEndPoint, originPort, logger, clientsService) {
+        }
+
+        protected override void OnTimedEvent(object? state) {
+            clientsService.RemoveUdpClient(Port, OriginPort);
         }
 
         protected override System.Net.Sockets.UdpClient CreateSocket() {

@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using TutoProxy.Client.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
@@ -14,8 +15,12 @@ namespace TutoProxy.Client.Communication {
         protected override TimeSpan ReceiveTimeout { get { return TcpSocketParams.ReceiveTimeout; } }
         public bool Listening { get; private set; } = false;
 
-        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, Action<int, int> timeoutAction)
-            : base(serverEndPoint, originPort, logger, timeoutAction) {
+        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService)
+            : base(serverEndPoint, originPort, logger, clientsService) {
+        }
+
+        protected override void OnTimedEvent(object? state) {
+            clientsService.RemoveTcpClient(Port, OriginPort);
         }
 
         protected override Socket CreateSocket() {
@@ -107,6 +112,7 @@ namespace TutoProxy.Client.Communication {
             }
             cts.Cancel();
             logger.Information($"tcp({localPort}) request to {serverEndPoint} completed, transfered {totalBytes} b");
+            clientsService.RemoveTcpClient(Port, OriginPort);
         }
 
         async Task CreateStreamToSrv(TcpStreamParam streamParam, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
@@ -126,6 +132,8 @@ namespace TutoProxy.Client.Communication {
                     }
                 } catch(OperationCanceledException) {
                     break;
+                } catch(SocketException) {
+                    break;
                 }
                 totalBytes += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
@@ -136,9 +144,10 @@ namespace TutoProxy.Client.Communication {
                     logger.Information($"tcp({localPort}) response from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}.");
                 }
             }
-            logger.Information($"tcp({localPort}) disconnected {socket.RemoteEndPoint}, received {totalBytes} b");
+            logger.Information($"tcp({localPort}) disconnected, received {totalBytes} b");
             socket.Close();
             cts.Cancel();
+            clientsService.RemoveTcpClient(Port, OriginPort);
         }
     }
 }
