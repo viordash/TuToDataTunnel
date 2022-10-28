@@ -78,10 +78,12 @@ namespace TutoProxy.Client.Communication {
             });
 
 
-            connection.On<TcpStreamParam>("CreateStream", async (streamParam) => {
+            connection.On<TcpStreamParam>("CreateStream", (streamParam) => {
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var stream = connection.StreamAsync<byte[]>("TcpStream2Cln", streamParam, cts.Token);
-                await dataExchangeService.CreateStream(streamParam, stream, this, cts);
+                _ = Task.Run(async () => {
+                    var stream = connection.StreamAsync<byte[]>("TcpStream2Cln", streamParam, cts.Token);
+                    await dataExchangeService.CreateStream(streamParam, stream, this, cts);
+                }, cts.Token);
             });
 
             connection.Reconnecting += e => {

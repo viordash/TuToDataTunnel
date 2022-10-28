@@ -121,8 +121,11 @@ namespace TutoProxy.Server.Communication {
                         logger.Information($"tcp({port}) response to {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                     }
                 }
+            } catch(OperationCanceledException) {
+            } catch(SocketException) {
+
             } catch(Exception ex) {
-                logger.Error(ex.ToString());
+                logger.Error(ex.GetBaseException().Message);
             }
         }
     }
