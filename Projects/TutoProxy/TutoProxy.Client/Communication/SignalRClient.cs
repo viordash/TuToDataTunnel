@@ -65,7 +65,8 @@ namespace TutoProxy.Client.Communication {
                  .Build();
 
             connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
-                await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                await dataExchangeService.HandleUdpRequest(request, this, cts);
             });
 
             connection.On<TransferUdpCommandModel>("UdpCommand", async (command) => {

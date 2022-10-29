@@ -7,9 +7,9 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
-        TcpClient ObtainTcpClient(int port, int originPort);
+        TcpClient ObtainTcpClient(int port, int originPort, CancellationTokenSource cts);
         void RemoveTcpClient(int port, int originPort);
-        UdpClient ObtainUdpClient(int port, int originPort);
+        UdpClient ObtainUdpClient(int port, int originPort, CancellationTokenSource cts);
         void RemoveUdpClient(int port, int originPort);
         void Stop();
     }
@@ -43,7 +43,7 @@ namespace TutoProxy.Client.Services {
             this.udpPorts = udpPorts;
         }
 
-        public TcpClient ObtainTcpClient(int port, int originPort) {
+        public TcpClient ObtainTcpClient(int port, int originPort, CancellationTokenSource cts) {
             var commonPortClients = tcpClients.GetOrAdd(port,
                     _ => {
                         if(tcpPorts == null || !tcpPorts.Contains(port)) {
@@ -57,7 +57,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}");
-                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this);
+                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, cts);
                 }
             );
             client.Refresh();
@@ -72,7 +72,7 @@ namespace TutoProxy.Client.Services {
             }
         }
 
-        public UdpClient ObtainUdpClient(int port, int originPort) {
+        public UdpClient ObtainUdpClient(int port, int originPort, CancellationTokenSource cts) {
             var commonPortClients = udpClients.GetOrAdd(port,
                     _ => {
                         if(udpPorts == null || !udpPorts.Contains(port)) {
@@ -86,7 +86,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     Debug.WriteLine($"ObtainClient: add udp for OriginPort {originPort}");
-                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this);
+                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this, cts);
                 }
             );
             client.Refresh();

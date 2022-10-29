@@ -2,7 +2,7 @@
 
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
-        Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationTokenSource cts);
         Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
 
         Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationTokenSource cts);
@@ -22,7 +22,7 @@ namespace TutoProxy.Client.Services {
             this.clientsService = clientsService;
         }
 
-        public async Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+        public async Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
             logger.Debug($"HandleUdpRequestAsync :{request}");
 
             //_ = Task.Run(async () => {
@@ -33,10 +33,10 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
 
 
-            var client = clientsService.ObtainUdpClient(request.Payload.Port, request.Payload.OriginPort);
-            await client.SendRequest(request.Payload.Data, cancellationToken);
+            var client = clientsService.ObtainUdpClient(request.Payload.Port, request.Payload.OriginPort, cts);
+            await client.SendRequest(request.Payload.Data, cts.Token);
             if(!client.Listening) {
-                client.Listen(request, dataTunnelClient, cancellationToken);
+                client.Listen(request, dataTunnelClient, cts.Token);
             }
         }
 
@@ -56,8 +56,8 @@ namespace TutoProxy.Client.Services {
         public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
             logger.Debug($"CreateStream :{streamParam}");
 
-            var client = clientsService.ObtainTcpClient(streamParam.Port, streamParam.OriginPort);
-            await client.CreateStream(streamParam, stream, dataTunnelClient, cts);
+            var client = clientsService.ObtainTcpClient(streamParam.Port, streamParam.OriginPort, cts);
+            await client.CreateStream(streamParam, stream, dataTunnelClient);
         }
     }
 }

@@ -3,20 +3,17 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
-using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Client.Communication {
     public class TcpClient : BaseClient<Socket> {
         int localPort;
         DateTime requestLogTimer = DateTime.Now;
-        DateTime responseLogTimer = DateTime.Now;
 
         protected override TimeSpan ReceiveTimeout { get { return TcpSocketParams.ReceiveTimeout; } }
-        public bool Listening { get; private set; } = false;
 
-        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService)
-            : base(serverEndPoint, originPort, logger, clientsService) {
+        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, CancellationTokenSource cancellationTokenSource)
+            : base(serverEndPoint, originPort, logger, clientsService, cancellationTokenSource) {
         }
 
         protected override void OnTimedEvent(object? state) {
@@ -26,9 +23,9 @@ namespace TutoProxy.Client.Communication {
         protected override Socket CreateSocket() {
             var tcpClient = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-            tcpClient.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-            tcpClient.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 10);
-            tcpClient.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 10);
+            //tcpClient.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            //tcpClient.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 10);
+            //tcpClient.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 10);
 
             logger.Information($"tcp for server: {serverEndPoint}, o-port: {OriginPort}, created");
             return tcpClient;
@@ -39,17 +36,21 @@ namespace TutoProxy.Client.Communication {
             logger.Information($"tcp for server: {serverEndPoint}, o-port: {OriginPort}, destroyed");
         }
 
-        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
+        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient) {
             if(!socket.Connected) {
-                await socket.ConnectAsync(serverEndPoint, cts.Token);
+                await socket.ConnectAsync(serverEndPoint, cancellationTokenSource.Token);
                 localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
             }
 
-            await dataTunnelClient.CreateStream(streamParam, ClientStreamData(cts), cts.Token);
+            await dataTunnelClient.CreateStream(streamParam, ClientStreamData(cancellationTokenSource), cancellationTokenSource.Token);
 
             int totalBytes = 0;
-            await foreach(var data in stream.WithCancellation(cts.Token)) {
-                await socket.SendAsync(data, SocketFlags.None, cts.Token);
+            await foreach(var data in stream.WithCancellation(cancellationTokenSource.Token)) {
+                if(!socket.Connected) {
+                    logger.Information($"tcp({localPort}) request to {serverEndPoint}, ---- {cancellationTokenSource.Token.IsCancellationRequested}");
+                    break;
+                }
+                await socket.SendAsync(data, SocketFlags.None, cancellationTokenSource.Token);
 
                 totalBytes += data.Length;
                 if(requestLogTimer <= DateTime.Now) {
@@ -57,7 +58,7 @@ namespace TutoProxy.Client.Communication {
                     logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{data?.ToShortDescriptions()}");
                 }
             }
-            cts.Cancel();
+            cancellationTokenSource.Cancel();
             logger.Information($"tcp({localPort}) request to {serverEndPoint} completed, transfered {totalBytes} b");
             clientsService.RemoveTcpClient(Port, OriginPort);
         }
@@ -83,7 +84,7 @@ namespace TutoProxy.Client.Communication {
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({localPort}) response from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}.");
+                    logger.Information($"tcp({localPort}) response from {serverEndPoint}, bytes:{data.ToShortDescriptions()}.");
                 }
             }
             logger.Information($"tcp({localPort}) disconnected, received {totalBytes} b");
