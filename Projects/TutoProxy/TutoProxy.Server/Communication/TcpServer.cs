@@ -45,6 +45,9 @@ namespace TutoProxy.Server.Communication {
                         while(!cts.IsCancellationRequested) {
                             var socket = await tcpServer.AcceptSocketAsync(cts.Token);
 
+                            if(cts.IsCancellationRequested) {
+                                break;
+                            }
                             logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
                             _ = Task.Run(async () => await HandleSocketAsync(new CancelableClient(socket, cts.Token), cts.Token), cts.Token);
                         }
