@@ -1,45 +1,52 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
-using System.Threading.Channels;
-using Microsoft.AspNetCore.DataProtection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
-using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Communication {
     internal class TcpServer : BaseServer {
         readonly TcpListener tcpServer;
         readonly CancellationTokenSource cts;
-        readonly CancellationToken cancellationToken;
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
 
-        protected readonly ConcurrentDictionary<int, Socket> remoteSockets = new();
+        #region inner classes
+        protected class CancelableClient {
+            public readonly Socket Socket;
+            public readonly CancellationTokenSource Cts;
+            public readonly EndPoint? RemoteEndPoint;
+
+            public CancelableClient(Socket socket, CancellationToken cancellationToken) {
+                Socket = socket;
+                RemoteEndPoint = socket.RemoteEndPoint;
+                Cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            }
+        }
+        #endregion
+
+        protected readonly ConcurrentDictionary<int, CancelableClient> remoteSockets = new();
 
         public TcpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger)
             : base(port, localEndPoint, dataTransferService, logger) {
             tcpServer = new TcpListener(localEndPoint.Address, port);
 
             cts = new CancellationTokenSource();
-            cancellationToken = cts.Token;
         }
 
         public Task Listen() {
             return Task.Run(async () => {
-                while(!cancellationToken.IsCancellationRequested) {
+                while(!cts.IsCancellationRequested) {
                     try {
                         tcpServer.Start();
 
-                        while(!cancellationToken.IsCancellationRequested) {
-                            var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
+                        while(!cts.IsCancellationRequested) {
+                            var socket = await tcpServer.AcceptSocketAsync(cts.Token);
 
                             logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
-                            _ = Task.Run(async () => await HandleSocketAsync(socket, cancellationToken), cancellationToken);
+                            _ = Task.Run(async () => await HandleSocketAsync(new CancelableClient(socket, cts.Token), cts.Token), cts.Token);
                         }
                     } catch(Exception ex) {
                         logger.Error($"tcp({port}): {ex.Message}");
@@ -47,7 +54,7 @@ namespace TutoProxy.Server.Communication {
                     tcpServer.Stop();
                     logger.Information($"tcp({port}) close");
                 }
-            }, cancellationToken);
+            }, cts.Token);
         }
 
         public override void Dispose() {
@@ -55,18 +62,18 @@ namespace TutoProxy.Server.Communication {
             cts.Dispose();
         }
 
-        async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
-            await dataTransferService.CreateTcpStream(new TcpStreamParam(port, ((IPEndPoint)socket.RemoteEndPoint!).Port), cancellationToken);
+        async Task HandleSocketAsync(CancelableClient cancelableClient, CancellationToken cancellationToken) {
+            await dataTransferService.CreateTcpStream(new TcpStreamParam(port, ((IPEndPoint)cancelableClient.RemoteEndPoint!).Port), cancellationToken);
 
-            remoteSockets.TryAdd(((IPEndPoint)socket.RemoteEndPoint!).Port, socket);
+            remoteSockets.TryAdd(((IPEndPoint)cancelableClient.RemoteEndPoint!).Port, cancelableClient);
         }
 
         public async IAsyncEnumerable<byte[]> CreateStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            if(!remoteSockets.TryGetValue(streamParam.OriginPort, out Socket? socket)) {
+            if(!remoteSockets.TryGetValue(streamParam.OriginPort, out CancelableClient? cancelableClient)) {
                 logger.Error($"tcp({port}) stream on missed socket {streamParam.OriginPort}");
                 yield break;
             }
-            if(!socket.Connected) {
+            if(!cancelableClient.Socket.Connected) {
                 logger.Error($"tcp({port}) stream on disconnected socket {streamParam.OriginPort}");
                 yield break;
             }
@@ -74,9 +81,9 @@ namespace TutoProxy.Server.Communication {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             int receivedBytes;
             int totalBytes = 0;
-            while(socket.Connected && !cancellationToken.IsCancellationRequested) {
+            while(cancelableClient.Socket.Connected && !cancellationToken.IsCancellationRequested) {
                 try {
-                    receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+                    receivedBytes = await cancelableClient.Socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
                     if(receivedBytes == 0) {
                         break;
                     }
@@ -91,34 +98,35 @@ namespace TutoProxy.Server.Communication {
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({port}) request from {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
+                    logger.Information($"tcp({port}) request from {cancelableClient.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                 }
             }
-            logger.Information($"tcp({port}) disconnected {socket.RemoteEndPoint}, transfered {totalBytes} b");
-            remoteSockets.TryRemove(((IPEndPoint)socket.RemoteEndPoint!).Port, out _);
-            socket.Dispose();
+            logger.Information($"tcp({port}) disconnected {cancelableClient.RemoteEndPoint}, transfered {totalBytes} b");
+            remoteSockets.TryRemove(((IPEndPoint)cancelableClient.RemoteEndPoint!).Port, out _);
+            cancelableClient.Cts.Cancel();
+            cancelableClient.Socket.Dispose();
         }
 
         public async Task AcceptClientStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            if(cancellationToken.IsCancellationRequested) {
+            if(cts.IsCancellationRequested) {
                 logger.Error($"tcp({port}) client stream on canceled socket {streamParam.OriginPort}");
                 return;
             }
-            if(!remoteSockets.TryGetValue(streamParam.OriginPort, out Socket? socket)) {
+            if(!remoteSockets.TryGetValue(streamParam.OriginPort, out CancelableClient? cancelableClient)) {
                 logger.Error($"tcp({port}) client stream on missed socket {streamParam.OriginPort}");
                 return;
             }
-            if(!socket.Connected) {
+            if(!cancelableClient.Socket.Connected) {
                 logger.Error($"tcp({port}) client stream on disconnected socket {streamParam.OriginPort}");
                 return;
             }
 
             try {
-                await foreach(var data in stream.WithCancellation(cancellationToken)) {
-                    await socket.SendAsync(data, SocketFlags.None, cancellationToken);
+                await foreach(var data in stream.WithCancellation(cancelableClient.Cts.Token)) {
+                    await cancelableClient.Socket.SendAsync(data, SocketFlags.None, cancelableClient.Cts.Token);
                     if(responseLogTimer <= DateTime.Now) {
                         responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                        logger.Information($"tcp({port}) response to {socket.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
+                        logger.Information($"tcp({port}) response to {cancelableClient.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                     }
                 }
             } catch(OperationCanceledException) {
