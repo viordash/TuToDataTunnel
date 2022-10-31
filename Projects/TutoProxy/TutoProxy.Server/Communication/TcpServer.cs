@@ -96,7 +96,7 @@ namespace TutoProxy.Server.Communication {
         async Task HandleSocketAsync(CancelableClient cancelableClient, CancellationToken cancellationToken) {
             await dataTransferService.CreateTcpStream(new TcpStreamParam(port, cancelableClient.RemoteEndPoint.Port), cancellationToken);
 
-            remoteSockets.TryAdd(((IPEndPoint)cancelableClient.RemoteEndPoint!).Port, cancelableClient);
+            remoteSockets.TryAdd(cancelableClient.RemoteEndPoint.Port, cancelableClient);
         }
 
         public async IAsyncEnumerable<byte[]> CreateStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
