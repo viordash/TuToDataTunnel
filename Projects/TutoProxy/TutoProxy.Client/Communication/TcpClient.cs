@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
@@ -11,6 +12,9 @@ namespace TutoProxy.Client.Communication {
         DateTime responseLogTimer = DateTime.Now;
         readonly Timer forceCloseTimer;
 
+        bool shutdownReceive;
+        bool shutdownTransmit;
+
         public int TotalTransmitted { get; set; }
         public int TotalReceived { get; set; }
 
@@ -22,19 +26,42 @@ namespace TutoProxy.Client.Communication {
         }
 
         void TryShutdown(SocketShutdown how) {
-            if(socket.Connected && how != SocketShutdown.Both) {
-                forceCloseTimer.Change(Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(5));
-                socket.Shutdown(how);
-            } else {
-                try {
-                    socket.Shutdown(SocketShutdown.Both);
-                } catch(ObjectDisposedException) { }
-                clientsService.RemoveTcpClient(Port, OriginPort);
-                forceCloseTimer.Dispose();
+            lock(this) {
+                switch(how) {
+                    case SocketShutdown.Receive:
+                        shutdownReceive = true;
+                        break;
+                    case SocketShutdown.Send:
+                        shutdownTransmit = true;
+                        if(socket.Connected) {
+                            try {
+                                socket.Shutdown(SocketShutdown.Send);
+                            } catch(Exception) { }
+                        }
+                        break;
+                    case SocketShutdown.Both:
+                        shutdownReceive = true;
+                        shutdownTransmit = true;
+                        break;
+                }
+
+
+                if(shutdownReceive && shutdownTransmit) {
+                    if(socket.Connected) {
+                        try {
+                            socket.Shutdown(SocketShutdown.Both);
+                        } catch(Exception) { }
+                    }
+                    clientsService.RemoveTcpClient(Port, OriginPort);
+                    forceCloseTimer.Dispose();
+                } else {
+                    forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+                }
             }
         }
 
         void OnForceCloseTimedEvent(object? state) {
+            Debug.WriteLine($"tcp({localPort}) , o-port: {OriginPort}, attempt to close");
             TryShutdown(SocketShutdown.Both);
         }
 
@@ -61,24 +88,21 @@ namespace TutoProxy.Client.Communication {
 
             await dataTunnelClient.CreateStream(streamParam, ClientStreamData(), cancellationTokenSource.Token);
 
-            try {
-                await foreach(var data in stream.WithCancellation(cancellationTokenSource.Token)) {
-                    if(!socket.Connected) {
-                        logger.Information($"tcp({localPort}) request to {serverEndPoint}, ---- {cancellationTokenSource.Token.IsCancellationRequested}");
-                        logger.Information($"tcp({localPort}) request to {serverEndPoint}, 444 {cancellationTokenSource.Token.IsCancellationRequested}");
-                        //break;
-                    }
-                    TotalTransmitted += await socket.SendAsync(data, SocketFlags.None, cancellationTokenSource.Token);
-
-                    if(requestLogTimer <= DateTime.Now) {
-                        requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                        logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{data?.ToShortDescriptions()}");
+            await foreach(var data in stream.WithCancellation(cancellationTokenSource.Token)) {
+                if(socket.Connected && !cancellationTokenSource.IsCancellationRequested) {
+                    try {
+                        TotalTransmitted += await socket.SendAsync(data, SocketFlags.None, cancellationTokenSource.Token);
+                    } catch(SocketException) {
+                    } catch(ObjectDisposedException) {
+                    } catch(Exception ex) {
+                        logger.Error(ex.GetBaseException().Message);
                     }
                 }
-            } catch(SocketException ex) {
-                logger.Error(ex.GetBaseException().Message);
-            } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
+
+                if(requestLogTimer <= DateTime.Now) {
+                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{data?.ToShortDescriptions()}");
+                }
             }
 
             TryShutdown(SocketShutdown.Send);
@@ -86,6 +110,7 @@ namespace TutoProxy.Client.Communication {
 
         async IAsyncEnumerable<byte[]> ClientStreamData() {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+
             while(socket.Connected && !cancellationTokenSource.IsCancellationRequested) {
                 int receivedBytes;
                 try {
@@ -99,9 +124,13 @@ namespace TutoProxy.Client.Communication {
                 } catch(SocketException ex) {
                     logger.Error(ex.GetBaseException().Message);
                     break;
+                } catch(Exception ex) {
+                    logger.Error(ex.GetBaseException().Message);
+                    break;
                 }
                 TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
+
                 yield return data;
 
                 if(responseLogTimer <= DateTime.Now) {

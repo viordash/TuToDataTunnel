@@ -56,7 +56,7 @@ namespace TutoProxy.Client.Services {
 
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
-                    Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}");
+                    Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}, {tcpClients.Count}, {commonPortClients.Count}");
                     return clientFactory.CreateTcp(localIpAddress, port, originPort, this, cts);
                 }
             );
@@ -68,7 +68,7 @@ namespace TutoProxy.Client.Services {
             if(tcpClients.TryGetValue(port, out ConcurrentDictionary<int, TcpClient>? removingClients)
                 && removingClients.TryRemove(originPort, out TcpClient? removedClient)) {
                 removedClient.Dispose();
-                Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}");
+                Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}, {tcpClients.Count}, {removingClients.Count}");
             }
         }
 
