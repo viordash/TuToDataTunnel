@@ -1,5 +1,5 @@
 ﻿using System.CommandLine;
-using System.Net;
+using System.Threading;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
@@ -9,10 +9,10 @@ namespace TutoProxy.Client.Communication {
     public interface ISignalRClient {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
-        Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken);
-        Task SendTcpCommand(TransferTcpCommandModel command, CancellationToken cancellationToken);
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
+
+        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -64,16 +64,9 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferTcpRequestModel>("TcpRequest", async (request) => {
-                await dataExchangeService.HandleTcpRequest(request, this, cancellationToken);
-            });
-
-            connection.On<TransferTcpCommandModel>("TcpCommand", async (command) => {
-                await dataExchangeService.HandleTcpCommand(command, this, cancellationToken);
-            });
-
             connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
-                await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                await dataExchangeService.HandleUdpRequest(request, this, cts);
             });
 
             connection.On<TransferUdpCommandModel>("UdpCommand", async (command) => {
@@ -83,6 +76,15 @@ namespace TutoProxy.Client.Communication {
             connection.On<string>("Errors", async (message) => {
                 logger.Error(message);
                 await StopAsync();
+            });
+
+
+            connection.On<TcpStreamParam>("CreateStream", (streamParam) => {
+                _ = Task.Run(async () => {
+                    var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    var stream = connection.StreamAsync<byte[]>("TcpStream2Cln", streamParam, cts.Token);
+                    await dataExchangeService.CreateStream(streamParam, stream, this, cts);
+                }, cancellationToken);
             });
 
             connection.Reconnecting += e => {
@@ -107,18 +109,6 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken) {
-            if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("TcpResponse", response, cancellationToken);
-            }
-        }
-
-        public async Task SendTcpCommand(TransferTcpCommandModel command, CancellationToken cancellationToken) {
-            if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("TcpCommand", command, cancellationToken);
-            }
-        }
-
         public async Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("UdpResponse", response, cancellationToken);
@@ -128,6 +118,12 @@ namespace TutoProxy.Client.Communication {
         public async Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("UdpCommand", command, cancellationToken);
+            }
+        }
+
+        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.SendAsync("TcpStream2Srv", streamParam, stream, cancellationToken);
             }
         }
     }

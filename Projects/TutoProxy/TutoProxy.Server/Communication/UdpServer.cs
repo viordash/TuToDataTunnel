@@ -82,12 +82,12 @@ namespace TutoProxy.Server.Communication {
 
         public async Task SendResponse(UdpDataResponseModel response) {
             if(cancellationToken.IsCancellationRequested) {
-                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
+                await dataTransferService.SendUdpCommand(new UdpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
                 logger.Error($"udp({port}) response to canceled {response.OriginPort}");
                 return;
             }
             if(!remoteEndPoints.TryGetValue(response.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
-                await dataTransferService.SendTcpCommand(new TcpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
+                await dataTransferService.SendUdpCommand(new UdpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
                 logger.Error($"udp({port}) response to missed {response.OriginPort}");
                 return;
             }

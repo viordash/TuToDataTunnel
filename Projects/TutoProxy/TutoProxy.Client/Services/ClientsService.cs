@@ -7,9 +7,9 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
-        TcpClient ObtainTcpClient(int port, int originPort);
+        TcpClient ObtainTcpClient(int port, int originPort, CancellationTokenSource cts);
         void RemoveTcpClient(int port, int originPort);
-        UdpClient ObtainUdpClient(int port, int originPort);
+        UdpClient ObtainUdpClient(int port, int originPort, CancellationTokenSource cts);
         void RemoveUdpClient(int port, int originPort);
         void Stop();
     }
@@ -43,7 +43,7 @@ namespace TutoProxy.Client.Services {
             this.udpPorts = udpPorts;
         }
 
-        public TcpClient ObtainTcpClient(int port, int originPort) {
+        public TcpClient ObtainTcpClient(int port, int originPort, CancellationTokenSource cts) {
             var commonPortClients = tcpClients.GetOrAdd(port,
                     _ => {
                         if(tcpPorts == null || !tcpPorts.Contains(port)) {
@@ -56,8 +56,8 @@ namespace TutoProxy.Client.Services {
 
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
-                    Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}");
-                    return clientFactory.CreateTcp(localIpAddress, port, originPort, TimeoutTcpClient);
+                    Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}, {tcpClients.Count}, {commonPortClients.Count}");
+                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, cts);
                 }
             );
             client.Refresh();
@@ -68,15 +68,11 @@ namespace TutoProxy.Client.Services {
             if(tcpClients.TryGetValue(port, out ConcurrentDictionary<int, TcpClient>? removingClients)
                 && removingClients.TryRemove(originPort, out TcpClient? removedClient)) {
                 removedClient.Dispose();
-                Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}");
+                Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}, {tcpClients.Count}, {removingClients.Count}");
             }
         }
 
-        void TimeoutTcpClient(int port, int originPort) {
-            RemoveTcpClient(port, originPort);
-        }
-
-        public UdpClient ObtainUdpClient(int port, int originPort) {
+        public UdpClient ObtainUdpClient(int port, int originPort, CancellationTokenSource cts) {
             var commonPortClients = udpClients.GetOrAdd(port,
                     _ => {
                         if(udpPorts == null || !udpPorts.Contains(port)) {
@@ -90,7 +86,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     Debug.WriteLine($"ObtainClient: add udp for OriginPort {originPort}");
-                    return clientFactory.CreateUdp(localIpAddress, port, originPort, TimeoutUdpClient);
+                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this, cts);
                 }
             );
             client.Refresh();
@@ -104,10 +100,6 @@ namespace TutoProxy.Client.Services {
                     removedClient.Dispose();
                 }
             }
-        }
-
-        void TimeoutUdpClient(int port, int originPort) {
-            RemoveUdpClient(port, originPort);
         }
 
         public void Stop() {

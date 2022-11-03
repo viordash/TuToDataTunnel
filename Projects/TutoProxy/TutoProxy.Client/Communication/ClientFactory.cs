@@ -1,9 +1,10 @@
 ﻿using System.Net;
+using TutoProxy.Client.Services;
 
 namespace TutoProxy.Client.Communication {
     public interface IClientFactory {
-        TcpClient CreateTcp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction);
-        UdpClient CreateUdp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction);
+        TcpClient CreateTcp(IPAddress localIpAddress, int port, int originPort, IClientsService clientsService, CancellationTokenSource cts);
+        UdpClient CreateUdp(IPAddress localIpAddress, int port, int originPort, IClientsService clientsService, CancellationTokenSource cts);
     }
     public class ClientFactory : IClientFactory {
         readonly ILogger logger;
@@ -13,12 +14,12 @@ namespace TutoProxy.Client.Communication {
             this.logger = logger;
         }
 
-        public TcpClient CreateTcp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction) {
-            return new TcpClient(new IPEndPoint(localIpAddress, port), originPort, logger, timeoutAction);
+        public TcpClient CreateTcp(IPAddress localIpAddress, int port, int originPort, IClientsService clientsService, CancellationTokenSource cts) {
+            return new TcpClient(new IPEndPoint(localIpAddress, port), originPort, logger, clientsService, cts);
         }
 
-        public UdpClient CreateUdp(IPAddress localIpAddress, int port, int originPort, Action<int, int> timeoutAction) {
-            return new UdpClient(new IPEndPoint(localIpAddress, port), originPort, logger, timeoutAction);
+        public UdpClient CreateUdp(IPAddress localIpAddress, int port, int originPort, IClientsService clientsService, CancellationTokenSource cts) {
+            return new UdpClient(new IPEndPoint(localIpAddress, port), originPort, logger, clientsService, cts);
         }
     }
 }

@@ -46,26 +46,6 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
-        public async Task SendTcpResponse(TcpDataResponseModel response) {
-            if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
-            }
-            await server.SendResponse(response);
-        }
-
-        public Task ProcessTcpCommand(TcpCommandModel command) {
-            if(!tcpServers.TryGetValue(command.Port, out TcpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Tcp, command.Port);
-            }
-            switch(command.Command) {
-                case SocketCommand.Disconnect:
-                    server.Disconnect(command);
-                    break;
-                default:
-                    break;
-            }
-            return Task.CompletedTask;
-        }
 
         public async Task SendUdpResponse(UdpDataResponseModel response) {
             if(!udpServers.TryGetValue(response.Port, out UdpServer? server)) {
@@ -87,6 +67,21 @@ namespace TutoProxy.Server.Communication {
                     break;
             }
             return Task.CompletedTask;
+        }
+
+
+        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
+            if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
+            }
+            return server.CreateStream(streamParam);
+        }
+
+        public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
+            if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
+            }
+            await server.AcceptClientStream(streamParam, stream);
         }
 
         public void Dispose() {

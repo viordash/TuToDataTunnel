@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.Threading;
+using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Hubs {
     public class SignalRHub : Hub {
@@ -18,24 +20,6 @@ namespace TutoProxy.Server.Hubs {
             this.logger = logger;
             this.dataTransferService = dataTransferService;
             this.clientsService = clientsService;
-        }
-
-        public async Task TcpResponse(TransferTcpResponseModel model) {
-            logger.Debug($"TcpResponse: {model}");
-            try {
-                await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
-            } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
-            }
-        }
-
-        public async Task TcpCommand(TransferTcpCommandModel model) {
-            logger.Debug($"TcpCommand: {model}");
-            try {
-                await dataTransferService.HandleTcpCommand(Context.ConnectionId, model);
-            } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
-            }
         }
 
         public async Task UdpResponse(TransferUdpResponseModel model) {
@@ -70,6 +54,16 @@ namespace TutoProxy.Server.Hubs {
         public override Task OnDisconnectedAsync(Exception? exception) {
             clientsService.Disconnect(Context.ConnectionId);
             return base.OnDisconnectedAsync(exception);
+        }
+
+        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
+            logger.Debug($"TcpStream2Cln: {streamParam}");
+            return dataTransferService.TcpStream2Cln(Context.ConnectionId, streamParam);
+        }
+
+        public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
+            logger.Debug($"TcpStream2Srv: {streamParam}");
+            await dataTransferService.TcpStream2Srv(Context.ConnectionId, streamParam, stream);
         }
     }
 }

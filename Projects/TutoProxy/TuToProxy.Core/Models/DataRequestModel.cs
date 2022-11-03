@@ -17,4 +17,12 @@ namespace TuToProxy.Core.Models {
             return $"tcp request {base.ToString()}";
         }
     }
+
+    public class TcpStreamParam : SocketAddressModel {
+        public TcpStreamParam(int port, int originPort) : base(port, originPort) {
+        }
+        public override string ToString() {
+            return $"tcp stream {base.ToString()}";
+        }
+    }
 }

@@ -68,7 +68,14 @@ namespace TutoProxy.Server.CommandLine {
                     return ServiceProviderFactory.Instance;
                 });
 
-                builder.Services.AddSignalR();
+                builder.Services.
+                    AddSignalR()
+                      .AddHubOptions<SignalRHub>(options => {
+                          options.MaximumReceiveMessageSize = 1024 * 1024;
+                          options.MaximumParallelInvocationsPerClient = 8;
+                          options.StreamBufferCapacity = 256;
+                          options.EnableDetailedErrors = true;
+                      });
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
