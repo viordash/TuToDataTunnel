@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
@@ -13,6 +14,8 @@ namespace TutoProxy.Server.Communication {
 
         readonly Dictionary<int, TcpServer> tcpServers = new();
         readonly Dictionary<int, UdpServer> udpServers = new();
+        readonly CancellationTokenSource cts;
+        readonly ILogger logger;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -20,8 +23,10 @@ namespace TutoProxy.Server.Communication {
             TcpPorts = tcpPorts;
             UdpPorts = udpPorts;
 
+            cts = new CancellationTokenSource();
+
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
-            var logger = serviceProvider.GetRequiredService<ILogger>();
+            logger = serviceProvider.GetRequiredService<ILogger>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
                     .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger));
@@ -84,7 +89,32 @@ namespace TutoProxy.Server.Communication {
             await server.AcceptClientStream(streamParam, stream);
         }
 
+
+        public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient() {
+            while(cts.IsCancellationRequested) {
+                await Task.Delay(200);
+
+                var data = new TcpStreamDataModel(1, 1, Enumerable.Range(0, 200).Cast<byte>().ToArray());
+                logger.Information($"tcp request {data}");
+
+                yield return data;
+            }
+        }
+
+        public async Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
+            try {
+                await foreach(var data in stream) {
+                    logger.Information($"tcp response {data}");
+                }
+
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
+            }
+        }
+
         public void Dispose() {
+            cts.Cancel();
+            cts.Dispose();
             foreach(var item in tcpServers.Values) {
                 item.Dispose();
             }

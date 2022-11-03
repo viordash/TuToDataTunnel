@@ -25,4 +25,13 @@ namespace TuToProxy.Core.Models {
             return $"tcp stream {base.ToString()}";
         }
     }
+
+
+    public class TcpStreamDataModel : DataBaseModel {
+        public TcpStreamDataModel(int port, int originPort, byte[] data) : base(port, originPort, data) {
+        }
+        public override string ToString() {
+            return $"tcp request {base.ToString()}";
+        }
+    }
 }

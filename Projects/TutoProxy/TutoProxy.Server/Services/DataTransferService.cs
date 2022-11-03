@@ -1,7 +1,4 @@
-﻿using System.CommandLine;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
 using TuToProxy.Core.Services;
 
@@ -15,6 +12,8 @@ namespace TutoProxy.Server.Services {
         Task CreateTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken);
         IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam);
         Task TcpStream2Srv(string connectionId, TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream);
+
+
     }
 
     public class DataTransferService : IDataTransferService {

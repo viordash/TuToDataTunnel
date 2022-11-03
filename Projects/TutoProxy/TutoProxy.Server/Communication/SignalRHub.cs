@@ -65,5 +65,16 @@ namespace TutoProxy.Server.Hubs {
             logger.Debug($"TcpStream2Srv: {streamParam}");
             await dataTransferService.TcpStream2Srv(Context.ConnectionId, streamParam, stream);
         }
+
+
+        public IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient() {
+            var client = clientsService.GetClient(Context.ConnectionId);
+            return client.StreamToTcpClient();
+        }
+
+        public Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
+            var client = clientsService.GetClient(Context.ConnectionId);
+            return client.StreamFromTcpClient(stream);
+        }
     }
 }
