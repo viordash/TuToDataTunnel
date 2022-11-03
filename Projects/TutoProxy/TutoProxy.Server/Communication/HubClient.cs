@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
@@ -90,11 +91,14 @@ namespace TutoProxy.Server.Communication {
         }
 
 
-        public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient() {
-            while(cts.IsCancellationRequested) {
+        public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient([EnumeratorCancellation] CancellationToken cancellationToken = default) {
+
+            var coopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
+
+            while(!coopCts.IsCancellationRequested) {
                 await Task.Delay(200);
 
-                var data = new TcpStreamDataModel(1, 1, Enumerable.Range(0, 200).Cast<byte>().ToArray());
+                var data = new TcpStreamDataModel(1, 1, Enumerable.Range(0, 200).Select(x => (byte)x).ToArray());
                 logger.Information($"tcp request {data}");
 
                 yield return data;

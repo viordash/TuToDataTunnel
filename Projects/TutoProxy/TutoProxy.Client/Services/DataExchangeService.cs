@@ -1,4 +1,5 @@
-﻿using TutoProxy.Client.Communication;
+﻿using System.Runtime.CompilerServices;
+using TutoProxy.Client.Communication;
 
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
@@ -6,6 +7,9 @@ namespace TutoProxy.Client.Services {
         Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
 
         Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationTokenSource cts);
+
+        Task AcceptIncomingDataStream(IAsyncEnumerable<TcpStreamDataModel> stream, CancellationToken cancellationToken);
+        IAsyncEnumerable<TcpStreamDataModel> GetOutcomingDataStream(CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -58,6 +62,29 @@ namespace TutoProxy.Client.Services {
 
             var client = clientsService.ObtainTcpClient(streamParam.Port, streamParam.OriginPort, cts);
             await client.CreateStream(streamParam, stream, dataTunnelClient);
+        }
+
+        public async Task AcceptIncomingDataStream(IAsyncEnumerable<TcpStreamDataModel> stream, CancellationToken cancellationToken) {
+            try {
+                await foreach(var data in stream) {
+                    logger.Information($"tcp client response {data}");
+                }
+
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
+            }
+        }
+
+        public async IAsyncEnumerable<TcpStreamDataModel> GetOutcomingDataStream([EnumeratorCancellation] CancellationToken cancellationToken) {
+
+            while(!cancellationToken.IsCancellationRequested) {
+                await Task.Delay(200);
+
+                var data = new TcpStreamDataModel(1, 1, Enumerable.Range(0, 200).Select(x => (byte)x).ToArray());
+                logger.Information($"tcp client request {data}");
+
+                yield return data;
+            }
         }
     }
 }

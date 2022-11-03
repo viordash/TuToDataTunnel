@@ -1,4 +1,5 @@
 ﻿using System.CommandLine;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -99,6 +100,9 @@ namespace TutoProxy.Client.Communication {
 
             await connection.StartAsync(cancellationToken);
             logger.Information("Connection started");
+
+            StartStreamToTcpClient(cancellationToken);
+            StartStreamFromTcpClient(cancellationToken);
         }
 
         public async Task StopAsync() {
@@ -125,6 +129,25 @@ namespace TutoProxy.Client.Communication {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.SendAsync("TcpStream2Srv", streamParam, stream, cancellationToken);
             }
+        }
+
+        void StartStreamToTcpClient(CancellationToken cancellationToken) {
+            _ = Task.Run(async () => {
+                if(connection?.State == HubConnectionState.Connected) {
+                    var stream = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", cancellationToken);
+                    await dataExchangeService.AcceptIncomingDataStream(stream, cancellationToken);
+                }
+            }, cancellationToken);
+        }
+
+
+        void StartStreamFromTcpClient(CancellationToken cancellationToken) {
+            _ = Task.Run(async () => {
+                if(connection?.State == HubConnectionState.Connected) {
+                    var stream = dataExchangeService.GetOutcomingDataStream(cancellationToken);
+                    await connection.InvokeAsync("StreamFromTcpClient", stream, cancellationToken);
+                }
+            }, cancellationToken);
         }
     }
 }
