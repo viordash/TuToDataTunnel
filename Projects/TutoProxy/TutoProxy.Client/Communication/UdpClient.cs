@@ -14,8 +14,8 @@ namespace TutoProxy.Client.Communication {
         protected override TimeSpan ReceiveTimeout { get { return UdpSocketParams.ReceiveTimeout; } }
         public bool Listening { get; private set; } = false;
 
-        public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, CancellationTokenSource cancellationTokenSource)
-            : base(serverEndPoint, originPort, logger, clientsService, cancellationTokenSource) {
+        public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
+            : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
         }
 
         protected override void OnTimedEvent(object? state) {

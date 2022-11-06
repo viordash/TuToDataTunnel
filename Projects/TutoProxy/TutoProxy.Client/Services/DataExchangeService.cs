@@ -1,15 +1,12 @@
-﻿using System.Runtime.CompilerServices;
-using TutoProxy.Client.Communication;
+﻿using TutoProxy.Client.Communication;
 
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
-        Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationTokenSource cts);
+        Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
         Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
 
-        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationTokenSource cts);
+        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
 
-        Task AcceptIncomingDataStream(IAsyncEnumerable<TcpStreamDataModel> stream, CancellationToken cancellationToken);
-        IAsyncEnumerable<TcpStreamDataModel> GetOutcomingDataStream(CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -26,7 +23,7 @@ namespace TutoProxy.Client.Services {
             this.clientsService = clientsService;
         }
 
-        public async Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
+        public async Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleUdpRequestAsync :{request}");
 
             //_ = Task.Run(async () => {
@@ -37,10 +34,10 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
 
 
-            var client = clientsService.ObtainUdpClient(request.Payload.Port, request.Payload.OriginPort, cts);
-            await client.SendRequest(request.Payload.Data, cts.Token);
+            var client = clientsService.ObtainUdpClient(request.Payload.Port, request.Payload.OriginPort, dataTunnelClient);
+            await client.SendRequest(request.Payload.Data!, cancellationToken);
             if(!client.Listening) {
-                client.Listen(request, dataTunnelClient, cts.Token);
+                client.Listen(request, dataTunnelClient, cancellationToken);
             }
         }
 
@@ -57,34 +54,13 @@ namespace TutoProxy.Client.Services {
             return Task.CompletedTask;
         }
 
-        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationTokenSource cts) {
+        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"CreateStream :{streamParam}");
 
-            var client = clientsService.ObtainTcpClient(streamParam.Port, streamParam.OriginPort, cts);
-            await client.CreateStream(streamParam, stream, dataTunnelClient);
+            var client = clientsService.ObtainTcpClient(streamParam.Port, streamParam.OriginPort, dataTunnelClient);
+            await client.CreateStream(streamParam, stream, dataTunnelClient, cancellationToken);
         }
 
-        public async Task AcceptIncomingDataStream(IAsyncEnumerable<TcpStreamDataModel> stream, CancellationToken cancellationToken) {
-            try {
-                await foreach(var data in stream) {
-                    logger.Information($"tcp client response {data}");
-                }
 
-            } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
-            }
-        }
-
-        public async IAsyncEnumerable<TcpStreamDataModel> GetOutcomingDataStream([EnumeratorCancellation] CancellationToken cancellationToken) {
-
-            while(!cancellationToken.IsCancellationRequested) {
-                await Task.Delay(200);
-
-                var data = new TcpStreamDataModel(1, 1, Enumerable.Range(0, 200).Select(x => (byte)x).ToArray());
-                logger.Information($"tcp client request {data}");
-
-                yield return data;
-            }
-        }
     }
 }

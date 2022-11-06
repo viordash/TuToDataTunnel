@@ -1,19 +1,21 @@
-﻿using System.CommandLine;
+﻿using System.Collections.Concurrent;
+using System.CommandLine;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Communication {
-    public interface ISignalRClient {
+    public interface ISignalRClient : IDisposable {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
 
         Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken);
+        void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -32,16 +34,25 @@ namespace TutoProxy.Client.Communication {
 
         readonly ILogger logger;
         readonly IDataExchangeService dataExchangeService;
+        readonly IClientsService clientsService;
+        readonly BlockingCollection<TcpStreamDataModel> outgoingQueue;
         HubConnection? connection = null;
 
         public SignalRClient(
                 ILogger logger,
-                IDataExchangeService dataExchangeService
+                IDataExchangeService dataExchangeService,
+                IClientsService clientsService
                 ) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(dataExchangeService, nameof(dataExchangeService));
             this.logger = logger;
             this.dataExchangeService = dataExchangeService;
+            this.clientsService = clientsService;
+            outgoingQueue = new BlockingCollection<TcpStreamDataModel>(new ConcurrentQueue<TcpStreamDataModel>(), TcpSocketParams.QueueMaxSize);
+        }
+
+        public void Dispose() {
+            outgoingQueue.Dispose();
         }
 
         public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken) {
@@ -66,8 +77,7 @@ namespace TutoProxy.Client.Communication {
                  .Build();
 
             connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                await dataExchangeService.HandleUdpRequest(request, this, cts);
+                await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
             });
 
             connection.On<TransferUdpCommandModel>("UdpCommand", async (command) => {
@@ -82,9 +92,8 @@ namespace TutoProxy.Client.Communication {
 
             connection.On<TcpStreamParam>("CreateStream", (streamParam) => {
                 _ = Task.Run(async () => {
-                    var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    var stream = connection.StreamAsync<byte[]>("TcpStream2Cln", streamParam, cts.Token);
-                    await dataExchangeService.CreateStream(streamParam, stream, this, cts);
+                    var stream = connection.StreamAsync<byte[]>("TcpStream2Cln", streamParam, cancellationToken);
+                    await dataExchangeService.CreateStream(streamParam, stream, this, cancellationToken);
                 }, cancellationToken);
             });
 
@@ -133,21 +142,47 @@ namespace TutoProxy.Client.Communication {
 
         void StartStreamToTcpClient(CancellationToken cancellationToken) {
             _ = Task.Run(async () => {
-                if(connection?.State == HubConnectionState.Connected) {
-                    var stream = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", cancellationToken);
-                    await dataExchangeService.AcceptIncomingDataStream(stream, cancellationToken);
+                if(connection?.State != HubConnectionState.Connected) {
+                    return;
+                }
+                var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", cancellationToken);
+
+                try {
+                    await foreach(var data in streamData) {
+                        var client = clientsService.ObtainTcpClient(data.Port, data.OriginPort, this);
+                        await client.SendData(data.Data, cancellationToken);
+                    }
+                } catch(Exception ex) {
+                    logger.Error(ex.GetBaseException().Message);
                 }
             }, cancellationToken);
         }
 
+        async IAsyncEnumerable<TcpStreamDataModel> OutgoingDataStream([EnumeratorCancellation] CancellationToken cancellationToken) {
+            while(!cancellationToken.IsCancellationRequested && !outgoingQueue.IsCompleted) {
+                TcpStreamDataModel? streamData = null;
+                try {
+                    streamData = await Task.Run(() => outgoingQueue.Take(cancellationToken), cancellationToken);
+                } catch(InvalidOperationException) { }
+
+                if(streamData != null) {
+                    yield return streamData;
+                }
+            }
+        }
 
         void StartStreamFromTcpClient(CancellationToken cancellationToken) {
             _ = Task.Run(async () => {
                 if(connection?.State == HubConnectionState.Connected) {
-                    var stream = dataExchangeService.GetOutcomingDataStream(cancellationToken);
-                    await connection.InvokeAsync("StreamFromTcpClient", stream, cancellationToken);
+                    await connection.InvokeAsync("StreamFromTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
                 }
             }, cancellationToken);
+        }
+
+        public void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
+            if(!outgoingQueue.TryAdd(streamData, 1000, cancellationToken)) {
+                throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
+            }
         }
     }
 }

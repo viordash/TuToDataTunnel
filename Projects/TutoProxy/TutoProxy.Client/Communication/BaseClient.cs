@@ -12,17 +12,17 @@ namespace TutoProxy.Client.Communication {
         protected abstract TimeSpan ReceiveTimeout { get; }
 
         protected readonly IClientsService clientsService;
-        protected readonly CancellationTokenSource cancellationTokenSource;
+        protected readonly ISignalRClient dataTunnelClient;
 
         public int Port { get { return serverEndPoint.Port; } }
         public int OriginPort { get; private set; }
 
-        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, CancellationTokenSource cancellationTokenSource) {
+        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient) {
             this.serverEndPoint = serverEndPoint;
             OriginPort = originPort;
             this.logger = logger;
             this.clientsService = clientsService;
-            this.cancellationTokenSource = cancellationTokenSource;
+            this.dataTunnelClient = dataTunnelClient;
 
             timeoutTimer = new(OnTimedEvent, null, ReceiveTimeout, Timeout.InfiniteTimeSpan);
 
@@ -46,7 +46,6 @@ namespace TutoProxy.Client.Communication {
         }
 
         public virtual void Dispose() {
-            cancellationTokenSource.Cancel();
             ((IDisposable)timeoutTimer).Dispose();
             ((IDisposable)socket).Dispose();
             GC.SuppressFinalize(this);

@@ -142,7 +142,7 @@ namespace TutoProxy.Server.Communication {
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
 
-                hubClient.PushOutgoingData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, data));
+                hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, data));
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -150,7 +150,7 @@ namespace TutoProxy.Server.Communication {
                 }
             }
 
-            hubClient.PushOutgoingData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, null));
+            hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, null));
             client.TryShutdown(SocketShutdown.Receive);
         }
 
@@ -162,21 +162,24 @@ namespace TutoProxy.Server.Communication {
 
             if(streamData.Data == null) {
                 client.TryShutdown(SocketShutdown.Send);
-            } else {
-                try {
-                    if(!client.Socket.Connected) {
-                        logger.Error($"tcp({port}) client stream on disconnected socket {streamData.OriginPort}");
-                        return;
-                    }
-                    client.TotalTransmitted += await client.Socket.SendAsync(streamData.Data, SocketFlags.None, cts.Token);
-                } catch(SocketException) {
-                } catch(ObjectDisposedException) {
-                }
+                return;
+            }
 
-                if(responseLogTimer <= DateTime.Now) {
-                    responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{streamData.Data.ToShortDescriptions()}");
-                }
+            try {
+                //if(!client.Socket.Connected) {
+                //    logger.Error($"tcp({port}) client stream on disconnected socket {streamData.OriginPort}");
+                //    return;
+                //}
+                client.TotalTransmitted += await client.Socket.SendAsync(streamData.Data, SocketFlags.None, cts.Token);
+            } catch(SocketException) {
+            } catch(ObjectDisposedException) {
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
+            }
+
+            if(responseLogTimer <= DateTime.Now) {
+                responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{streamData.Data.ToShortDescriptions()}");
             }
         }
 

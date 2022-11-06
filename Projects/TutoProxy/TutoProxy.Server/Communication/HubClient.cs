@@ -140,7 +140,7 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
-        public void PushOutgoingData(TcpStreamDataModel streamData) {
+        public void PushOutgoingTcpData(TcpStreamDataModel streamData) {
             if(!outgoingQueue.TryAdd(streamData, 1000, cts.Token)) {
                 throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
