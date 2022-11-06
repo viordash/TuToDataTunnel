@@ -13,7 +13,6 @@ namespace TutoProxy.Server.Services {
         IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam);
         Task TcpStream2Srv(string connectionId, TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream);
 
-
     }
 
     public class DataTransferService : IDataTransferService {

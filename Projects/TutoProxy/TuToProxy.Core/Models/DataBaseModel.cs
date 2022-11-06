@@ -14,9 +14,9 @@
     }
 
     public abstract class DataBaseModel : SocketAddressModel {
-        public byte[] Data { get; set; }
+        public byte[]? Data { get; set; }
 
-        public DataBaseModel(int port, int originPort, byte[] data) : base(port, originPort) {
+        public DataBaseModel(int port, int originPort, byte[]? data) : base(port, originPort) {
             Data = data;
         }
 

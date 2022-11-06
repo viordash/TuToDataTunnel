@@ -1,4 +1,6 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.SignalR;
@@ -17,6 +19,7 @@ namespace TutoProxy.Server.Communication {
         readonly Dictionary<int, UdpServer> udpServers = new();
         readonly CancellationTokenSource cts;
         readonly ILogger logger;
+        readonly BlockingCollection<TcpStreamDataModel> outgoingQueue;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -25,21 +28,35 @@ namespace TutoProxy.Server.Communication {
             UdpPorts = udpPorts;
 
             cts = new CancellationTokenSource();
+            outgoingQueue = new BlockingCollection<TcpStreamDataModel>(new ConcurrentQueue<TcpStreamDataModel>(), TcpSocketParams.QueueMaxSize);
 
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
             logger = serviceProvider.GetRequiredService<ILogger>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
-                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger));
+                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, this, logger));
             } else {
                 tcpServers = new();
             }
 
             if(udpPorts != null) {
                 udpServers = udpPorts
-                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, UdpSocketParams.ReceiveTimeout));
+                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, this, logger, UdpSocketParams.ReceiveTimeout));
             } else {
                 udpServers = new();
+            }
+        }
+
+        public void Dispose() {
+            cts.Cancel();
+            outgoingQueue.Dispose();
+            cts.Dispose();
+
+            foreach(var item in tcpServers.Values) {
+                item.Dispose();
+            }
+            foreach(var item in udpServers.Values) {
+                item.Dispose();
             }
         }
 
@@ -95,13 +112,15 @@ namespace TutoProxy.Server.Communication {
 
             var coopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
 
-            while(!coopCts.IsCancellationRequested) {
-                await Task.Delay(200);
+            while(!coopCts.IsCancellationRequested && !outgoingQueue.IsCompleted) {
+                TcpStreamDataModel? streamData = null;
+                try {
+                    streamData = await Task.Run(() => outgoingQueue.Take(coopCts.Token), coopCts.Token);
+                } catch(InvalidOperationException) { }
 
-                var data = new TcpStreamDataModel(1, 1, Enumerable.Range(0, 200).Select(x => (byte)x).ToArray());
-                logger.Information($"tcp request {data}");
-
-                yield return data;
+                if(streamData != null) {
+                    yield return streamData;
+                }
             }
         }
 
@@ -109,21 +128,21 @@ namespace TutoProxy.Server.Communication {
             try {
                 await foreach(var data in stream) {
                     logger.Information($"tcp response {data}");
-                }
 
+                    if(tcpServers.TryGetValue(data.Port, out TcpServer? server)) {
+                        await server.SendData(data);
+                    } else {
+                        logger.Error($"tcp server {data.Port} not found");
+                    }
+                }
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
             }
         }
 
-        public void Dispose() {
-            cts.Cancel();
-            cts.Dispose();
-            foreach(var item in tcpServers.Values) {
-                item.Dispose();
-            }
-            foreach(var item in udpServers.Values) {
-                item.Dispose();
+        public void PushOutgoingData(TcpStreamDataModel streamData) {
+            if(!outgoingQueue.TryAdd(streamData, 1000, cts.Token)) {
+                throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
         }
     }
