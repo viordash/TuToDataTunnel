@@ -109,8 +109,6 @@ namespace TutoProxy.Server.Communication {
         public async Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
             try {
                 await foreach(var data in stream) {
-                    logger.Information($"tcp response {data}");
-
                     if(tcpServers.TryGetValue(data.Port, out TcpServer? server)) {
                         await server.SendData(data);
                     } else {
