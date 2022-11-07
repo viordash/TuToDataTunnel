@@ -110,6 +110,8 @@ namespace TutoProxy.Client.Communication {
                     logger.Information($"tcp({localPort}) response from {serverEndPoint}, bytes:{data.ToShortDescriptions()}.");
                 }
             }
+            dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, null), cancellationToken);
+            TryShutdown(SocketShutdown.Receive);
         }
 
         public async Task SendData(byte[]? data, CancellationToken cancellationToken) {
