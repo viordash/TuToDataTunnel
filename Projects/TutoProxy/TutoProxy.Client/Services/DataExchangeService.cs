@@ -4,9 +4,6 @@ namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
         Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
         Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
-
-        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
-
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -53,14 +50,6 @@ namespace TutoProxy.Client.Services {
             }
             return Task.CompletedTask;
         }
-
-        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
-            logger.Debug($"CreateStream :{streamParam}");
-
-            var client = clientsService.ObtainTcpClient(streamParam.Port, streamParam.OriginPort, dataTunnelClient);
-            await client.CreateStream(streamParam, stream, dataTunnelClient, cancellationToken);
-        }
-
 
     }
 }

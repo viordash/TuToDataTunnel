@@ -8,11 +8,6 @@ namespace TutoProxy.Server.Services {
         Task SendUdpCommand(UdpCommandModel command);
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
-
-        Task CreateTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken);
-        IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam);
-        Task TcpStream2Srv(string connectionId, TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream);
-
     }
 
     public class DataTransferService : IDataTransferService {
@@ -63,23 +58,6 @@ namespace TutoProxy.Server.Services {
         public async Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command) {
             var client = clientsService.GetClient(connectionId);
             await client.ProcessUdpCommand(command.Payload);
-        }
-
-
-        public async Task CreateTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken) {
-            logger.Debug($"CreateStream :{streamParam}");
-            var connectionId = clientsService.GetConnectionIdForTcp(streamParam.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("CreateStream", streamParam, cancellationToken);
-        }
-
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam) {
-            var client = clientsService.GetClient(connectionId);
-            return client.TcpStream2Cln(streamParam);
-        }
-
-        public async Task TcpStream2Srv(string connectionId, TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            var client = clientsService.GetClient(connectionId);
-            await client.TcpStream2Srv(streamParam, stream);
         }
     }
 }

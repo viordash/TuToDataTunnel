@@ -14,7 +14,6 @@ namespace TutoProxy.Client.Communication {
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
 
-        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken);
         void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
     }
 
@@ -89,14 +88,6 @@ namespace TutoProxy.Client.Communication {
                 await StopAsync();
             });
 
-
-            connection.On<TcpStreamParam>("CreateStream", (streamParam) => {
-                _ = Task.Run(async () => {
-                    var stream = connection.StreamAsync<byte[]>("TcpStream2Cln", streamParam, cancellationToken);
-                    await dataExchangeService.CreateStream(streamParam, stream, this, cancellationToken);
-                }, cancellationToken);
-            });
-
             connection.Reconnecting += e => {
                 logger.Warning($"Connection lost. Reconnecting");
                 return Task.CompletedTask;
@@ -131,12 +122,6 @@ namespace TutoProxy.Client.Communication {
         public async Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("UdpCommand", command, cancellationToken);
-            }
-        }
-
-        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken) {
-            if(connection?.State == HubConnectionState.Connected) {
-                await connection.SendAsync("TcpStream2Srv", streamParam, stream, cancellationToken);
             }
         }
 

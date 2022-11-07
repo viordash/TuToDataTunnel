@@ -1,8 +1,6 @@
-﻿using System.Threading;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
-using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Hubs {
     public class SignalRHub : Hub {
@@ -55,17 +53,6 @@ namespace TutoProxy.Server.Hubs {
             clientsService.Disconnect(Context.ConnectionId);
             return base.OnDisconnectedAsync(exception);
         }
-
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
-            logger.Debug($"TcpStream2Cln: {streamParam}");
-            return dataTransferService.TcpStream2Cln(Context.ConnectionId, streamParam);
-        }
-
-        public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            logger.Debug($"TcpStream2Srv: {streamParam}");
-            await dataTransferService.TcpStream2Srv(Context.ConnectionId, streamParam, stream);
-        }
-
 
         public IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient() {
             var client = clientsService.GetClient(Context.ConnectionId);

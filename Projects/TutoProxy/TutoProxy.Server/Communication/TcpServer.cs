@@ -120,8 +120,6 @@ namespace TutoProxy.Server.Communication {
         }
 
         async Task HandleSocketAsync(Client client, CancellationToken cancellationToken) {
-            //await dataTransferService.CreateTcpStream(new TcpStreamParam(port, client.RemoteEndPoint.Port), cancellationToken);
-
             if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
                 throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
             }
@@ -181,77 +179,6 @@ namespace TutoProxy.Server.Communication {
                 responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
                 logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{streamData.Data.ToShortDescriptions()}");
             }
-        }
-
-        public async IAsyncEnumerable<byte[]> CreateStream(TcpStreamParam streamParam, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            if(!remoteSockets.TryGetValue(streamParam.OriginPort, out Client? client)) {
-                logger.Error($"tcp({port}) stream on missed socket {streamParam.OriginPort}");
-                yield break;
-            }
-
-            var coopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-
-            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
-            int receivedBytes;
-            while(client.Socket.Connected && !coopCts.IsCancellationRequested) {
-                try {
-                    receivedBytes = await client.Socket.ReceiveAsync(receiveBuffer, SocketFlags.None, coopCts.Token);
-                    if(receivedBytes == 0) {
-                        break;
-                    }
-                } catch(OperationCanceledException) {
-                    break;
-                } catch(SocketException) {
-                    break;
-                }
-                client.TotalReceived += receivedBytes;
-                var data = receiveBuffer[..receivedBytes].ToArray();
-
-                yield return data;
-
-                if(requestLogTimer <= DateTime.Now) {
-                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({port}) request from {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
-                }
-            }
-            client.TryShutdown(SocketShutdown.Receive);
-        }
-
-        public async Task AcceptClientStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            if(cts.IsCancellationRequested) {
-                logger.Error($"tcp({port}) client stream on canceled socket {streamParam.OriginPort}");
-                return;
-            }
-            if(!remoteSockets.TryGetValue(streamParam.OriginPort, out Client? client)) {
-                logger.Error($"tcp({port}) client stream on missed socket {streamParam.OriginPort}");
-                return;
-            }
-            if(!client.Socket.Connected) {
-                logger.Error($"tcp({port}) client stream on disconnected socket {streamParam.OriginPort}");
-                return;
-            }
-
-            try {
-                await foreach(var data in stream) {
-                    if(client.Socket.Connected && !cts.IsCancellationRequested) {
-                        try {
-                            client.TotalTransmitted += await client.Socket.SendAsync(data, SocketFlags.None, cts.Token);
-                        } catch(SocketException) {
-                        } catch(ObjectDisposedException) {
-                        }
-                    }
-
-                    if(responseLogTimer <= DateTime.Now) {
-                        responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                        logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
-                    }
-                }
-
-            } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
-            }
-
-            client.TryShutdown(SocketShutdown.Send);
         }
     }
 }

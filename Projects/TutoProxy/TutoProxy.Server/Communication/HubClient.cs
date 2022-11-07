@@ -1,7 +1,5 @@
 ﻿using System.Collections.Concurrent;
-using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
@@ -91,22 +89,6 @@ namespace TutoProxy.Server.Communication {
             }
             return Task.CompletedTask;
         }
-
-
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
-            if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
-            }
-            return server.CreateStream(streamParam);
-        }
-
-        public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
-            }
-            await server.AcceptClientStream(streamParam, stream);
-        }
-
 
         public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient([EnumeratorCancellation] CancellationToken cancellationToken = default) {
 
