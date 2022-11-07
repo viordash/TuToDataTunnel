@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.SignalR;
@@ -18,6 +19,7 @@ namespace TutoProxy.Server.Communication {
         readonly CancellationTokenSource cts;
         readonly ILogger logger;
         readonly BlockingCollection<TcpStreamDataModel> outgoingQueue;
+        uint counter = 0;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -96,10 +98,16 @@ namespace TutoProxy.Server.Communication {
 
             while(!coopCts.IsCancellationRequested && !outgoingQueue.IsCompleted) {
                 TcpStreamDataModel? streamData = null;
-                try {
-                    streamData = await Task.Run(() => outgoingQueue.Take(coopCts.Token), coopCts.Token);
-                } catch(InvalidOperationException) { }
 
+                streamData = await Task.Run(() => {
+                    try {
+                        return outgoingQueue.Take(coopCts.Token);
+                    } catch(InvalidOperationException) {
+                        return null;
+                    }
+                }, coopCts.Token);
+
+                //Debug.WriteLine($"    ------ server take: {outgoingQueue.Count}");
                 if(streamData != null) {
                     yield return streamData;
                 }
@@ -107,23 +115,25 @@ namespace TutoProxy.Server.Communication {
         }
 
         public async Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
-            try {
-                await foreach(var data in stream) {
+            await foreach(var data in stream) {
+                try {
                     if(tcpServers.TryGetValue(data.Port, out TcpServer? server)) {
                         await server.SendData(data);
                     } else {
                         logger.Error($"tcp server {data.Port} not found");
                     }
+                } catch(Exception ex) {
+                    logger.Error(ex.GetBaseException().Message);
                 }
-            } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
             }
+            Debug.WriteLine($"                  ------ server stopped");
         }
 
         public void PushOutgoingTcpData(TcpStreamDataModel streamData) {
-            if(!outgoingQueue.TryAdd(streamData, 1000, cts.Token)) {
+            if(!outgoingQueue.TryAdd(streamData, 10000, cts.Token)) {
                 throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
+            //Debug.WriteLine($"    ------ server add: {outgoingQueue.Count}");
         }
     }
 }

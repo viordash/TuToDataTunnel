@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.CommandLine;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -51,7 +52,6 @@ namespace TutoProxy.Client.Communication {
         }
 
         public void Dispose() {
-            outgoingQueue.Dispose();
         }
 
         public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken) {
@@ -132,24 +132,32 @@ namespace TutoProxy.Client.Communication {
                 }
                 var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", cancellationToken);
 
-                try {
-                    await foreach(var data in streamData) {
+                await foreach(var data in streamData) {
+                    try {
                         var client = clientsService.ObtainTcpClient(data.Port, data.OriginPort, this);
                         await client.SendData(data.Data, cancellationToken);
+                    } catch(Exception ex) {
+                        logger.Error(ex.GetBaseException().Message);
                     }
-                } catch(Exception ex) {
-                    logger.Error(ex.GetBaseException().Message);
                 }
+                Debug.WriteLine($"                  ------ client stopped");
             }, cancellationToken);
         }
 
         async IAsyncEnumerable<TcpStreamDataModel> OutgoingDataStream([EnumeratorCancellation] CancellationToken cancellationToken) {
-            while(!cancellationToken.IsCancellationRequested && !outgoingQueue.IsCompleted) {
+            while(!cancellationToken.IsCancellationRequested) {
                 TcpStreamDataModel? streamData = null;
-                try {
-                    streamData = await Task.Run(() => outgoingQueue.Take(cancellationToken), cancellationToken);
-                } catch(InvalidOperationException) { }
 
+                //Debug.WriteLine($"                  ------ client take 0 take_0: {outgoingQueue.Count}");
+                streamData = await Task.Run(() => {
+                    try {
+                        return outgoingQueue.Take(cancellationToken);
+                    } catch(InvalidOperationException) {
+                        return null;
+                    }
+                }, cancellationToken);
+
+                //Debug.WriteLine($"                  ------ client take 1 take_1: {outgoingQueue.Count}");
                 if(streamData != null) {
                     yield return streamData;
                 }
@@ -159,15 +167,18 @@ namespace TutoProxy.Client.Communication {
         void StartStreamFromTcpClient(CancellationToken cancellationToken) {
             _ = Task.Run(async () => {
                 if(connection?.State == HubConnectionState.Connected) {
-                    await connection.InvokeAsync("StreamFromTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
+                    await connection.SendAsync("StreamFromTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
                 }
             }, cancellationToken);
         }
 
         public void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
-            if(!outgoingQueue.TryAdd(streamData, 1000, cancellationToken)) {
+            if(!outgoingQueue.TryAdd(streamData, 10000, cancellationToken)) {
                 throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
+            //if(outgoingQueue.Count > 100) {
+            //    Debug.WriteLine($"                  ------ client add 0: {outgoingQueue.Count}");
+            //}
         }
     }
 }
