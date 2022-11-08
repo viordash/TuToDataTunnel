@@ -19,7 +19,6 @@ namespace TutoProxy.Server.Communication {
         readonly CancellationTokenSource cts;
         readonly ILogger logger;
         readonly BlockingCollection<TcpStreamDataModel> outgoingQueue;
-        uint counter = 0;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
