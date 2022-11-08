@@ -18,20 +18,14 @@ namespace TuToProxy.Core.Models {
         }
     }
 
-    public class TcpStreamParam : SocketAddressModel {
-        public TcpStreamParam(int port, int originPort) : base(port, originPort) {
-        }
-        public override string ToString() {
-            return $"tcp stream {base.ToString()}";
-        }
-    }
-
 
     public class TcpStreamDataModel : DataBaseModel {
-        public TcpStreamDataModel(int port, int originPort, byte[]? data) : base(port, originPort, data) {
+        public Int64 Frame { get; set; }
+        public TcpStreamDataModel(int port, int originPort, Int64 frame, byte[]? data) : base(port, originPort, data) {
+            Frame = frame;
         }
         public override string ToString() {
-            return $"tcp request {base.ToString()}";
+            return $"tcp stream {Frame} {base.ToString()}";
         }
     }
 }

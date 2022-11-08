@@ -174,9 +174,9 @@ namespace TutoProxy.Client.Communication {
 
         public void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
             if(!outgoingQueue.TryAdd(streamData, 10000, cancellationToken)) {
-                throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
+                throw new TuToException($"tcp outcome queue size ({outgoingQueue.Count}) exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
-            //if(outgoingQueue.Count > 100) {
+            //if(outgoingQueue.Count > 800) {
             //    Debug.WriteLine($"                  ------ client add 0: {outgoingQueue.Count}");
             //}
         }

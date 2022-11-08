@@ -103,14 +103,14 @@ namespace TutoProxy.Client.Communication {
                 TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
 
-                dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, data), cancellationToken);
+                dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, -1, data), cancellationToken);
 
                 if(responseLogTimer <= DateTime.Now) {
                     responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
                     logger.Information($"tcp({localPort}) response from {serverEndPoint}, bytes:{data.ToShortDescriptions()}.");
                 }
             }
-            dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, null), cancellationToken);
+            dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, -1, null), cancellationToken);
             TryShutdown(SocketShutdown.Receive);
         }
 
@@ -121,7 +121,11 @@ namespace TutoProxy.Client.Communication {
             }
 
             if(!socket.Connected) {
-                await socket.ConnectAsync(serverEndPoint, cancellationToken);
+                try {
+                    await socket.ConnectAsync(serverEndPoint, cancellationToken);
+                } catch(Exception ex) {
+                    logger.Error(ex.GetBaseException().Message);
+                }
                 localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
                 _ = Task.Run(() => ReceivingStream(cancellationToken));
             }

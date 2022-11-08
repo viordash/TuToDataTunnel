@@ -1,14 +1,12 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.Components.Web;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
-using static TutoProxy.Server.Communication.UdpServer;
 
 namespace TutoProxy.Server.Communication {
     internal class TcpServer : BaseServer {
@@ -18,13 +16,15 @@ namespace TutoProxy.Server.Communication {
         DateTime responseLogTimer = DateTime.Now;
 
         #region inner classes
-        protected class Client {
+        protected class Client : IDisposable {
             public readonly Socket Socket;
             public readonly IPEndPoint RemoteEndPoint;
             readonly TcpServer parent;
             readonly Timer forceCloseTimer;
             bool shutdownReceive;
             bool shutdownTransmit;
+            Int64 frame;
+            readonly object frameLock = new object();
 
             public int TotalTransmitted { get; set; }
             public int TotalReceived { get; set; }
@@ -34,6 +34,7 @@ namespace TutoProxy.Server.Communication {
                 Socket = socket;
                 RemoteEndPoint = (IPEndPoint)socket.RemoteEndPoint!;
                 forceCloseTimer = new Timer(OnForceCloseTimedEvent);
+                frame = 0;
             }
 
             public void TryShutdown(SocketShutdown how) {
@@ -69,13 +70,36 @@ namespace TutoProxy.Server.Communication {
                         forceCloseTimer.Dispose();
                         parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{TotalTransmitted}, rx:{TotalReceived}");
                     } else {
-                        forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+                        StartCloseTimer();
                     }
                 }
             }
 
+            public void StartCloseTimer() {
+                forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            }
+
+            public void StopCloseTimer() {
+                forceCloseTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+
             void OnForceCloseTimedEvent(object? state) {
                 Debug.WriteLine($"Attempt to close: {parent.port}, {RemoteEndPoint.Port}");
+                TryShutdown(SocketShutdown.Both);
+            }
+
+            public Int64 NextFrame() {
+                lock(frameLock) {
+                    return frame++;
+                }
+            }
+            public Int64 LastFrame() {
+                lock(frameLock) {
+                    return -frame;
+                }
+            }
+
+            public void Dispose() {
                 TryShutdown(SocketShutdown.Both);
             }
         }
@@ -117,6 +141,9 @@ namespace TutoProxy.Server.Communication {
         public override void Dispose() {
             cts.Cancel();
             cts.Dispose();
+            foreach(var client in remoteSockets.Values) {
+                client.Dispose();
+            }
         }
 
         async Task HandleSocketAsync(Client client, CancellationToken cancellationToken) {
@@ -140,7 +167,7 @@ namespace TutoProxy.Server.Communication {
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
 
-                hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, data));
+                hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, client.NextFrame(), data));
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -148,7 +175,7 @@ namespace TutoProxy.Server.Communication {
                 }
             }
 
-            hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, null));
+            hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, client.LastFrame(), null));
             client.TryShutdown(SocketShutdown.Receive);
         }
 
