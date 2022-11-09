@@ -111,6 +111,8 @@ namespace TutoProxy.Server.Communication {
                     yield return streamData;
                 }
             }
+
+            Debug.WriteLine($"                  ------ server stopped 0");
         }
 
         public async Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {

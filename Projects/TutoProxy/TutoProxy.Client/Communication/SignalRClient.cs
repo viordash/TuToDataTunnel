@@ -135,7 +135,7 @@ namespace TutoProxy.Client.Communication {
                 await foreach(var data in streamData) {
                     try {
                         var client = clientsService.ObtainTcpClient(data.Port, data.OriginPort, this);
-                        await client.SendData(data.Data, cancellationToken);
+                        await client.SendData(data, cancellationToken);
                     } catch(Exception ex) {
                         logger.Error(ex.GetBaseException().Message);
                     }
@@ -173,7 +173,7 @@ namespace TutoProxy.Client.Communication {
         }
 
         public void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
-            if(!outgoingQueue.TryAdd(streamData, 10000, cancellationToken)) {
+            if(!outgoingQueue.TryAdd(streamData, 30000, cancellationToken)) {
                 throw new TuToException($"tcp outcome queue size ({outgoingQueue.Count}) exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
             //if(outgoingQueue.Count > 800) {

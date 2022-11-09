@@ -1,6 +1,4 @@
-﻿using TuToProxy.Core.Models;
-
-namespace TuToProxy.Core.Models {
+﻿namespace TuToProxy.Core.Models {
     public class UdpDataRequestModel : DataBaseModel {
 
         public UdpDataRequestModel(int port, int originPort, byte[] data) : base(port, originPort, data) {
