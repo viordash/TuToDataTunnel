@@ -3,11 +3,11 @@ using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
-using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 using TuToProxy.Core.Queue;
 
 namespace TutoProxy.Client.Communication {
+
     public class TcpClient : BaseClient<Socket> {
         const int firstFrame = 0;
         int? localPort = null;
@@ -37,6 +37,11 @@ namespace TutoProxy.Client.Communication {
                 switch(how) {
                     case SocketShutdown.Receive:
                         shutdownReceive = true;
+                        if(socket.Connected) {
+                            try {
+                                socket.Shutdown(SocketShutdown.Receive);
+                            } catch(Exception) { }
+                        }
                         break;
                     case SocketShutdown.Send:
                         shutdownTransmit = true;
@@ -62,7 +67,7 @@ namespace TutoProxy.Client.Communication {
                     clientsService.RemoveTcpClient(Port, OriginPort);
                     forceCloseTimer.Dispose();
                 } else {
-                    StartClosingTimer();
+                    forceCloseTimer.Change(TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(30));
                 }
             }
         }
@@ -72,19 +77,8 @@ namespace TutoProxy.Client.Communication {
             TryShutdown(SocketShutdown.Both);
         }
 
-        public void StartClosingTimer() {
-            forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-        }
-
-        public void StopClosingTimer() {
-            forceCloseTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        }
-
         public Int64 NextFrame() {
             return Interlocked.Increment(ref frame);
-        }
-        public Int64 LastFrame() {
-            return Interlocked.Read(ref frame);
         }
 
         protected override void OnTimedEvent(object? state) { }
@@ -92,6 +86,7 @@ namespace TutoProxy.Client.Communication {
         protected override Socket CreateSocket() {
             var tcpClient = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
+            //tcpClient.LingerState = new LingerOption(true, 10);
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
             return tcpClient;
         }
@@ -105,7 +100,6 @@ namespace TutoProxy.Client.Communication {
         async void ReceivingStream(CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
 
-            bool remoteClosed = true;
             while(socket.Connected && !cancellationToken.IsCancellationRequested) {
                 int receivedBytes;
                 try {
@@ -125,7 +119,6 @@ namespace TutoProxy.Client.Communication {
                 }
                 TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
-                remoteClosed = false;
 
                 dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, NextFrame(), data), cancellationToken);
 
@@ -134,28 +127,16 @@ namespace TutoProxy.Client.Communication {
                     logger.Information($"tcp({localPort}) response from {serverEndPoint}, bytes:{data.ToShortDescriptions()}.");
                 }
             }
-            if(!remoteClosed) {
-                dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, LastFrame(), null), cancellationToken);
-            }
+
+            dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, NextFrame(), null), cancellationToken);
+
             TryShutdown(SocketShutdown.Receive);
         }
 
         public async Task SendData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
 
-            if(streamData.Data == null) {
-                StartClosingTimer();
-                if(incomingQueue.FrameWasTakenLast(streamData.Frame)) {
-                    TryShutdown(SocketShutdown.Send);
-                } else {
-                    logger.Warning($"tcp({localPort}) request to {serverEndPoint}, not all data yet");
-                }
-                return;
-            }
-
-            incomingQueue.Enqueue(streamData.Frame, streamData.Data);
-
             if(!socket.Connected) {
-                if(streamData.Frame == firstFrame) {
+                if(!shutdownReceive && !shutdownTransmit) {
                     try {
                         await socket.ConnectAsync(serverEndPoint, cancellationToken);
                     } catch(Exception ex) {
@@ -163,14 +144,21 @@ namespace TutoProxy.Client.Communication {
                     }
                     localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
                     _ = Task.Run(() => ReceivingStream(cancellationToken));
-                } else {
-                    throw new TuToException($"tcp({localPort}) request to {serverEndPoint}, abnormally disconnected");
                 }
             }
 
+            incomingQueue.Enqueue(streamData.Frame, streamData.Data);
+
             if(incomingQueue.TryDequeue(out byte[]? orderedData)) {
+                if(orderedData == null) {
+                    TryShutdown(SocketShutdown.Send);
+                    return;
+                }
+
                 try {
-                    TotalTransmitted += await socket.SendAsync(orderedData, SocketFlags.None, cancellationToken);
+                    if(socket.Connected) {
+                        TotalTransmitted += await socket.SendAsync(orderedData, SocketFlags.None, cancellationToken);
+                    }
                 } catch(SocketException) {
                 } catch(ObjectDisposedException) {
                 } catch(Exception ex) {

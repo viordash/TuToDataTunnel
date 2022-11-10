@@ -21,7 +21,7 @@
         }
 
         public override string ToString() {
-            return $"{base.ToString()}, {Data.Length} b";
+            return $"{base.ToString()}, {Data?.Length} b";
         }
     }
 }
