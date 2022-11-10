@@ -1,7 +1,10 @@
 ﻿using System.Collections.Concurrent;
 using System.CommandLine;
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Threading;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
@@ -101,8 +104,9 @@ namespace TutoProxy.Client.Communication {
             await connection.StartAsync(cancellationToken);
             logger.Information("Connection started");
 
-            StartStreamToTcpClient(cancellationToken);
-            StartStreamFromTcpClient(cancellationToken);
+            _ = Task.Run(() => NamedPipeStreamToTcpClient(cancellationToken));
+            //StartStreamToTcpClient(cancellationToken);
+            //StartStreamFromTcpClient(cancellationToken);
         }
 
         public async Task StopAsync() {
@@ -125,24 +129,24 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        void StartStreamToTcpClient(CancellationToken cancellationToken) {
-            _ = Task.Run(async () => {
-                if(connection?.State != HubConnectionState.Connected) {
-                    return;
-                }
-                var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", cancellationToken);
+        //void StartStreamToTcpClient(CancellationToken cancellationToken) {
+        //    _ = Task.Run(async () => {
+        //        if(connection?.State != HubConnectionState.Connected) {
+        //            return;
+        //        }
+        //        var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", cancellationToken);
 
-                await foreach(var data in streamData) {
-                    try {
-                        var client = clientsService.ObtainTcpClient(data.Port, data.OriginPort, this);
-                        await client.SendData(data, cancellationToken);
-                    } catch(Exception ex) {
-                        logger.Error(ex.GetBaseException().Message);
-                    }
-                }
-                Debug.WriteLine($"                  ------ client stopped");
-            }, cancellationToken);
-        }
+        //        await foreach(var data in streamData) {
+        //            try {
+        //                var client = clientsService.ObtainTcpClient(data.Port, data.OriginPort, this);
+        //                await client.SendData(data, cancellationToken);
+        //            } catch(Exception ex) {
+        //                logger.Error(ex.GetBaseException().Message);
+        //            }
+        //        }
+        //        Debug.WriteLine($"                  ------ client stopped");
+        //    }, cancellationToken);
+        //}
 
         async IAsyncEnumerable<TcpStreamDataModel> OutgoingDataStream([EnumeratorCancellation] CancellationToken cancellationToken) {
             while(!cancellationToken.IsCancellationRequested) {
@@ -164,13 +168,13 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        void StartStreamFromTcpClient(CancellationToken cancellationToken) {
-            _ = Task.Run(async () => {
-                if(connection?.State == HubConnectionState.Connected) {
-                    await connection.SendAsync("StreamFromTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
-                }
-            }, cancellationToken);
-        }
+        //void StartStreamFromTcpClient(CancellationToken cancellationToken) {
+        //    _ = Task.Run(async () => {
+        //        if(connection?.State == HubConnectionState.Connected) {
+        //            await connection.SendAsync("StreamFromTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
+        //        }
+        //    }, cancellationToken);
+        //}
 
         public void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
             if(!outgoingQueue.TryAdd(streamData, 30000, cancellationToken)) {
@@ -180,5 +184,65 @@ namespace TutoProxy.Client.Communication {
             //    Debug.WriteLine($"                  ------ client add 0: {outgoingQueue.Count}");
             //}
         }
+
+
+        NamedPipeServerStream? pipeStreamFromTcpClient;
+        public async Task NamedPipeStreamFromTcpClient(CancellationToken cancellationToken) {
+            pipeStreamFromTcpClient = new NamedPipeServerStream("testStreamFromTcpClient", PipeDirection.InOut);
+            await pipeStreamFromTcpClient.WaitForConnectionAsync();
+
+
+
+            Debug.WriteLine("[Client] Client connected.");
+            try {
+                // Read user input and send that to the client process.
+                using(StreamWriter sw = new StreamWriter(pipeStreamFromTcpClient)) {
+                    sw.AutoFlush = true;
+
+                    var stream = OutgoingDataStream(cancellationToken);
+                    await foreach(var data in stream) {
+                        try {
+                            var jsonString = JsonSerializer.Serialize(data);
+                            await sw.WriteLineAsync(jsonString);
+                        } catch(Exception ex) {
+                            logger.Error(ex.GetBaseException().Message);
+                        }
+                    }
+                }
+            } catch(IOException e) {
+                Debug.WriteLine("[Client] ERROR: {0}", e.Message);
+            }
+        }
+
+        NamedPipeClientStream? pipeStreamToTcpClient;
+        public async Task NamedPipeStreamToTcpClient(CancellationToken cancellationToken) {
+            pipeStreamToTcpClient = new NamedPipeClientStream(".", "testStreamToTcpClient", PipeDirection.InOut);
+            await pipeStreamToTcpClient.ConnectAsync();
+
+
+            _ = Task.Run(() => NamedPipeStreamFromTcpClient(cancellationToken));
+
+            Debug.WriteLine("[Client] Connected to pipe.");
+            using(StreamReader sr = new StreamReader(pipeStreamToTcpClient)) {
+
+                while(!cancellationToken.IsCancellationRequested) {
+                    var jsonString = await sr.ReadLineAsync();
+                    if(jsonString != null) {
+                        var streamData = JsonSerializer.Deserialize<TcpStreamDataModel>(jsonString);
+                        if(streamData != null) {
+
+                            try {
+                                var client = clientsService.ObtainTcpClient(streamData.Port, streamData.OriginPort, this);
+                                await client.SendData(streamData, cancellationToken);
+                            } catch(Exception ex) {
+                                logger.Error(ex.GetBaseException().Message);
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+
     }
 }
