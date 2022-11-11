@@ -145,13 +145,23 @@ namespace TutoProxy.Client.Communication {
         }
 
         async IAsyncEnumerable<TcpStreamDataModel> OutgoingDataStream([EnumeratorCancellation] CancellationToken cancellationToken) {
-            foreach(var streamData in outgoingQueue.GetConsumingEnumerable(cancellationToken)) {
+            while(!cancellationToken.IsCancellationRequested) {
+                TcpStreamDataModel? streamData = null;
+
+                //Debug.WriteLine($"                  ------ client take 0 take_0: {outgoingQueue.Count}");
+                streamData = await Task.Run(() => {
+                    try {
+                        return outgoingQueue.Take(cancellationToken);
+                    } catch(InvalidOperationException) {
+                        return null;
+                    }
+                }, cancellationToken);
+
+                //Debug.WriteLine($"                  ------ client take 1 take_1: {outgoingQueue.Count}");
                 if(streamData != null) {
                     yield return streamData;
                 }
             }
-            await Task.CompletedTask;
-            Debug.WriteLine($"                  ------ client stopped 0");
         }
 
         void StartStreamFromTcpClient(CancellationToken cancellationToken) {
