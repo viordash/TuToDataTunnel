@@ -168,11 +168,10 @@ namespace TutoProxy.Server.Services {
         }
 
         public HubClient GetClient(string connectionId) {
-            //if(!connectedClients.TryGetValue(connectionId, out HubClient? hubClient)) {
-            //    throw new HubClientNotFoundException(connectionId);
-            //}
-            //return hubClient;
-            return connectedClients.First().Value;
+            if(!connectedClients.TryGetValue(connectionId, out HubClient? hubClient)) {
+                throw new HubClientNotFoundException(connectionId);
+            }
+            return hubClient;
         }
 
         public string GetConnectionIdForTcp(int port) {
