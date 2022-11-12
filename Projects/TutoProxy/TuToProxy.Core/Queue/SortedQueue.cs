@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using TuToProxy.Core.Exceptions;
+﻿using TuToProxy.Core.Exceptions;
 
 namespace TuToProxy.Core.Queue {
     public class SortedQueue {
@@ -7,7 +6,7 @@ namespace TuToProxy.Core.Queue {
         Int64 lastFrame;
         readonly int boundedCapacity;
         readonly object dataLock = new object();
-        readonly Dictionary<Int64, byte[]> storage;
+        readonly Dictionary<Int64, byte[]?> storage;
 
         public bool IsEmpty {
             get {
@@ -19,12 +18,12 @@ namespace TuToProxy.Core.Queue {
 
         public SortedQueue(Int64 startFrame, int boundedCapacity) {
             this.boundedCapacity = boundedCapacity;
-            storage = new Dictionary<long, byte[]>(boundedCapacity);
+            storage = new Dictionary<long, byte[]?>(boundedCapacity);
             frame = startFrame;
             lastFrame = startFrame;
         }
 
-        public void Enqueue(Int64 frame, byte[] data) {
+        public void Enqueue(Int64 frame, byte[]? data) {
             lock(dataLock) {
                 if(storage.Count >= boundedCapacity) {
                     throw new TuToException($"sorted queue exceeds {boundedCapacity} limit");
@@ -35,7 +34,7 @@ namespace TuToProxy.Core.Queue {
             }
         }
 
-        public bool TryDequeue([MaybeNullWhen(false)] out byte[] result) {
+        public bool TryDequeue(out byte[]? result) {
             lock(dataLock) {
                 if(storage.TryGetValue(frame, out result)) {
                     storage.Remove(frame);

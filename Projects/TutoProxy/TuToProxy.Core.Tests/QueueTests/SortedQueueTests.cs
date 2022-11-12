@@ -45,23 +45,23 @@ namespace TuToProxy.Core.Tests.ModelsTests {
         public void TryDequeue_Return_Data_In_Sorted_Order_Test() {
             var testable = new SortedQueue(0, 1000);
 
-            testable.Enqueue(3, new byte[] { 3 });
+            testable.Enqueue(3, null);
             testable.Enqueue(0, new byte[] { 0 });
             testable.Enqueue(2, new byte[] { 2 });
-            testable.Enqueue(1, new byte[] { 1 });
+            testable.Enqueue(1, null);
 
             byte[]? data;
             Assert.That(testable.TryDequeue(out data), Is.True);
             Assert.That(data?[0], Is.EqualTo(0));
 
             Assert.That(testable.TryDequeue(out data), Is.True);
-            Assert.That(data?[0], Is.EqualTo(1));
+            Assert.That(data, Is.Null);
 
             Assert.That(testable.TryDequeue(out data), Is.True);
             Assert.That(data?[0], Is.EqualTo(2));
 
             Assert.That(testable.TryDequeue(out data), Is.True);
-            Assert.That(data?[0], Is.EqualTo(3));
+            Assert.That(data, Is.Null);
         }
 
         [Test]

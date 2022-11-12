@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
@@ -96,7 +97,7 @@ namespace TutoProxy.Server.Communication {
             var coopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
 
             while(!coopCts.IsCancellationRequested && !outgoingQueue.IsCompleted) {
-                TcpStreamDataModel? streamData = null;
+                TcpStreamDataModel? streamData;
 
                 streamData = await Task.Run(() => {
                     try {
@@ -134,7 +135,7 @@ namespace TutoProxy.Server.Communication {
             if(!outgoingQueue.TryAdd(streamData, 10000, cts.Token)) {
                 throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
-            //Debug.WriteLine($"    ------ server add: {outgoingQueue.Count}");
+            //Debug.WriteLine($"x {streamData.OriginPort}");
         }
     }
 }

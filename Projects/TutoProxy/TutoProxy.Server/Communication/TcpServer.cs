@@ -23,8 +23,8 @@ namespace TutoProxy.Server.Communication {
             readonly TcpServer parent;
             readonly Timer forceCloseTimer;
             public readonly SortedQueue IncomingQueue;
-            bool shutdownReceive;
-            bool shutdownTransmit;
+            public bool shutdownReceive;
+            public bool shutdownTransmit;
             Int64 frame;
 
             public int TotalTransmitted { get; set; }
@@ -44,6 +44,11 @@ namespace TutoProxy.Server.Communication {
                     switch(how) {
                         case SocketShutdown.Receive:
                             shutdownReceive = true;
+                            try {
+                                if(Socket.Connected) {
+                                    Socket.Shutdown(SocketShutdown.Receive);
+                                }
+                            } catch(Exception) { }
                             break;
                         case SocketShutdown.Send:
                             shutdownTransmit = true;
@@ -70,33 +75,27 @@ namespace TutoProxy.Server.Communication {
                         forceCloseTimer.Dispose();
                         parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{TotalTransmitted}, rx:{TotalReceived}");
                     } else {
-                        StartClosingTimer();
+                        forceCloseTimer.Change(TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(30));
                     }
                 }
             }
 
-            public void StartClosingTimer() {
-                forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-            }
-
-            public void StopClosingTimer() {
-                forceCloseTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            }
-
             void OnForceCloseTimedEvent(object? state) {
-                Debug.WriteLine($"Attempt to close: {parent.port}, {RemoteEndPoint.Port}");
-                TryShutdown(SocketShutdown.Both);
+                lock(this) {
+                    if(!shutdownReceive || !shutdownTransmit) {
+                        Debug.WriteLine($"Attempt to close: {parent.port}, {RemoteEndPoint.Port}");
+                        TryShutdown(SocketShutdown.Both);
+                    }
+                }
             }
 
             public Int64 NextFrame() {
                 return Interlocked.Increment(ref frame);
             }
-            public Int64 LastFrame() {
-                return Interlocked.Read(ref frame);
-            }
 
             public void Dispose() {
                 TryShutdown(SocketShutdown.Both);
+                GC.SuppressFinalize(this);
             }
         }
         #endregion
@@ -119,11 +118,8 @@ namespace TutoProxy.Server.Communication {
                         while(!cts.IsCancellationRequested) {
                             var socket = await tcpServer.AcceptSocketAsync(cts.Token);
 
-                            if(cts.IsCancellationRequested) {
-                                break;
-                            }
                             logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
-                            _ = Task.Run(async () => await HandleSocketAsync(new Client(socket, this), cts.Token), cts.Token);
+                            _ = Task.Run(() => HandleSocketAsync(socket, cts.Token), cts.Token);
                         }
                     } catch(Exception ex) {
                         logger.Error($"tcp({port}): {ex.Message}");
@@ -140,14 +136,17 @@ namespace TutoProxy.Server.Communication {
             foreach(var client in remoteSockets.Values) {
                 client.Dispose();
             }
+            GC.SuppressFinalize(this);
         }
 
-        async Task HandleSocketAsync(Client client, CancellationToken cancellationToken) {
+        async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
+            var client = new Client(socket, this);
             if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
                 throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
             }
 
-            bool remoteClosed = true;
+            //client.Socket.LingerState = new LingerOption(true, 10);
+
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             int receivedBytes;
             while(client.Socket.Connected && !cancellationToken.IsCancellationRequested) {
@@ -163,7 +162,6 @@ namespace TutoProxy.Server.Communication {
                 }
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
-                remoteClosed = false;
                 hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, client.NextFrame(), data));
 
                 if(requestLogTimer <= DateTime.Now) {
@@ -171,9 +169,9 @@ namespace TutoProxy.Server.Communication {
                     logger.Information($"tcp({port}) request from {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                 }
             }
-            if(!remoteClosed) {
-                hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, client.LastFrame(), null));
-            }
+
+            hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, client.NextFrame(), null));
+
             client.TryShutdown(SocketShutdown.Receive);
         }
 
@@ -183,22 +181,18 @@ namespace TutoProxy.Server.Communication {
                 return;
             }
 
-
-            if(streamData.Data == null) {
-                client.StartClosingTimer();
-                if(client.IncomingQueue.FrameWasTakenLast(streamData.Frame)) {
-                    client.TryShutdown(SocketShutdown.Send);
-                } else {
-                    logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, not all data yet");
-                }
-                return;
-            }
-
             client.IncomingQueue.Enqueue(streamData.Frame, streamData.Data);
 
             if(client.IncomingQueue.TryDequeue(out byte[]? orderedData)) {
+                if(orderedData == null) {
+                    client.TryShutdown(SocketShutdown.Send);
+                    return;
+                }
+
                 try {
-                    client.TotalTransmitted += await client.Socket.SendAsync(orderedData, SocketFlags.None, cts.Token);
+                    if(client.Socket.Connected) {
+                        client.TotalTransmitted += await client.Socket.SendAsync(orderedData, SocketFlags.None, cts.Token);
+                    }
                 } catch(SocketException) {
                 } catch(ObjectDisposedException) {
                 } catch(Exception ex) {
