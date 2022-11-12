@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.Diagnostics;
+using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
 using TuToProxy.Core.Services;
 
@@ -8,6 +9,10 @@ namespace TutoProxy.Server.Services {
         Task DisconnectUdp(SocketAddressModel socketAddress);
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress);
+
+
+        Task DisconnectTcp(SocketAddressModel socketAddress);
+        void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -57,6 +62,18 @@ namespace TutoProxy.Server.Services {
         public void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress) {
             var client = clientsService.GetClient(connectionId);
             client.DisconnectUdp(socketAddress);
+        }
+
+        public async Task DisconnectTcp(SocketAddressModel socketAddress) {
+            logger.Debug($"DisconnectTcp :{socketAddress}");
+            Debug.WriteLine($"server DisconnectTcp :{socketAddress}");
+            var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectTcp", socketAddress);
+        }
+
+        public void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress) {
+            var client = clientsService.GetClient(connectionId);
+            client.DisconnectTcp(socketAddress);
         }
     }
 }

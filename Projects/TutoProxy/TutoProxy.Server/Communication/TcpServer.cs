@@ -2,11 +2,13 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 using TuToProxy.Core.Queue;
+using static TutoProxy.Server.Communication.UdpServer;
 
 namespace TutoProxy.Server.Communication {
     internal class TcpServer : BaseServer {
@@ -130,6 +132,13 @@ namespace TutoProxy.Server.Communication {
             }, cts.Token);
         }
 
+        public void Disconnect(SocketAddressModel socketAddress) {
+            if(!remoteSockets.TryGetValue(socketAddress.OriginPort, out Client? client)) {
+                return;
+            }
+            client.TryShutdown(SocketShutdown.Send);
+        }
+
         public override void Dispose() {
             cts.Cancel();
             cts.Dispose();
@@ -170,7 +179,7 @@ namespace TutoProxy.Server.Communication {
                 }
             }
 
-            hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, client.NextFrame(), null));
+            await dataTransferService.DisconnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port));
 
             client.TryShutdown(SocketShutdown.Receive);
         }

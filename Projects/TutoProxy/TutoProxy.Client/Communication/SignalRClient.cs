@@ -15,6 +15,7 @@ namespace TutoProxy.Client.Communication {
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
 
+        Task DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
         void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
     }
 
@@ -80,7 +81,14 @@ namespace TutoProxy.Client.Communication {
             });
 
             connection.On<SocketAddressModel>("DisconnectUdp", (socketAddress) => {
-                dataExchangeService.HandleDisconnectUdp(socketAddress, this);
+                logger.Debug($"HandleDisconnectUdp :{socketAddress}");
+                clientsService.RemoveUdpClient(socketAddress.Port, socketAddress.OriginPort);
+            });
+
+            connection.On<SocketAddressModel>("DisconnectTcp", (socketAddress) => {
+                logger.Debug($"HandleDisconnectTcp :{socketAddress}");
+                Debug.WriteLine($"client HandleDisconnectTcp :{socketAddress}");
+                clientsService.RemoveTcpClient(socketAddress.Port, socketAddress.OriginPort);
             });
 
             connection.On<string>("Errors", async (message) => {
@@ -122,6 +130,13 @@ namespace TutoProxy.Client.Communication {
         public async Task DisconnectUdp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("DisconnectUdp", socketAddress, cancellationToken);
+            }
+        }
+
+        public async Task DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                Debug.WriteLine($"client DisconnectTcp :{socketAddress}");
+                await connection.InvokeAsync("DisconnectTcp", socketAddress, cancellationToken);
             }
         }
 

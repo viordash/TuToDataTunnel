@@ -128,7 +128,7 @@ namespace TutoProxy.Client.Communication {
                 }
             }
 
-            dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, NextFrame(), null), cancellationToken);
+            await dataTunnelClient.DisconnectTcp(new SocketAddressModel(Port, OriginPort), cancellationToken);
 
             TryShutdown(SocketShutdown.Receive);
         }

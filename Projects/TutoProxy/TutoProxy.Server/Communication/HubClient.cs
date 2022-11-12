@@ -83,6 +83,13 @@ namespace TutoProxy.Server.Communication {
             server.Disconnect(socketAddress);
         }
 
+        public void DisconnectTcp(SocketAddressModel socketAddress) {
+            if(!tcpServers.TryGetValue(socketAddress.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, socketAddress.Port);
+            }
+            server.Disconnect(socketAddress);
+        }
+
         public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient([EnumeratorCancellation] CancellationToken cancellationToken = default) {
 
             var coopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);

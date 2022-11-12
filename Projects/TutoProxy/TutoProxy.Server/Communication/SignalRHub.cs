@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.Diagnostics;
+using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
 
@@ -33,6 +34,16 @@ namespace TutoProxy.Server.Hubs {
             logger.Debug($"DisconnectUdp: {socketAddress}");
             try {
                 dataTransferService.HandleDisconnectUdp(Context.ConnectionId, socketAddress);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
+        }
+
+        public async Task DisconnectTcp(SocketAddressModel socketAddress) {
+            logger.Debug($"DisconnectTcp: {socketAddress}");
+            Debug.WriteLine($"server HandleDisconnectTcp :{socketAddress}");
+            try {
+                dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
             }

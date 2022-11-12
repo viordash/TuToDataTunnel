@@ -19,7 +19,7 @@
 
     public class TcpStreamDataModel : DataBaseModel {
         public Int64 Frame { get; set; }
-        public TcpStreamDataModel(int port, int originPort, Int64 frame, byte[]? data) : base(port, originPort, data) {
+        public TcpStreamDataModel(int port, int originPort, Int64 frame, byte[] data) : base(port, originPort, data) {
             Frame = frame;
         }
         public override string ToString() {
