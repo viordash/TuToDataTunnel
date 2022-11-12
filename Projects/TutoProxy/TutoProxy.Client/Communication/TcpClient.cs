@@ -20,8 +20,8 @@ namespace TutoProxy.Client.Communication {
         bool shutdownTransmit;
         Int64 frame;
 
-        public int TotalTransmitted { get; set; }
-        public int TotalReceived { get; set; }
+        public Int64 TotalTransmitted { get; set; }
+        public Int64 TotalReceived { get; set; }
 
         protected override TimeSpan ReceiveTimeout { get { return TcpSocketParams.ReceiveTimeout; } }
 
@@ -128,7 +128,7 @@ namespace TutoProxy.Client.Communication {
                 }
             }
 
-            await dataTunnelClient.DisconnectTcp(new SocketAddressModel(Port, OriginPort), cancellationToken);
+            await dataTunnelClient.DisconnectTcp(new SocketAddressModel(Port, OriginPort), TotalReceived, cancellationToken);
 
             TryShutdown(SocketShutdown.Receive);
         }

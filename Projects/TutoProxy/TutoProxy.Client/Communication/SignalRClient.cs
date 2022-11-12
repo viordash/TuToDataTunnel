@@ -13,9 +13,9 @@ namespace TutoProxy.Client.Communication {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
-        Task DisconnectUdp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
+        Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
 
-        Task DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
+        Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
         void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
     }
 
@@ -80,14 +80,14 @@ namespace TutoProxy.Client.Communication {
                 await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
             });
 
-            connection.On<SocketAddressModel>("DisconnectUdp", (socketAddress) => {
-                logger.Debug($"HandleDisconnectUdp :{socketAddress}");
+            connection.On<SocketAddressModel, Int64>("DisconnectUdp", (socketAddress, totalTransfered) => {
+                logger.Debug($"HandleDisconnectUdp :{socketAddress}, {totalTransfered}");
                 clientsService.RemoveUdpClient(socketAddress.Port, socketAddress.OriginPort);
             });
 
-            connection.On<SocketAddressModel>("DisconnectTcp", (socketAddress) => {
-                logger.Debug($"HandleDisconnectTcp :{socketAddress}");
-                Debug.WriteLine($"client HandleDisconnectTcp :{socketAddress}");
+            connection.On<SocketAddressModel, Int64>("DisconnectTcp", (socketAddress, totalTransfered) => {
+                logger.Debug($"HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
+                Debug.WriteLine($"client HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
                 clientsService.RemoveTcpClient(socketAddress.Port, socketAddress.OriginPort);
             });
 
@@ -127,16 +127,16 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task DisconnectUdp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
+        public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("DisconnectUdp", socketAddress, cancellationToken);
+                await connection.InvokeAsync("DisconnectUdp", socketAddress, totalTransfered, cancellationToken);
             }
         }
 
-        public async Task DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
+        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                Debug.WriteLine($"client DisconnectTcp :{socketAddress}");
-                await connection.InvokeAsync("DisconnectTcp", socketAddress, cancellationToken);
+                Debug.WriteLine($"client DisconnectTcp :{socketAddress}, {totalTransfered}");
+                await connection.InvokeAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
             }
         }
 

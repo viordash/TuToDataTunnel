@@ -2,13 +2,11 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 using TuToProxy.Core.Queue;
-using static TutoProxy.Server.Communication.UdpServer;
 
 namespace TutoProxy.Server.Communication {
     internal class TcpServer : BaseServer {
@@ -29,8 +27,8 @@ namespace TutoProxy.Server.Communication {
             public bool shutdownTransmit;
             Int64 frame;
 
-            public int TotalTransmitted { get; set; }
-            public int TotalReceived { get; set; }
+            public Int64 TotalTransmitted { get; set; }
+            public Int64 TotalReceived { get; set; }
 
             public Client(Socket socket, TcpServer parent) {
                 this.parent = parent;
@@ -179,7 +177,7 @@ namespace TutoProxy.Server.Communication {
                 }
             }
 
-            await dataTransferService.DisconnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port));
+            await dataTransferService.DisconnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port), client.TotalReceived);
 
             client.TryShutdown(SocketShutdown.Receive);
         }

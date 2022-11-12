@@ -76,14 +76,14 @@ namespace TutoProxy.Server.Communication {
             await server.SendResponse(response);
         }
 
-        public void DisconnectUdp(SocketAddressModel socketAddress) {
+        public void DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(!udpServers.TryGetValue(socketAddress.Port, out UdpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Udp, socketAddress.Port);
             }
             server.Disconnect(socketAddress);
         }
 
-        public void DisconnectTcp(SocketAddressModel socketAddress) {
+        public void DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(!tcpServers.TryGetValue(socketAddress.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, socketAddress.Port);
             }

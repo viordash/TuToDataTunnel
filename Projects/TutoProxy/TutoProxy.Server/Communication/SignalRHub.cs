@@ -30,20 +30,20 @@ namespace TutoProxy.Server.Hubs {
             }
         }
 
-        public async Task DisconnectUdp(SocketAddressModel socketAddress) {
-            logger.Debug($"DisconnectUdp: {socketAddress}");
+        public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            logger.Debug($"DisconnectUdp: {socketAddress}, {totalTransfered}");
             try {
-                dataTransferService.HandleDisconnectUdp(Context.ConnectionId, socketAddress);
+                dataTransferService.HandleDisconnectUdp(Context.ConnectionId, socketAddress, totalTransfered);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
             }
         }
 
-        public async Task DisconnectTcp(SocketAddressModel socketAddress) {
-            logger.Debug($"DisconnectTcp: {socketAddress}");
-            Debug.WriteLine($"server HandleDisconnectTcp :{socketAddress}");
+        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            logger.Debug($"DisconnectTcp: {socketAddress}, {totalTransfered}");
+            Debug.WriteLine($"server HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
             try {
-                dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress);
+                dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress, totalTransfered);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
             }
