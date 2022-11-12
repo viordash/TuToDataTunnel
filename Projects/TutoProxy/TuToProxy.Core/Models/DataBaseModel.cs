@@ -1,5 +1,5 @@
 ﻿namespace TuToProxy.Core.Models {
-    public abstract class SocketAddressModel {
+    public class SocketAddressModel {
         public int Port { get; set; }
         public int OriginPort { get; set; }
 

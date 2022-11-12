@@ -66,17 +66,18 @@ namespace TutoProxy.Client.Communication {
                     };
                     Listening = false;
                     connected = false;
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Payload.Port, request.Payload.OriginPort), cancellationToken);
                     logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) disconnected");
                 } catch(SocketException ex) {
                     Listening = false;
                     connected = false;
 
-                    var transferCommand = new TransferUdpCommandModel(request.Id, request.Created, new UdpCommandModel(request.Payload.Port, request.Payload.OriginPort, SocketCommand.Disconnect));
-                    await dataTunnelClient.SendUdpCommand(transferCommand, cancellationToken);
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Payload.Port, request.Payload.OriginPort), cancellationToken);
                     logger.Error($"udp socket: {ex.Message}");
                 } catch {
                     Listening = false;
                     connected = false;
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Payload.Port, request.Payload.OriginPort), cancellationToken);
                     throw;
                 }
             });

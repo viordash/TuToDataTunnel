@@ -29,10 +29,10 @@ namespace TutoProxy.Server.Hubs {
             }
         }
 
-        public async Task UdpCommand(TransferUdpCommandModel model) {
-            logger.Debug($"UdpCommand: {model}");
+        public async Task DisconnectUdp(SocketAddressModel socketAddress) {
+            logger.Debug($"DisconnectUdp: {socketAddress}");
             try {
-                await dataTransferService.HandleUdpCommand(Context.ConnectionId, model);
+                dataTransferService.HandleDisconnectUdp(Context.ConnectionId, socketAddress);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
             }

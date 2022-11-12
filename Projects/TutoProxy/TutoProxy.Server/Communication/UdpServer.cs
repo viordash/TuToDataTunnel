@@ -82,27 +82,27 @@ namespace TutoProxy.Server.Communication {
 
         public async Task SendResponse(UdpDataResponseModel response) {
             if(cancellationToken.IsCancellationRequested) {
-                await dataTransferService.SendUdpCommand(new UdpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
+                await dataTransferService.DisconnectUdp(new SocketAddressModel(port, response.OriginPort));
                 logger.Error($"udp({port}) response to canceled {response.OriginPort}");
                 return;
             }
             if(!remoteEndPoints.TryGetValue(response.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
-                await dataTransferService.SendUdpCommand(new UdpCommandModel(port, response.OriginPort, SocketCommand.Disconnect));
+                await dataTransferService.DisconnectUdp(new SocketAddressModel(port, response.OriginPort));
                 logger.Error($"udp({port}) response to missed {response.OriginPort}");
                 return;
             }
             await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);
             if(responseLogTimer <= DateTime.Now) {
                 responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                logger.Information($"udp response to {remoteEndPoint.EndPoint}, bytes:{response.Data.ToShortDescriptions()}");
+                logger.Information($"udp response to {remoteEndPoint.EndPoint}, bytes:{response.Data?.ToShortDescriptions()}");
             }
         }
 
-        public void Disconnect(UdpCommandModel command) {
+        public void Disconnect(SocketAddressModel socketAddress) {
             if(cancellationToken.IsCancellationRequested) {
                 return;
             }
-            if(!remoteEndPoints.TryRemove(command.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
+            if(!remoteEndPoints.TryRemove(socketAddress.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
                 return;
             }
 

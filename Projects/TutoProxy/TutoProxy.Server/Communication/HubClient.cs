@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
-using System.Text;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
@@ -77,19 +76,11 @@ namespace TutoProxy.Server.Communication {
             await server.SendResponse(response);
         }
 
-        public Task ProcessUdpCommand(UdpCommandModel command) {
-            if(!udpServers.TryGetValue(command.Port, out UdpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Udp, command.Port);
+        public void DisconnectUdp(SocketAddressModel socketAddress) {
+            if(!udpServers.TryGetValue(socketAddress.Port, out UdpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Udp, socketAddress.Port);
             }
-
-            switch(command.Command) {
-                case SocketCommand.Disconnect:
-                    server.Disconnect(command);
-                    break;
-                default:
-                    break;
-            }
-            return Task.CompletedTask;
+            server.Disconnect(socketAddress);
         }
 
         public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient([EnumeratorCancellation] CancellationToken cancellationToken = default) {

@@ -5,9 +5,9 @@ using TuToProxy.Core.Services;
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
         Task SendUdpRequest(UdpDataRequestModel request);
-        Task SendUdpCommand(UdpCommandModel command);
+        Task DisconnectUdp(SocketAddressModel socketAddress);
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
-        Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
+        void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -43,11 +43,10 @@ namespace TutoProxy.Server.Services {
             await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", transferRequest);
         }
 
-        public async Task SendUdpCommand(UdpCommandModel command) {
-            var transferCommand = new TransferUdpCommandModel(idService.TransferRequest, dateTimeService.Now, command);
-            logger.Debug($"UdpCommand :{transferCommand}");
-            var connectionId = clientsService.GetConnectionIdForUdp(command.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("UdpCommand", transferCommand);
+        public async Task DisconnectUdp(SocketAddressModel socketAddress) {
+            logger.Debug($"DisconnectUdp :{socketAddress}");
+            var connectionId = clientsService.GetConnectionIdForUdp(socketAddress.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectUdp", socketAddress);
         }
 
         public async Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response) {
@@ -55,9 +54,9 @@ namespace TutoProxy.Server.Services {
             await client.SendUdpResponse(response.Payload);
         }
 
-        public async Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command) {
+        public void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress) {
             var client = clientsService.GetClient(connectionId);
-            await client.ProcessUdpCommand(command.Payload);
+            client.DisconnectUdp(socketAddress);
         }
     }
 }

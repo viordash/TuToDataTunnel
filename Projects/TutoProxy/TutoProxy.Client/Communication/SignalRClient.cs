@@ -13,7 +13,7 @@ namespace TutoProxy.Client.Communication {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
-        Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
+        Task DisconnectUdp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
 
         void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
     }
@@ -79,8 +79,8 @@ namespace TutoProxy.Client.Communication {
                 await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
             });
 
-            connection.On<TransferUdpCommandModel>("UdpCommand", async (command) => {
-                await dataExchangeService.HandleUdpCommand(command, this, cancellationToken);
+            connection.On<SocketAddressModel>("DisconnectUdp", (socketAddress) => {
+                dataExchangeService.HandleDisconnectUdp(socketAddress, this);
             });
 
             connection.On<string>("Errors", async (message) => {
@@ -119,9 +119,9 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken) {
+        public async Task DisconnectUdp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("UdpCommand", command, cancellationToken);
+                await connection.InvokeAsync("DisconnectUdp", socketAddress, cancellationToken);
             }
         }
 

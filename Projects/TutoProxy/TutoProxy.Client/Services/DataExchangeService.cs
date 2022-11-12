@@ -3,7 +3,7 @@
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
         Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
-        Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        void HandleDisconnectUdp(SocketAddressModel socketAddress, ISignalRClient dataTunnelClient);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -38,17 +38,9 @@ namespace TutoProxy.Client.Services {
             }
         }
 
-        public Task HandleUdpCommand(TransferUdpCommandModel command, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
-            logger.Debug($"HandleUdpCommand :{command}");
-
-            switch(command.Payload.Command) {
-                case SocketCommand.Disconnect:
-                    clientsService.RemoveUdpClient(command.Payload.Port, command.Payload.OriginPort);
-                    break;
-                default:
-                    break;
-            }
-            return Task.CompletedTask;
+        public void HandleDisconnectUdp(SocketAddressModel socketAddress, ISignalRClient dataTunnelClient) {
+            logger.Debug($"HandleDisconnectUdp :{socketAddress}");
+            clientsService.RemoveUdpClient(socketAddress.Port, socketAddress.OriginPort);
         }
 
     }
