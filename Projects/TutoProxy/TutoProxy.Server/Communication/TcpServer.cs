@@ -107,8 +107,6 @@ namespace TutoProxy.Server.Communication {
                         if(transmitted >= limit) {
                             TryShutdown(SocketShutdown.Send);
                             return false;
-                        } else {
-                            Debug.WriteLine($"tcpserver({RemoteEndPoint})  wait rest of data :{limit}>{transmitted}");
                         }
                     }
                 }

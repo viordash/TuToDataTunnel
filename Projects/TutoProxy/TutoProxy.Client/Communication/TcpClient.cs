@@ -155,8 +155,6 @@ namespace TutoProxy.Client.Communication {
                         if(transmitted >= limit) {
                             TryShutdown(SocketShutdown.Send);
                             return;
-                        } else {
-                            Debug.WriteLine($"tcpclient({localPort})  wait rest of data :{limit}>{transmitted}");
                         }
                     }
                 }
