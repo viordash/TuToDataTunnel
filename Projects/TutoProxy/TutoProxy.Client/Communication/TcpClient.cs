@@ -59,6 +59,9 @@ namespace TutoProxy.Client.Communication {
                         try {
                             socket.Shutdown(SocketShutdown.Both);
                         } catch(SocketException) { }
+                        try {
+                            socket.Disconnect(true);
+                        } catch(SocketException) { }
                     }
                     clientsService.RemoveTcpClient(Port, OriginPort);
                     forceCloseTimer.Dispose();
@@ -81,14 +84,13 @@ namespace TutoProxy.Client.Communication {
         protected override Socket CreateSocket() {
             var tcpClient = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-            //tcpClient.LingerState = new LingerOption(true, 10);
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
             return tcpClient;
         }
 
         public override void Dispose() {
             forceCloseTimer.Dispose();
-            socket.Close();
+            socket.Close(100);
             base.Dispose();
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
         }

@@ -41,7 +41,6 @@ namespace TutoProxy.Server.Hubs {
 
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             logger.Debug($"DisconnectTcp: {socketAddress}, {totalTransfered}");
-            Debug.WriteLine($"server HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
             try {
                 dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress, totalTransfered);
             } catch(TuToException ex) {

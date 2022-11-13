@@ -63,10 +63,15 @@ namespace TutoProxy.Server.Communication {
 
                     if(shutdownReceive && shutdownTransmit) {
                         parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out _);
-                        try {
-                            Socket.Shutdown(SocketShutdown.Both);
-                        } catch(SocketException) { }
-                        Socket.Close();
+                        if(Socket.Connected) {
+                            try {
+                                Socket.Shutdown(SocketShutdown.Both);
+                            } catch(SocketException) { }
+                            try {
+                                Socket.Disconnect(true);
+                            } catch(SocketException) { }
+                        }
+                        Socket.Close(100);
                         Socket.Dispose();
                         forceCloseTimer.Dispose();
                         parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
@@ -174,8 +179,6 @@ namespace TutoProxy.Server.Communication {
             if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
                 throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
             }
-
-            //client.Socket.LingerState = new LingerOption(true, 10);
 
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             int receivedBytes;

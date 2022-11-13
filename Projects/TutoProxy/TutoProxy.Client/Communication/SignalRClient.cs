@@ -88,7 +88,6 @@ namespace TutoProxy.Client.Communication {
 
             connection.On<SocketAddressModel, Int64>("DisconnectTcp", (socketAddress, totalTransfered) => {
                 logger.Debug($"HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
-                Debug.WriteLine($"client HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
                 var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
                 client.Disconnect(totalTransfered, cancellationToken);
             });
@@ -137,7 +136,6 @@ namespace TutoProxy.Client.Communication {
 
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                Debug.WriteLine($"client DisconnectTcp :{socketAddress}, {totalTransfered}");
                 await connection.InvokeAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
             }
         }

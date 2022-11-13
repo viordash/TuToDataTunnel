@@ -66,7 +66,6 @@ namespace TutoProxy.Server.Services {
 
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             logger.Debug($"DisconnectTcp :{socketAddress}, {totalTransfered}");
-            Debug.WriteLine($"server DisconnectTcp :{socketAddress}, {totalTransfered}");
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
             await signalHub.Clients.Client(connectionId).SendAsync("DisconnectTcp", socketAddress, totalTransfered);
         }
