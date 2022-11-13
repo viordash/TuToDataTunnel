@@ -80,14 +80,14 @@ namespace TutoProxy.Server.Communication {
             if(!udpServers.TryGetValue(socketAddress.Port, out UdpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Udp, socketAddress.Port);
             }
-            server.Disconnect(socketAddress);
+            server.Disconnect(socketAddress, totalTransfered);
         }
 
         public void DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(!tcpServers.TryGetValue(socketAddress.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, socketAddress.Port);
             }
-            server.Disconnect(socketAddress);
+            server.Disconnect(socketAddress, totalTransfered);
         }
 
         public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient([EnumeratorCancellation] CancellationToken cancellationToken = default) {

@@ -88,5 +88,9 @@ namespace TutoProxy.Client.Communication {
             base.Dispose();
             logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, destroyed");
         }
+
+        public void Disconnect(Int64 transferLimit) {
+            clientsService.RemoveUdpClient(Port, OriginPort);
+        }
     }
 }

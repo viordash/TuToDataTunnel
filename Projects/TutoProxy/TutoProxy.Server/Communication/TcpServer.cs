@@ -6,7 +6,6 @@ using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
-using TuToProxy.Core.Queue;
 
 namespace TutoProxy.Server.Communication {
     internal class TcpServer : BaseServer {
@@ -17,26 +16,23 @@ namespace TutoProxy.Server.Communication {
 
         #region inner classes
         protected class Client : IDisposable {
-            const int firstFrame = 0;
             public readonly Socket Socket;
             public readonly IPEndPoint RemoteEndPoint;
             readonly TcpServer parent;
             readonly Timer forceCloseTimer;
-            public readonly SortedQueue IncomingQueue;
             public bool shutdownReceive;
             public bool shutdownTransmit;
-            Int64 frame;
 
-            public Int64 TotalTransmitted { get; set; }
-            public Int64 TotalReceived { get; set; }
+            Int64 totalTransmitted;
+            Int64 limitTotalTransmitted;
+            public Int64 TotalReceived;
 
             public Client(Socket socket, TcpServer parent) {
                 this.parent = parent;
                 Socket = socket;
                 RemoteEndPoint = (IPEndPoint)socket.RemoteEndPoint!;
                 forceCloseTimer = new Timer(OnForceCloseTimedEvent);
-                frame = firstFrame - 1;
-                IncomingQueue = new SortedQueue(firstFrame, TcpSocketParams.QueueMaxSize);
+                limitTotalTransmitted = -1;
             }
 
             public void TryShutdown(SocketShutdown how) {
@@ -73,9 +69,9 @@ namespace TutoProxy.Server.Communication {
                         Socket.Close();
                         Socket.Dispose();
                         forceCloseTimer.Dispose();
-                        parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{TotalTransmitted}, rx:{TotalReceived}");
+                        parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
                     } else {
-                        forceCloseTimer.Change(TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(30));
+                        StartClosingTimer();
                     }
                 }
             }
@@ -89,13 +85,39 @@ namespace TutoProxy.Server.Communication {
                 }
             }
 
-            public Int64 NextFrame() {
-                return Interlocked.Increment(ref frame);
+            void StartClosingTimer() {
+                forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
             }
 
             public void Dispose() {
                 TryShutdown(SocketShutdown.Both);
                 GC.SuppressFinalize(this);
+            }
+
+            public async ValueTask<bool> SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
+                if(Socket.Connected) {
+                    var transmitted = Interlocked.Add(ref totalTransmitted, await Socket.SendAsync(buffer, SocketFlags.None, cancellationToken));
+                    var limit = Interlocked.Read(ref limitTotalTransmitted);
+                    if(limit >= 0) {
+                        if(transmitted >= limit) {
+                            TryShutdown(SocketShutdown.Send);
+                            return false;
+                        } else {
+                            Debug.WriteLine($"tcpserver({RemoteEndPoint})  wait rest of data :{limit}>{transmitted}");
+                        }
+                    }
+                }
+                return true;
+            }
+
+
+            public void Disconnect(Int64 transferLimit) {
+                if(Interlocked.Read(ref totalTransmitted) >= transferLimit) {
+                    TryShutdown(SocketShutdown.Both);
+                } else {
+                    Interlocked.Exchange(ref limitTotalTransmitted, transferLimit);
+                    StartClosingTimer();
+                }
             }
         }
         #endregion
@@ -130,11 +152,12 @@ namespace TutoProxy.Server.Communication {
             }, cts.Token);
         }
 
-        public void Disconnect(SocketAddressModel socketAddress) {
+        public void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(!remoteSockets.TryGetValue(socketAddress.OriginPort, out Client? client)) {
                 return;
             }
-            client.TryShutdown(SocketShutdown.Send);
+
+            client.Disconnect(totalTransfered);
         }
 
         public override void Dispose() {
@@ -169,7 +192,7 @@ namespace TutoProxy.Server.Communication {
                 }
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
-                hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, client.NextFrame(), data));
+                hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, 0, data));
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -188,28 +211,19 @@ namespace TutoProxy.Server.Communication {
                 return;
             }
 
-            client.IncomingQueue.Enqueue(streamData.Frame, streamData.Data);
-
-            if(client.IncomingQueue.TryDequeue(out byte[]? orderedData)) {
-                if(orderedData == null) {
-                    client.TryShutdown(SocketShutdown.Send);
+            try {
+                if(await client.SendDataAsync(streamData.Data, cts.Token)) {
                     return;
                 }
+            } catch(SocketException) {
+            } catch(ObjectDisposedException) {
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
+            }
 
-                try {
-                    if(client.Socket.Connected) {
-                        client.TotalTransmitted += await client.Socket.SendAsync(orderedData, SocketFlags.None, cts.Token);
-                    }
-                } catch(SocketException) {
-                } catch(ObjectDisposedException) {
-                } catch(Exception ex) {
-                    logger.Error(ex.GetBaseException().Message);
-                }
-
-                if(responseLogTimer <= DateTime.Now) {
-                    responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{orderedData.ToShortDescriptions()}");
-                }
+            if(responseLogTimer <= DateTime.Now) {
+                responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{streamData.Data.ToShortDescriptions()}");
             }
         }
     }

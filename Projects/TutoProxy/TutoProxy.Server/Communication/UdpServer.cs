@@ -98,7 +98,7 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
-        public void Disconnect(SocketAddressModel socketAddress) {
+        public void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(cancellationToken.IsCancellationRequested) {
                 return;
             }

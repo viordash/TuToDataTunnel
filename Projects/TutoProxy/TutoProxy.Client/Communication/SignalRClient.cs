@@ -82,13 +82,15 @@ namespace TutoProxy.Client.Communication {
 
             connection.On<SocketAddressModel, Int64>("DisconnectUdp", (socketAddress, totalTransfered) => {
                 logger.Debug($"HandleDisconnectUdp :{socketAddress}, {totalTransfered}");
-                clientsService.RemoveUdpClient(socketAddress.Port, socketAddress.OriginPort);
+                var client = clientsService.ObtainUdpClient(socketAddress.Port, socketAddress.OriginPort, this);
+                client.Disconnect(totalTransfered);
             });
 
             connection.On<SocketAddressModel, Int64>("DisconnectTcp", (socketAddress, totalTransfered) => {
                 logger.Debug($"HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
                 Debug.WriteLine($"client HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
-                clientsService.RemoveTcpClient(socketAddress.Port, socketAddress.OriginPort);
+                var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
+                client.Disconnect(totalTransfered, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {
