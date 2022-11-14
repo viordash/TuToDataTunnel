@@ -82,12 +82,8 @@ namespace TutoProxy.Server.Communication {
             }
 
             void OnForceCloseTimedEvent(object? state) {
-                lock(this) {
-                    if(!shutdownReceive || !shutdownTransmit) {
-                        Debug.WriteLine($"Attempt to close: {parent.port}, {RemoteEndPoint.Port}");
-                        TryShutdown(SocketShutdown.Both);
-                    }
-                }
+                Debug.WriteLine($"Attempt to close: {parent.port}, {RemoteEndPoint.Port}");
+                TryShutdown(SocketShutdown.Both);
             }
 
             void StartClosingTimer() {
@@ -99,20 +95,20 @@ namespace TutoProxy.Server.Communication {
                 GC.SuppressFinalize(this);
             }
 
-            public async ValueTask<bool> SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
-                if(Socket.Connected) {
-                    var transmitted = Interlocked.Add(ref totalTransmitted, await Socket.SendAsync(buffer, SocketFlags.None, cancellationToken));
+            public async Task SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
+                bool connected = Socket.Connected;
+                var transmitted = Interlocked.Add(ref totalTransmitted, await Socket.SendAsync(buffer, SocketFlags.None, cancellationToken));
+                if(!connected) {
+                    TryShutdown(SocketShutdown.Send);
+                } else {
                     var limit = Interlocked.Read(ref limitTotalTransmitted);
                     if(limit >= 0) {
                         if(transmitted >= limit) {
                             TryShutdown(SocketShutdown.Send);
-                            return false;
                         }
                     }
                 }
-                return true;
             }
-
 
             public void Disconnect(Int64 transferLimit) {
                 if(Interlocked.Read(ref totalTransmitted) >= transferLimit) {
@@ -213,10 +209,9 @@ namespace TutoProxy.Server.Communication {
             }
 
             try {
-                if(await client.SendDataAsync(streamData.Data, cts.Token)) {
-                    return;
-                }
+                await client.SendDataAsync(streamData.Data, cts.Token);
             } catch(SocketException) {
+                client.TryShutdown(SocketShutdown.Send);
             } catch(ObjectDisposedException) {
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);

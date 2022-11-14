@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
@@ -132,33 +133,32 @@ namespace TutoProxy.Client.Communication {
         }
 
         public async Task SendData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
-
             if(!socket.Connected) {
-                if(!shutdownReceive && !shutdownTransmit) {
-                    try {
-                        await socket.ConnectAsync(serverEndPoint, cancellationToken);
-                    } catch(Exception ex) {
-                        logger.Error(ex.GetBaseException().Message);
-                    }
-                    localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
-                    _ = Task.Run(() => ReceivingStream(cancellationToken));
+                try {
+                    await socket.ConnectAsync(serverEndPoint, cancellationToken);
+                } catch(Exception ex) {
+                    logger.Error(ex.GetBaseException().Message);
                 }
+                localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
+                _ = Task.Run(() => ReceivingStream(cancellationToken));
             }
 
-
-
             try {
-                if(socket.Connected) {
-                    var transmitted = Interlocked.Add(ref totalTransmitted, await socket.SendAsync(streamData.Data, SocketFlags.None, cancellationToken));
+                bool connected = socket.Connected;
+                var transmitted = Interlocked.Add(ref totalTransmitted, await socket.SendAsync(streamData.Data, SocketFlags.None, cancellationToken));
+                if(!connected) {
+                    TryShutdown(SocketShutdown.Send);
+                } else {
                     var limit = Interlocked.Read(ref limitTotalTransmitted);
                     if(limit >= 0) {
                         if(transmitted >= limit) {
                             TryShutdown(SocketShutdown.Send);
-                            return;
                         }
                     }
                 }
+
             } catch(SocketException) {
+                TryShutdown(SocketShutdown.Send);
             } catch(ObjectDisposedException) {
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
