@@ -135,5 +135,12 @@ namespace TutoProxy.Server.Communication {
             }
             //Debug.WriteLine($"x {streamData.OriginPort}");
         }
+
+        public async Task SendTcpResponse(TcpDataResponseModel response) {
+            if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
+            }
+            await server.SendResponse(response);
+        }
     }
 }

@@ -92,6 +92,14 @@ namespace TutoProxy.Client.Communication {
                 client.Disconnect(totalTransfered, cancellationToken);
             });
 
+            connection.On<TransferTcpRequestModel>("TcpRequest", async (request) => {
+                logger.Debug($"HandleTcpRequestAsync :{request}");
+
+                var client = clientsService.ObtainTcpClient(request.Payload.Port, request.Payload.OriginPort, this);
+                var response = await client.SendRequest(request.Payload.Data!, cancellationToken);
+
+            });
+
             connection.On<string>("Errors", async (message) => {
                 logger.Error(message);
                 await StopAsync();
@@ -194,6 +202,12 @@ namespace TutoProxy.Client.Communication {
             //if(outgoingQueue.Count > 800) {
             //    Debug.WriteLine($"                  ------ client add 0: {outgoingQueue.Count}");
             //}
+        }
+
+        public async Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.InvokeAsync("TcpResponse", response, cancellationToken);
+            }
         }
     }
 }

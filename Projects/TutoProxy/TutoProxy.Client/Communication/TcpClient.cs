@@ -1,9 +1,9 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
+using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Client.Communication {
@@ -179,5 +179,41 @@ namespace TutoProxy.Client.Communication {
                 StartClosingTimer();
             }
         }
+
+        public async Task<byte[]?> SendRequest(byte[] payload, CancellationToken cancellationToken) {
+            if(!socket.Connected) {
+                await socket.ConnectAsync(serverEndPoint, cancellationToken);
+                localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
+            }
+            var transmitted = Interlocked.Add(ref totalTransmitted, await socket.SendAsync(payload, SocketFlags.None, cancellationToken));
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TcpSocketParams.ReceiveTimeout);
+
+            int receivedBytes = 0;
+            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+            try {
+                receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
+            } catch(OperationCanceledException ex) {
+                logger.Error(ex.GetBaseException().Message);
+            } catch(SocketException ex) {
+                logger.Error(ex.GetBaseException().Message);
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
+            }
+
+            if(requestLogTimer <= DateTime.Now) {
+                requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
+            }
+
+            if(receivedBytes > 0) {
+                totalReceived += receivedBytes;
+                var data = receiveBuffer[..receivedBytes].ToArray();
+                return data;
+            }
+            return null;
+        }
+
     }
 }
