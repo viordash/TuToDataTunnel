@@ -10,9 +10,6 @@ namespace TutoProxy.Server.Services {
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
 
-
-        Task SendTcpRequest(TcpDataRequestModel request);
-        Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response);
         Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered);
         void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
     }
@@ -75,18 +72,6 @@ namespace TutoProxy.Server.Services {
         public void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
             var client = clientsService.GetClient(connectionId);
             client.DisconnectTcp(socketAddress, totalTransfered);
-        }
-
-        public async Task SendTcpRequest(TcpDataRequestModel request) {
-            var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Debug($"TcpRequest :{transferRequest}");
-            var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", transferRequest);
-        }
-
-        public async Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response) {
-            var client = clientsService.GetClient(connectionId);
-            await client.SendTcpResponse(response.Payload);
         }
     }
 }

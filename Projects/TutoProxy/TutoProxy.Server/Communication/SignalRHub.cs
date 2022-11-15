@@ -64,23 +64,10 @@ namespace TutoProxy.Server.Hubs {
             return base.OnDisconnectedAsync(exception);
         }
 
-        public IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient() {
+        public IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
             var client = clientsService.GetClient(Context.ConnectionId);
+            _ = client.StreamFromTcpClient(stream);
             return client.StreamToTcpClient();
-        }
-
-        public Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
-            var client = clientsService.GetClient(Context.ConnectionId);
-            return client.StreamFromTcpClient(stream);
-        }
-
-        public async Task TcpResponse(TransferTcpResponseModel model) {
-            logger.Debug($"TcpResponse: {model}");
-            try {
-                await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
-            } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
-            }
         }
     }
 }

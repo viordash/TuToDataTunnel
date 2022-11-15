@@ -92,14 +92,6 @@ namespace TutoProxy.Client.Communication {
                 client.Disconnect(totalTransfered, cancellationToken);
             });
 
-            connection.On<TransferTcpRequestModel>("TcpRequest", async (request) => {
-                logger.Debug($"HandleTcpRequestAsync :{request}");
-
-                var client = clientsService.ObtainTcpClient(request.Payload.Port, request.Payload.OriginPort, this);
-                var response = await client.SendRequest(request.Payload.Data!, cancellationToken);
-
-            });
-
             connection.On<string>("Errors", async (message) => {
                 logger.Error(message);
                 await StopAsync();
@@ -119,7 +111,6 @@ namespace TutoProxy.Client.Communication {
             logger.Information("Connection started");
 
             StartStreamToTcpClient(cancellationToken);
-            StartStreamFromTcpClient(cancellationToken);
         }
 
         public async Task StopAsync() {
@@ -153,7 +144,7 @@ namespace TutoProxy.Client.Communication {
                 if(connection?.State != HubConnectionState.Connected) {
                     return;
                 }
-                var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", cancellationToken);
+                var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
 
                 await foreach(var data in streamData) {
                     try {
@@ -187,14 +178,6 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        void StartStreamFromTcpClient(CancellationToken cancellationToken) {
-            _ = Task.Run(async () => {
-                if(connection?.State == HubConnectionState.Connected) {
-                    await connection.SendAsync("StreamFromTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
-                }
-            }, cancellationToken);
-        }
-
         public void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
             if(!outgoingQueue.TryAdd(streamData, 30000, cancellationToken)) {
                 throw new TuToException($"tcp outcome queue size ({outgoingQueue.Count}) exceeds {TcpSocketParams.QueueMaxSize} limit");
@@ -202,12 +185,6 @@ namespace TutoProxy.Client.Communication {
             //if(outgoingQueue.Count > 800) {
             //    Debug.WriteLine($"                  ------ client add 0: {outgoingQueue.Count}");
             //}
-        }
-
-        public async Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken) {
-            if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("TcpResponse", response, cancellationToken);
-            }
         }
     }
 }

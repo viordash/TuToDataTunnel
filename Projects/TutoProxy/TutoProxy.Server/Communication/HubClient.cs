@@ -93,7 +93,6 @@ namespace TutoProxy.Server.Communication {
         public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient([EnumeratorCancellation] CancellationToken cancellationToken = default) {
 
             var coopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-
             while(!coopCts.IsCancellationRequested && !outgoingQueue.IsCompleted) {
                 TcpStreamDataModel? streamData;
 
@@ -134,13 +133,6 @@ namespace TutoProxy.Server.Communication {
                 throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
             }
             //Debug.WriteLine($"x {streamData.OriginPort}");
-        }
-
-        public async Task SendTcpResponse(TcpDataResponseModel response) {
-            if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
-            }
-            await server.SendResponse(response);
         }
     }
 }

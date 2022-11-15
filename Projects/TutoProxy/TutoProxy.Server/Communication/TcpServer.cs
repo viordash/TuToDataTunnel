@@ -65,7 +65,9 @@ namespace TutoProxy.Server.Communication {
 
 
                     if(shutdownReceive && shutdownTransmit) {
-                        parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out _);
+                        if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out _)) {
+                            parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
+                        }
                         if(Socket.Connected) {
                             try {
                                 Socket.Shutdown(SocketShutdown.Both);
@@ -77,7 +79,6 @@ namespace TutoProxy.Server.Communication {
                         Socket.Close(100);
                         Socket.Dispose();
                         forceCloseTimer.Dispose();
-                        parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
                     } else {
                         StartClosingTimer();
                     }
@@ -171,7 +172,7 @@ namespace TutoProxy.Server.Communication {
             GC.SuppressFinalize(this);
         }
 
-        async Task HandleSocketAsync1(Socket socket, CancellationToken cancellationToken) {
+        async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
             var client = new Client(socket, this);
             if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
                 throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
@@ -224,57 +225,6 @@ namespace TutoProxy.Server.Communication {
                 responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
                 logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{streamData.Data.ToShortDescriptions()}");
             }
-        }
-
-
-
-        public async Task SendResponse(TcpDataResponseModel response) {
-            if(!remoteSockets.TryGetValue(response.OriginPort, out Client? client)) {
-                await dataTransferService.DisconnectUdp(new SocketAddressModel(port, response.OriginPort), Int64.MinValue);
-                logger.Error($"tcp({port}) response to missed {response.OriginPort}");
-                return;
-            }
-            await client.Socket.SendAsync(response.Data, SocketFlags.None, cts.Token);
-            if(responseLogTimer <= DateTime.Now) {
-                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp response to {client.RemoteEndPoint}, bytes:{response.Data?.ToShortDescriptions()}");
-            }
-        }
-
-
-        async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
-            var client = new Client(socket, this);
-            if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
-                throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
-            }
-
-            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
-            int receivedBytes;
-            while(client.Socket.Connected && !cancellationToken.IsCancellationRequested) {
-                try {
-                    receivedBytes = await client.Socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cancellationToken);
-                    if(receivedBytes == 0) {
-                        break;
-                    }
-                } catch(OperationCanceledException) {
-                    break;
-                } catch(SocketException) {
-                    break;
-                }
-                client.TotalReceived += receivedBytes;
-                var data = receiveBuffer[..receivedBytes].ToArray();
-
-                await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, client.RemoteEndPoint.Port, data));
-
-                if(requestLogTimer <= DateTime.Now) {
-                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({port}) request from {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
-                }
-            }
-
-            await dataTransferService.DisconnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port), client.TotalReceived);
-
-            client.TryShutdown(SocketShutdown.Receive);
         }
     }
 }
