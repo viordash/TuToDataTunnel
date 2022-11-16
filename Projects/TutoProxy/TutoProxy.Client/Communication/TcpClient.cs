@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
-using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Client.Communication {

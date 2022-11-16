@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
-using static TutoProxy.Server.Communication.UdpServer;
 
 namespace TutoProxy.Server.Communication {
     internal class TcpServer : BaseServer {
@@ -16,6 +13,8 @@ namespace TutoProxy.Server.Communication {
         readonly CancellationTokenSource cts;
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
+
+        static long counter = 0;
 
         #region inner classes
         protected class Client : IDisposable {
@@ -39,6 +38,7 @@ namespace TutoProxy.Server.Communication {
             }
 
             public void TryShutdown(SocketShutdown how) {
+                Debug.WriteLine($"server:{RemoteEndPoint.Port} TryShutdown {Interlocked.Read(ref TcpServer.counter)} {how}");
                 lock(this) {
                     switch(how) {
                         case SocketShutdown.Receive:
@@ -65,9 +65,7 @@ namespace TutoProxy.Server.Communication {
 
 
                     if(shutdownReceive && shutdownTransmit) {
-                        if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out _)) {
-                            parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
-                        }
+
                         if(Socket.Connected) {
                             try {
                                 Socket.Shutdown(SocketShutdown.Both);
@@ -76,9 +74,10 @@ namespace TutoProxy.Server.Communication {
                                 Socket.Disconnect(true);
                             } catch(SocketException) { }
                         }
-                        Socket.Close(100);
-                        Socket.Dispose();
-                        forceCloseTimer.Dispose();
+                        if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out Client? client)) {
+                            parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
+                            client.Dispose();
+                        }
                     } else {
                         StartClosingTimer();
                     }
@@ -95,8 +94,11 @@ namespace TutoProxy.Server.Communication {
             }
 
             public void Dispose() {
-                TryShutdown(SocketShutdown.Both);
+                forceCloseTimer.Dispose();
+                Socket.Close(100);
+                Socket.Dispose();
                 GC.SuppressFinalize(this);
+                Debug.WriteLine($"server:{RemoteEndPoint.Port} -- {Interlocked.Decrement(ref TcpServer.counter)}");
             }
 
             public async Task SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
@@ -177,6 +179,7 @@ namespace TutoProxy.Server.Communication {
             if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
                 throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
             }
+            Debug.WriteLine($"server:{client.RemoteEndPoint.Port} ++ {Interlocked.Increment(ref TcpServer.counter)}");
 
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             int receivedBytes;
