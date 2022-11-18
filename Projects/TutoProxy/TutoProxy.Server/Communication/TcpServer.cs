@@ -14,7 +14,6 @@ namespace TutoProxy.Server.Communication {
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
 
-        static long counter = 0;
 
         #region inner classes
         protected class Client : IDisposable {
@@ -38,7 +37,6 @@ namespace TutoProxy.Server.Communication {
             }
 
             public void TryShutdown(SocketShutdown how) {
-                Debug.WriteLine($"server:{RemoteEndPoint.Port} TryShutdown {Interlocked.Read(ref TcpServer.counter)} {how}");
                 lock(this) {
                     switch(how) {
                         case SocketShutdown.Receive:
@@ -98,7 +96,6 @@ namespace TutoProxy.Server.Communication {
                 Socket.Close(100);
                 Socket.Dispose();
                 GC.SuppressFinalize(this);
-                Debug.WriteLine($"server:{RemoteEndPoint.Port} -- {Interlocked.Decrement(ref TcpServer.counter)}");
             }
 
             public async Task SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
@@ -179,7 +176,6 @@ namespace TutoProxy.Server.Communication {
             if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
                 throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
             }
-            Debug.WriteLine($"server:{client.RemoteEndPoint.Port} ++ {Interlocked.Increment(ref TcpServer.counter)}");
 
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             int receivedBytes;
@@ -196,7 +192,7 @@ namespace TutoProxy.Server.Communication {
                 }
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
-                hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, 0, data));
+                await hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, 0, data));
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);

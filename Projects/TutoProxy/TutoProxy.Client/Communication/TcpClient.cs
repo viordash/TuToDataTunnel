@@ -118,7 +118,7 @@ namespace TutoProxy.Client.Communication {
                 totalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
 
-                dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, 0, data), cancellationToken);
+                await dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, 0, data), cancellationToken);
 
                 if(responseLogTimer <= DateTime.Now) {
                     responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);

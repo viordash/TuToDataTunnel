@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
@@ -18,7 +20,7 @@ namespace TutoProxy.Server.Communication {
         readonly Dictionary<int, UdpServer> udpServers = new();
         readonly CancellationTokenSource cts;
         readonly ILogger logger;
-        readonly BlockingCollection<TcpStreamDataModel> outgoingQueue;
+        readonly BufferBlock<TcpStreamDataModel> outgoingQueue;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -27,7 +29,7 @@ namespace TutoProxy.Server.Communication {
             UdpPorts = udpPorts;
 
             cts = new CancellationTokenSource();
-            outgoingQueue = new BlockingCollection<TcpStreamDataModel>(new ConcurrentQueue<TcpStreamDataModel>(), TcpSocketParams.QueueMaxSize);
+            outgoingQueue = new BufferBlock<TcpStreamDataModel>();
 
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
             logger = serviceProvider.GetRequiredService<ILogger>();
@@ -48,7 +50,6 @@ namespace TutoProxy.Server.Communication {
 
         public void Dispose() {
             cts.Cancel();
-            outgoingQueue.Dispose();
             cts.Dispose();
 
             foreach(var item in tcpServers.Values) {
@@ -90,31 +91,8 @@ namespace TutoProxy.Server.Communication {
             server.Disconnect(socketAddress, totalTransfered);
         }
 
-        public async IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient([EnumeratorCancellation] CancellationToken cancellationToken = default) {
-
-            var coopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-            while(!coopCts.IsCancellationRequested && !outgoingQueue.IsCompleted) {
-                TcpStreamDataModel? streamData;
-
-                streamData = await Task.Run(() => {
-                    try {
-                        return outgoingQueue.Take(coopCts.Token);
-                    } catch(InvalidOperationException) {
-                        return null;
-                    }
-                }, coopCts.Token);
-
-                //Debug.WriteLine($"    ------ server take: {outgoingQueue.Count}");
-                if(streamData != null) {
-                    yield return streamData;
-                }
-            }
-
-            Debug.WriteLine($"                  ------ server stopped 0");
-        }
-
-        public async Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
-            await foreach(var data in stream) {
+        public async Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> streamData) {
+            await foreach(var data in streamData) {
                 try {
                     if(tcpServers.TryGetValue(data.Port, out TcpServer? server)) {
                         await server.SendData(data);
@@ -128,11 +106,15 @@ namespace TutoProxy.Server.Communication {
             Debug.WriteLine($"                  ------ server stopped");
         }
 
-        public void PushOutgoingTcpData(TcpStreamDataModel streamData) {
-            if(!outgoingQueue.TryAdd(streamData, 10000, cts.Token)) {
-                throw new TuToException($"tcp outcome queue size exceeds {TcpSocketParams.QueueMaxSize} limit");
+        public async Task PushOutgoingTcpData(TcpStreamDataModel streamData) {
+            while(outgoingQueue.Count > 20 && !cts.IsCancellationRequested) {
+                await Task.Delay(10);
             }
-            //Debug.WriteLine($"x {streamData.OriginPort}");
+            await outgoingQueue.SendAsync(streamData);
+        }
+
+        public IAsyncEnumerable<TcpStreamDataModel> OutgoingStream() {
+            return outgoingQueue.ReceiveAllAsync(cts.Token);
         }
     }
 }

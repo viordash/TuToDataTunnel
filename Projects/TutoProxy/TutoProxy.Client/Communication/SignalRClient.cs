@@ -1,7 +1,7 @@
-﻿using System.Collections.Concurrent;
-using System.CommandLine;
+﻿using System.CommandLine;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
@@ -16,7 +16,7 @@ namespace TutoProxy.Client.Communication {
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
 
         Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
-        void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
+        Task PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -36,7 +36,7 @@ namespace TutoProxy.Client.Communication {
         readonly ILogger logger;
         readonly IDataExchangeService dataExchangeService;
         readonly IClientsService clientsService;
-        readonly BlockingCollection<TcpStreamDataModel> outgoingQueue;
+        readonly BufferBlock<TcpStreamDataModel> outgoingQueue;
         HubConnection? connection = null;
 
         public SignalRClient(
@@ -49,7 +49,7 @@ namespace TutoProxy.Client.Communication {
             this.logger = logger;
             this.dataExchangeService = dataExchangeService;
             this.clientsService = clientsService;
-            outgoingQueue = new BlockingCollection<TcpStreamDataModel>(new ConcurrentQueue<TcpStreamDataModel>(), TcpSocketParams.QueueMaxSize);
+            outgoingQueue = new BufferBlock<TcpStreamDataModel>();
         }
 
         public void Dispose() {
@@ -144,7 +144,8 @@ namespace TutoProxy.Client.Communication {
                 if(connection?.State != HubConnectionState.Connected) {
                     return;
                 }
-                var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", OutgoingDataStream(cancellationToken), cancellationToken);
+                var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", outgoingQueue.ReceiveAllAsync(cancellationToken),
+                    cancellationToken);
 
                 await foreach(var data in streamData) {
                     try {
@@ -158,33 +159,11 @@ namespace TutoProxy.Client.Communication {
             }, cancellationToken);
         }
 
-        async IAsyncEnumerable<TcpStreamDataModel> OutgoingDataStream([EnumeratorCancellation] CancellationToken cancellationToken) {
-            while(!cancellationToken.IsCancellationRequested) {
-                TcpStreamDataModel? streamData = null;
-
-                //Debug.WriteLine($"                  ------ client take 0 take_0: {outgoingQueue.Count}");
-                streamData = await Task.Run(() => {
-                    try {
-                        return outgoingQueue.Take(cancellationToken);
-                    } catch(InvalidOperationException) {
-                        return null;
-                    }
-                }, cancellationToken);
-
-                //Debug.WriteLine($"                  ------ client take 1 take_1: {outgoingQueue.Count}");
-                if(streamData != null) {
-                    yield return streamData;
-                }
+        public async Task PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
+            while(outgoingQueue.Count > 20 && !cancellationToken.IsCancellationRequested) {
+                await Task.Delay(10);
             }
-        }
-
-        public void PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
-            if(!outgoingQueue.TryAdd(streamData, 30000, cancellationToken)) {
-                throw new TuToException($"tcp outcome queue size ({outgoingQueue.Count}) exceeds {TcpSocketParams.QueueMaxSize} limit");
-            }
-            //if(outgoingQueue.Count > 800) {
-            //    Debug.WriteLine($"                  ------ client add 0: {outgoingQueue.Count}");
-            //}
+            await outgoingQueue.SendAsync(streamData);
         }
     }
 }

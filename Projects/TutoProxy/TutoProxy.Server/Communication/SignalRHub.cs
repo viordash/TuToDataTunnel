@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
@@ -67,7 +67,7 @@ namespace TutoProxy.Server.Hubs {
         public IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
             var client = clientsService.GetClient(Context.ConnectionId);
             _ = client.StreamFromTcpClient(stream);
-            return client.StreamToTcpClient();
+            return client.OutgoingStream();
         }
     }
 }
