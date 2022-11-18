@@ -18,12 +18,10 @@
 
 
     public class TcpStreamDataModel : DataBaseModel {
-        public Int64 Frame { get; set; }
-        public TcpStreamDataModel(int port, int originPort, Int64 frame, byte[] data) : base(port, originPort, data) {
-            Frame = frame;
+        public TcpStreamDataModel(int port, int originPort, byte[] data) : base(port, originPort, data) {
         }
         public override string ToString() {
-            return $"tcp stream {Frame} {base.ToString()}";
+            return $"tcp stream {base.ToString()}";
         }
     }
 }
