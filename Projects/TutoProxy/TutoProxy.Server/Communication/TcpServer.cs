@@ -37,48 +37,36 @@ namespace TutoProxy.Server.Communication {
             }
 
             public void TryShutdown(SocketShutdown how) {
-                lock(this) {
-                    switch(how) {
-                        case SocketShutdown.Receive:
-                            shutdownReceive = true;
-                            try {
-                                if(Socket.Connected) {
-                                    Socket.Shutdown(SocketShutdown.Receive);
-                                }
-                            } catch(Exception) { }
-                            break;
-                        case SocketShutdown.Send:
-                            shutdownTransmit = true;
-                            try {
-                                if(Socket.Connected) {
-                                    Socket.Shutdown(SocketShutdown.Send);
-                                }
-                            } catch(Exception) { }
-                            break;
-                        case SocketShutdown.Both:
-                            shutdownReceive = true;
-                            shutdownTransmit = true;
-                            break;
+                switch(how) {
+                    case SocketShutdown.Receive:
+                        shutdownReceive = true;
+                        try {
+                            if(Socket.Connected) {
+                                Socket.Shutdown(SocketShutdown.Receive);
+                            }
+                        } catch(Exception) { }
+                        break;
+                    case SocketShutdown.Send:
+                        shutdownTransmit = true;
+                        try {
+                            if(Socket.Connected) {
+                                Socket.Shutdown(SocketShutdown.Send);
+                            }
+                        } catch(Exception) { }
+                        break;
+                    case SocketShutdown.Both:
+                        shutdownReceive = true;
+                        shutdownTransmit = true;
+                        break;
+                }
+
+                if(shutdownReceive && shutdownTransmit) {
+                    if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out Client? client)) {
+                        parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
+                        client.Dispose();
                     }
-
-
-                    if(shutdownReceive && shutdownTransmit) {
-
-                        if(Socket.Connected) {
-                            try {
-                                Socket.Shutdown(SocketShutdown.Both);
-                            } catch(SocketException) { }
-                            try {
-                                Socket.Disconnect(true);
-                            } catch(SocketException) { }
-                        }
-                        if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out Client? client)) {
-                            parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
-                            client.Dispose();
-                        }
-                    } else {
-                        StartClosingTimer();
-                    }
+                } else {
+                    StartClosingTimer();
                 }
             }
 
@@ -91,7 +79,13 @@ namespace TutoProxy.Server.Communication {
                 forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
             }
 
-            public void Dispose() {
+            public async void Dispose() {
+                try {
+                    Socket.Shutdown(SocketShutdown.Both);
+                } catch(SocketException) { }
+                try {
+                    await Socket.DisconnectAsync(true);
+                } catch(SocketException) { }
                 forceCloseTimer.Dispose();
                 Socket.Close(100);
                 Socket.Dispose();
