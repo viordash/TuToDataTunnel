@@ -4,6 +4,7 @@ using TutoProxy.Client.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TutoProxy.Client.Communication {
     public class UdpClient : BaseClient<System.Net.Sockets.UdpClient> {
@@ -55,7 +56,7 @@ namespace TutoProxy.Client.Communication {
                         if(result.Buffer.Length == 0) {
                             break;
                         }
-                        var response = new UdpDataResponseModel(request.Port, request.OriginPort, result.Buffer);
+                        var response = new UdpDataResponseModel() { Port = request.Port, OriginPort = request.OriginPort, Data = result.Buffer };
                         await dataTunnelClient.SendUdpResponse(response, cancellationToken);
 
                         if(responseLogTimer <= DateTime.Now) {
@@ -65,18 +66,18 @@ namespace TutoProxy.Client.Communication {
                     };
                     Listening = false;
                     connected = false;
-                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Port, request.OriginPort), Int64.MinValue, cancellationToken);
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel() { Port = request.Port, OriginPort = request.OriginPort }, Int64.MinValue, cancellationToken);
                     logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) disconnected");
                 } catch(SocketException ex) {
                     Listening = false;
                     connected = false;
 
-                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Port, request.OriginPort), Int64.MinValue, cancellationToken);
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel() { Port = request.Port, OriginPort = request.OriginPort }, Int64.MinValue, cancellationToken);
                     logger.Error($"udp socket: {ex.Message}");
                 } catch {
                     Listening = false;
                     connected = false;
-                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Port, request.OriginPort), Int64.MinValue, cancellationToken);
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel() { Port = request.Port, OriginPort = request.OriginPort }, Int64.MinValue, cancellationToken);
                     throw;
                 }
             });

@@ -132,7 +132,7 @@ namespace TutoProxy.Client.Communication {
                 var data = receiveBuffer[..receivedBytes].ToArray();
 
 
-                var response = new TcpDataResponseModel(Port, OriginPort, data);
+                var response = new TcpDataResponseModel() { Port = Port, OriginPort = OriginPort, Data = data };
                 await dataTunnelClient.SendTcpResponse(response, cancellationToken);
 
                 if(responseLogTimer <= DateTime.Now) {
@@ -141,7 +141,7 @@ namespace TutoProxy.Client.Communication {
                 }
             }
 
-            await dataTunnelClient.DisconnectTcp(new SocketAddressModel(Port, OriginPort), totalReceived, cancellationToken);
+            await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, totalReceived, cancellationToken);
 
             TryShutdown(SocketShutdown.Receive);
         }

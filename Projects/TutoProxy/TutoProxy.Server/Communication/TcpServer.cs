@@ -137,8 +137,7 @@ namespace TutoProxy.Server.Communication {
                             throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
                         }
 
-
-                        bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port),
+                        bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel { Port = port, OriginPort = client.RemoteEndPoint.Port },
                                 cts.Token);
 
                         if(clientConnected) {
@@ -188,7 +187,7 @@ namespace TutoProxy.Server.Communication {
                 }
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
-                await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, client.RemoteEndPoint.Port, data));
+                await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = port, OriginPort = client.RemoteEndPoint.Port, Data = data });
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -196,7 +195,7 @@ namespace TutoProxy.Server.Communication {
                 }
             }
 
-            await dataTransferService.DisconnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port), client.TotalReceived);
+            await dataTransferService.DisconnectTcp(new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port }, client.TotalReceived);
 
             client.TryShutdown(SocketShutdown.Receive);
         }

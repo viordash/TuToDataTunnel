@@ -1,6 +1,9 @@
 ﻿using System.CommandLine;
+using MessagePack;
+using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
 
@@ -68,6 +71,14 @@ namespace TutoProxy.Client.Communication {
             connection = new HubConnectionBuilder()
                  .WithUrl(ub.Uri)
                  .WithAutomaticReconnect(new RetryPolicy(logger))
+                 .AddMessagePackProtocol(config => {
+                     StaticCompositeResolver.Instance.Register(
+                        MessagePack.Resolvers.StandardResolver.Instance
+                    );
+                     config.SerializerOptions = MessagePackSerializerOptions.Standard
+                            .WithResolver(StaticCompositeResolver.Instance)
+                            .WithSecurity(MessagePackSecurity.UntrustedData);
+                 })
                  .Build();
 
             connection.On<UdpDataRequestModel>("UdpRequest", async (request) => {
