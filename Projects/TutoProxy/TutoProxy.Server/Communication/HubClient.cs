@@ -55,10 +55,10 @@ namespace TutoProxy.Server.Communication {
 
         public void Listen() {
             if(tcpServers != null) {
-                Task.WhenAll(tcpServers.Values.Select(x => x.Listen()));
+                Task.WhenAll(tcpServers.Values.Select(x => _ = x.Listen()));
             }
             if(udpServers != null) {
-                Task.WhenAll(udpServers.Values.Select(x => x.Listen()));
+                Task.WhenAll(udpServers.Values.Select(x => _ = x.Listen()));
             }
         }
 

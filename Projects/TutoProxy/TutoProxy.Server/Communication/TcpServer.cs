@@ -133,38 +133,36 @@ namespace TutoProxy.Server.Communication {
             cts = new CancellationTokenSource();
         }
 
-        public Task Listen() {
-            return Task.Run(async () => {
-                while(!cts.IsCancellationRequested) {
-                    try {
-                        tcpServer.Start();
+        public async Task Listen() {
+            while(!cts.IsCancellationRequested) {
+                try {
+                    tcpServer.Start();
 
-                        while(!cts.IsCancellationRequested) {
-                            var socket = await tcpServer.AcceptSocketAsync(cts.Token);
+                    while(!cts.IsCancellationRequested) {
+                        var socket = await tcpServer.AcceptSocketAsync(cts.Token);
 
-                            logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
-                            var client = new Client(socket, this);
-                            if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
-                                throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
-                            }
-
-
-                            bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port),
-                                    cts.Token);
-
-                            if(clientConnected) {
-                                _ = HandleSocketAsync(client, cts.Token);
-                            } else {
-                                client.Dispose();
-                            }
+                        logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
+                        var client = new Client(socket, this);
+                        if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
+                            throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
                         }
-                    } catch(Exception ex) {
-                        logger.Error($"tcp({port}): {ex.Message}");
+
+
+                        bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port),
+                                cts.Token);
+
+                        if(clientConnected) {
+                            _ = HandleSocketAsync(client, cts.Token);
+                        } else {
+                            client.Dispose();
+                        }
                     }
-                    tcpServer.Stop();
-                    logger.Information($"tcp({port}) close");
+                } catch(Exception ex) {
+                    logger.Error($"tcp({port}): {ex.Message}");
                 }
-            }, cts.Token);
+                tcpServer.Stop();
+                logger.Information($"tcp({port}) close");
+            }
         }
 
         public void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered) {
