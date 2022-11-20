@@ -91,14 +91,14 @@ namespace TutoProxy.Client.Communication {
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
         }
 
-        public bool Connect(CancellationToken cancellationToken) {
+        public async Task<bool> Connect(CancellationToken cancellationToken) {
             if(socket.Connected) {
                 logger.Error($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, already connected");
                 return false;
             }
 
             try {
-                socket.Connect(serverEndPoint);
+                await socket.ConnectAsync(serverEndPoint);
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
                 return false;

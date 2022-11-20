@@ -80,10 +80,10 @@ namespace TutoProxy.Client.Communication {
                 client.Disconnect(totalTransfered);
             });
 
-            connection.On<SocketAddressModel, bool>("ConnectTcp", (socketAddress) => {
+            connection.On<SocketAddressModel, bool>("ConnectTcp", async (socketAddress) => {
                 logger.Debug($"HandleConnectTcp :{socketAddress}");
                 var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
-                return client.Connect(cancellationToken);
+                return await client.Connect(cancellationToken);
             });
 
             connection.On<TcpDataRequestModel>("TcpRequest", async (request) => {
