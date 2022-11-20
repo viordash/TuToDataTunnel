@@ -136,10 +136,8 @@ namespace TutoProxy.Client.Communication {
                 var data = receiveBuffer[..receivedBytes].ToArray();
 
 
-                var transferResponse = new TransferTcpResponseModel(
-                    new TransferTcpRequestModel(new TcpDataRequestModel(Port, OriginPort, new byte[] { 0 }), string.Empty, DateTime.Now),
-                    new TcpDataResponseModel(Port, OriginPort, data));
-                await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
+                var response = new TcpDataResponseModel(Port, OriginPort, data);
+                await dataTunnelClient.SendTcpResponse(response, cancellationToken);
 
                 if(responseLogTimer <= DateTime.Now) {
                     responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);

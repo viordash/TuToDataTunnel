@@ -42,9 +42,9 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public void Listen(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+        public void Listen(UdpDataRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             if(Listening) {
-                throw new TuToException($"udp 0, port: {request.Payload.Port}, o-port: {request.Payload.OriginPort}, already listening");
+                throw new TuToException($"udp 0, port: {request.Port}, o-port: {request.OriginPort}, already listening");
             }
             Listening = true;
             _ = Task.Run(async () => {
@@ -55,9 +55,8 @@ namespace TutoProxy.Client.Communication {
                         if(result.Buffer.Length == 0) {
                             break;
                         }
-                        var transferResponse = new TransferUdpResponseModel(request, new UdpDataResponseModel(request.Payload.Port, request.Payload.OriginPort,
-                                result.Buffer));
-                        await dataTunnelClient.SendUdpResponse(transferResponse, cancellationToken);
+                        var response = new UdpDataResponseModel(request.Port, request.OriginPort, result.Buffer);
+                        await dataTunnelClient.SendUdpResponse(response, cancellationToken);
 
                         if(responseLogTimer <= DateTime.Now) {
                             responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
@@ -66,18 +65,18 @@ namespace TutoProxy.Client.Communication {
                     };
                     Listening = false;
                     connected = false;
-                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Payload.Port, request.Payload.OriginPort), Int64.MinValue, cancellationToken);
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Port, request.OriginPort), Int64.MinValue, cancellationToken);
                     logger.Information($"udp({(socket.Client.LocalEndPoint as IPEndPoint)!.Port}) disconnected");
                 } catch(SocketException ex) {
                     Listening = false;
                     connected = false;
 
-                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Payload.Port, request.Payload.OriginPort), Int64.MinValue, cancellationToken);
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Port, request.OriginPort), Int64.MinValue, cancellationToken);
                     logger.Error($"udp socket: {ex.Message}");
                 } catch {
                     Listening = false;
                     connected = false;
-                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Payload.Port, request.Payload.OriginPort), Int64.MinValue, cancellationToken);
+                    await dataTunnelClient.DisconnectUdp(new SocketAddressModel(request.Port, request.OriginPort), Int64.MinValue, cancellationToken);
                     throw;
                 }
             });

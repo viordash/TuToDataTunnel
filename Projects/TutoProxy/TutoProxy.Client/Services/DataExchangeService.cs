@@ -2,7 +2,7 @@
 
 namespace TutoProxy.Client.Services {
     public interface IDataExchangeService {
-        Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
+        Task HandleUdpRequest(UdpDataRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
     internal class DataExchangeService : IDataExchangeService {
@@ -19,7 +19,7 @@ namespace TutoProxy.Client.Services {
             this.clientsService = clientsService;
         }
 
-        public async Task HandleUdpRequest(TransferUdpRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
+        public async Task HandleUdpRequest(UdpDataRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken) {
             logger.Debug($"HandleUdpRequestAsync :{request}");
 
             //_ = Task.Run(async () => {
@@ -30,8 +30,8 @@ namespace TutoProxy.Client.Services {
             //}, cancellationToken);
 
 
-            var client = clientsService.ObtainUdpClient(request.Payload.Port, request.Payload.OriginPort, dataTunnelClient);
-            await client.SendRequest(request.Payload.Data!, cancellationToken);
+            var client = clientsService.ObtainUdpClient(request.Port, request.OriginPort, dataTunnelClient);
+            await client.SendRequest(request.Data!, cancellationToken);
             if(!client.Listening) {
                 client.Listen(request, dataTunnelClient, cancellationToken);
             }

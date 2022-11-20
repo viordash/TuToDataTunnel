@@ -8,10 +8,10 @@ namespace TutoProxy.Client.Communication {
     public interface ISignalRClient : IDisposable {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
-        Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
+        Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
 
-        Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken);
+        Task SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken);
         Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
     }
 
@@ -70,7 +70,7 @@ namespace TutoProxy.Client.Communication {
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .Build();
 
-            connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
+            connection.On<UdpDataRequestModel>("UdpRequest", async (request) => {
                 await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
             });
 
@@ -86,9 +86,9 @@ namespace TutoProxy.Client.Communication {
                 return client.Connect(cancellationToken);
             });
 
-            connection.On<TransferTcpRequestModel>("TcpRequest", async (request) => {
-                var client = clientsService.ObtainTcpClient(request.Payload.Port, request.Payload.OriginPort, this);
-                await client.SendRequest(request.Payload.Data, cancellationToken);
+            connection.On<TcpDataRequestModel>("TcpRequest", async (request) => {
+                var client = clientsService.ObtainTcpClient(request.Port, request.OriginPort, this);
+                await client.SendRequest(request.Data, cancellationToken);
             });
 
             connection.On<SocketAddressModel, Int64>("DisconnectTcp", (socketAddress, totalTransfered) => {
@@ -124,7 +124,7 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken) {
+        public async Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("UdpResponse", response, cancellationToken);
             }
@@ -136,7 +136,7 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken) {
+        public async Task SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("TcpResponse", response, cancellationToken);
             }

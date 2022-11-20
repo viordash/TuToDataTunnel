@@ -21,7 +21,7 @@ namespace TutoProxy.Server.Hubs {
             this.clientsService = clientsService;
         }
 
-        public async Task UdpResponse(TransferUdpResponseModel model) {
+        public async Task UdpResponse(UdpDataResponseModel model) {
             logger.Debug($"UdpResponse: {model}");
             try {
                 await dataTransferService.HandleUdpResponse(Context.ConnectionId, model);
@@ -39,7 +39,7 @@ namespace TutoProxy.Server.Hubs {
             }
         }
 
-        public async Task TcpResponse(TransferTcpResponseModel model) {
+        public async Task TcpResponse(TcpDataResponseModel model) {
             logger.Debug($"TcpResponse: {model}");
             try {
                 await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);

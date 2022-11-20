@@ -6,12 +6,12 @@ namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
         Task SendUdpRequest(UdpDataRequestModel request);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered);
-        Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
+        Task HandleUdpResponse(string connectionId, UdpDataResponseModel response);
         void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
 
         Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
         Task SendTcpRequest(TcpDataRequestModel request);
-        Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response);
+        Task HandleTcpResponse(string connectionId, TcpDataResponseModel response);
         Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered);
         void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
     }
@@ -43,10 +43,9 @@ namespace TutoProxy.Server.Services {
         }
 
         public async Task SendUdpRequest(UdpDataRequestModel request) {
-            var transferRequest = new TransferUdpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Debug($"UdpRequest :{transferRequest}");
+            logger.Debug($"UdpRequest :{request}");
             var connectionId = clientsService.GetConnectionIdForUdp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", transferRequest);
+            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", request);
         }
 
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
@@ -55,9 +54,9 @@ namespace TutoProxy.Server.Services {
             await signalHub.Clients.Client(connectionId).SendAsync("DisconnectUdp", socketAddress, totalTransfered);
         }
 
-        public async Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response) {
+        public async Task HandleUdpResponse(string connectionId, UdpDataResponseModel response) {
             var client = clientsService.GetClient(connectionId);
-            await client.SendUdpResponse(response.Payload);
+            await client.SendUdpResponse(response);
         }
 
         public void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
@@ -72,15 +71,14 @@ namespace TutoProxy.Server.Services {
         }
 
         public async Task SendTcpRequest(TcpDataRequestModel request) {
-            var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Debug($"TcpRequest :{transferRequest}");
+            logger.Debug($"TcpRequest :{request}");
             var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", transferRequest);
+            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", request);
         }
 
-        public async Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response) {
+        public async Task HandleTcpResponse(string connectionId, TcpDataResponseModel response) {
             var client = clientsService.GetClient(connectionId);
-            await client.SendTcpResponse(response.Payload);
+            await client.SendTcpResponse(response);
         }
 
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
