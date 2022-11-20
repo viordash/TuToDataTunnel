@@ -14,7 +14,7 @@ namespace TuToProxy.Core.Models {
     }
 
     public abstract class DataBaseModel : SocketAddressModel {
-        [Key(10)]
+        [Key(3)]
         public byte[] Data { get; set; } = new byte[0];
 
         public override string ToString() {
