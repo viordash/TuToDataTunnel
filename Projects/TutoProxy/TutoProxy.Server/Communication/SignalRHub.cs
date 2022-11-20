@@ -39,6 +39,15 @@ namespace TutoProxy.Server.Hubs {
             }
         }
 
+        public async Task TcpResponse(TransferTcpResponseModel model) {
+            logger.Debug($"TcpResponse: {model}");
+            try {
+                await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
+        }
+
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             logger.Debug($"DisconnectTcp: {socketAddress}, {totalTransfered}");
             try {
@@ -62,12 +71,6 @@ namespace TutoProxy.Server.Hubs {
         public override Task OnDisconnectedAsync(Exception? exception) {
             clientsService.Disconnect(Context.ConnectionId);
             return base.OnDisconnectedAsync(exception);
-        }
-
-        public IAsyncEnumerable<TcpStreamDataModel> StreamToTcpClient(IAsyncEnumerable<TcpStreamDataModel> stream) {
-            var client = clientsService.GetClient(Context.ConnectionId);
-            _ = client.StreamFromTcpClient(stream);
-            return client.OutgoingStream();
         }
     }
 }

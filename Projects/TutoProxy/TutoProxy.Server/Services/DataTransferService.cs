@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
 using TuToProxy.Core.Services;
 
@@ -10,6 +9,9 @@ namespace TutoProxy.Server.Services {
         Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
         void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
 
+        Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
+        Task SendTcpRequest(TcpDataRequestModel request);
+        Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response);
         Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered);
         void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
     }
@@ -61,6 +63,24 @@ namespace TutoProxy.Server.Services {
         public void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
             var client = clientsService.GetClient(connectionId);
             client.DisconnectUdp(socketAddress, totalTransfered);
+        }
+
+        public Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
+            logger.Debug($"ConnectTcp :{socketAddress}");
+            var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
+            return signalHub.Clients.Client(connectionId).InvokeAsync<bool>("ConnectTcp", socketAddress, cancellationToken);
+        }
+
+        public async Task SendTcpRequest(TcpDataRequestModel request) {
+            var transferRequest = new TransferTcpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
+            logger.Debug($"TcpRequest :{transferRequest}");
+            var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", transferRequest);
+        }
+
+        public async Task HandleTcpResponse(string connectionId, TransferTcpResponseModel response) {
+            var client = clientsService.GetClient(connectionId);
+            await client.SendTcpResponse(response.Payload);
         }
 
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {

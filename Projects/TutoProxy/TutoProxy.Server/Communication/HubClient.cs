@@ -1,9 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Net;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks.Dataflow;
+﻿using System.Net;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Server.Services;
@@ -20,7 +15,6 @@ namespace TutoProxy.Server.Communication {
         readonly Dictionary<int, UdpServer> udpServers = new();
         readonly CancellationTokenSource cts;
         readonly ILogger logger;
-        readonly BufferBlock<TcpStreamDataModel> outgoingQueue;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -29,7 +23,6 @@ namespace TutoProxy.Server.Communication {
             UdpPorts = udpPorts;
 
             cts = new CancellationTokenSource();
-            outgoingQueue = new BufferBlock<TcpStreamDataModel>();
 
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
             logger = serviceProvider.GetRequiredService<ILogger>();
@@ -84,37 +77,18 @@ namespace TutoProxy.Server.Communication {
             server.Disconnect(socketAddress, totalTransfered);
         }
 
+        public async Task SendTcpResponse(TcpDataResponseModel response) {
+            if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
+            }
+            await server.SendResponse(response);
+        }
+
         public void DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(!tcpServers.TryGetValue(socketAddress.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, socketAddress.Port);
             }
             server.Disconnect(socketAddress, totalTransfered);
-        }
-
-        public async Task StreamFromTcpClient(IAsyncEnumerable<TcpStreamDataModel> streamData) {
-            await foreach(var data in streamData) {
-                try {
-                    if(tcpServers.TryGetValue(data.Port, out TcpServer? server)) {
-                        await server.SendData(data);
-                    } else {
-                        logger.Error($"tcp server {data.Port} not found");
-                    }
-                } catch(Exception ex) {
-                    logger.Error(ex.GetBaseException().Message);
-                }
-            }
-            Debug.WriteLine($"                  ------ server stopped");
-        }
-
-        public async Task PushOutgoingTcpData(TcpStreamDataModel streamData) {
-            while(outgoingQueue.Count > 20 && !cts.IsCancellationRequested) {
-                await Task.Delay(10);
-            }
-            await outgoingQueue.SendAsync(streamData);
-        }
-
-        public IAsyncEnumerable<TcpStreamDataModel> OutgoingStream() {
-            return outgoingQueue.ReceiveAllAsync(cts.Token);
         }
     }
 }

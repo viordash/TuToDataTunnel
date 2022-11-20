@@ -95,7 +95,24 @@ namespace TutoProxy.Client.Communication {
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
         }
 
-        async void ReceivingStream(CancellationToken cancellationToken) {
+        public bool Connect(CancellationToken cancellationToken) {
+            if(socket.Connected) {
+                logger.Error($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, already connected");
+                return false;
+            }
+
+            try {
+                socket.Connect(serverEndPoint);
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
+                return false;
+            }
+            localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
+            _ = ReceivingStream(cancellationToken);
+            return true;
+        }
+
+        async Task ReceivingStream(CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
 
             while(socket.Connected && !cancellationToken.IsCancellationRequested) {
@@ -118,7 +135,11 @@ namespace TutoProxy.Client.Communication {
                 totalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
 
-                await dataTunnelClient.PushOutgoingTcpData(new TcpStreamDataModel(Port, OriginPort, data), cancellationToken);
+
+                var transferResponse = new TransferTcpResponseModel(
+                    new TransferTcpRequestModel(new TcpDataRequestModel(Port, OriginPort, new byte[] { 0 }), string.Empty, DateTime.Now),
+                    new TcpDataResponseModel(Port, OriginPort, data));
+                await dataTunnelClient.SendTcpResponse(transferResponse, cancellationToken);
 
                 if(responseLogTimer <= DateTime.Now) {
                     responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -131,28 +152,14 @@ namespace TutoProxy.Client.Communication {
             TryShutdown(SocketShutdown.Receive);
         }
 
-        public async Task SendData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
-            if(!socket.Connected) {
-                try {
-                    await socket.ConnectAsync(serverEndPoint, cancellationToken);
-                } catch(Exception ex) {
-                    logger.Error(ex.GetBaseException().Message);
-                }
-                localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
-                _ = Task.Run(() => ReceivingStream(cancellationToken));
-            }
-
+        public async Task SendRequest(byte[] payload, CancellationToken cancellationToken) {
             try {
-                bool connected = socket.Connected;
-                var transmitted = Interlocked.Add(ref totalTransmitted, await socket.SendAsync(streamData.Data, SocketFlags.None, cancellationToken));
-                if(!connected) {
-                    TryShutdown(SocketShutdown.Send);
-                } else {
-                    var limit = Interlocked.Read(ref limitTotalTransmitted);
-                    if(limit >= 0) {
-                        if(transmitted >= limit) {
-                            TryShutdown(SocketShutdown.Send);
-                        }
+                var transmitted = Interlocked.Add(ref totalTransmitted, await socket.SendAsync(payload, SocketFlags.None, cancellationToken));
+
+                var limit = Interlocked.Read(ref limitTotalTransmitted);
+                if(limit >= 0) {
+                    if(transmitted >= limit) {
+                        TryShutdown(SocketShutdown.Send);
                     }
                 }
 
@@ -165,10 +172,9 @@ namespace TutoProxy.Client.Communication {
 
             if(requestLogTimer <= DateTime.Now) {
                 requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{streamData.Data.ToShortDescriptions()}");
+                logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
             }
         }
-
 
         public void Disconnect(Int64 transferLimit, CancellationToken cancellationToken) {
             if(Interlocked.Read(ref totalTransmitted) >= transferLimit) {

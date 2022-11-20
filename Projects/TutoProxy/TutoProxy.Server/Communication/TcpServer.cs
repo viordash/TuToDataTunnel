@@ -143,7 +143,20 @@ namespace TutoProxy.Server.Communication {
                             var socket = await tcpServer.AcceptSocketAsync(cts.Token);
 
                             logger.Information($"tcp({port}) accept {socket.RemoteEndPoint}");
-                            _ = Task.Run(() => HandleSocketAsync(socket, cts.Token), cts.Token);
+                            var client = new Client(socket, this);
+                            if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
+                                throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
+                            }
+
+
+                            bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel(port, client.RemoteEndPoint.Port),
+                                    cts.Token);
+
+                            if(clientConnected) {
+                                _ = HandleSocketAsync(client, cts.Token);
+                            } else {
+                                client.Dispose();
+                            }
                         }
                     } catch(Exception ex) {
                         logger.Error($"tcp({port}): {ex.Message}");
@@ -171,12 +184,7 @@ namespace TutoProxy.Server.Communication {
             GC.SuppressFinalize(this);
         }
 
-        async Task HandleSocketAsync(Socket socket, CancellationToken cancellationToken) {
-            var client = new Client(socket, this);
-            if(!remoteSockets.TryAdd(client.RemoteEndPoint.Port, client)) {
-                throw new TuToException($"tcp({port}) for {client.RemoteEndPoint} already exists");
-            }
-
+        async Task HandleSocketAsync(Client client, CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
             int receivedBytes;
             while(client.Socket.Connected && !cancellationToken.IsCancellationRequested) {
@@ -192,7 +200,7 @@ namespace TutoProxy.Server.Communication {
                 }
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
-                await hubClient.PushOutgoingTcpData(new TcpStreamDataModel(port, client.RemoteEndPoint.Port, data));
+                await dataTransferService.SendTcpRequest(new TcpDataRequestModel(port, client.RemoteEndPoint.Port, data));
 
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -205,14 +213,13 @@ namespace TutoProxy.Server.Communication {
             client.TryShutdown(SocketShutdown.Receive);
         }
 
-        public async Task SendData(TcpStreamDataModel streamData) {
-            if(!remoteSockets.TryGetValue(streamData.OriginPort, out Client? client)) {
-                logger.Error($"tcp({port}) client stream on missed socket {streamData.OriginPort}");
+        public async Task SendResponse(TcpDataResponseModel response) {
+            if(!remoteSockets.TryGetValue(response.OriginPort, out Client? client)) {
+                logger.Error($"tcp({port}) client stream on missed socket {response.OriginPort}");
                 return;
             }
-
             try {
-                await client.SendDataAsync(streamData.Data, cts.Token);
+                await client.SendDataAsync(response.Data, cts.Token);
             } catch(SocketException) {
                 client.TryShutdown(SocketShutdown.Send);
             } catch(ObjectDisposedException) {
@@ -222,7 +229,7 @@ namespace TutoProxy.Server.Communication {
 
             if(responseLogTimer <= DateTime.Now) {
                 responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{streamData.Data.ToShortDescriptions()}");
+                logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{response.Data.ToShortDescriptions()}");
             }
         }
     }

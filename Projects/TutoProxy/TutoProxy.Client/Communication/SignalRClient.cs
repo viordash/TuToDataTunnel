@@ -1,12 +1,8 @@
 ﻿using System.CommandLine;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
-using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient : IDisposable {
@@ -15,8 +11,8 @@ namespace TutoProxy.Client.Communication {
         Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
 
+        Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken);
         Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
-        Task PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken);
     }
 
     internal class SignalRClient : ISignalRClient {
@@ -36,7 +32,6 @@ namespace TutoProxy.Client.Communication {
         readonly ILogger logger;
         readonly IDataExchangeService dataExchangeService;
         readonly IClientsService clientsService;
-        readonly BufferBlock<TcpStreamDataModel> outgoingQueue;
         HubConnection? connection = null;
 
         public SignalRClient(
@@ -49,7 +44,6 @@ namespace TutoProxy.Client.Communication {
             this.logger = logger;
             this.dataExchangeService = dataExchangeService;
             this.clientsService = clientsService;
-            outgoingQueue = new BufferBlock<TcpStreamDataModel>();
         }
 
         public void Dispose() {
@@ -86,6 +80,17 @@ namespace TutoProxy.Client.Communication {
                 client.Disconnect(totalTransfered);
             });
 
+            connection.On<SocketAddressModel, bool>("ConnectTcp", (socketAddress) => {
+                logger.Debug($"HandleConnectTcp :{socketAddress}");
+                var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
+                return client.Connect(cancellationToken);
+            });
+
+            connection.On<TransferTcpRequestModel>("TcpRequest", async (request) => {
+                var client = clientsService.ObtainTcpClient(request.Payload.Port, request.Payload.OriginPort, this);
+                await client.SendRequest(request.Payload.Data, cancellationToken);
+            });
+
             connection.On<SocketAddressModel, Int64>("DisconnectTcp", (socketAddress, totalTransfered) => {
                 logger.Debug($"HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
                 var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
@@ -109,8 +114,6 @@ namespace TutoProxy.Client.Communication {
 
             await connection.StartAsync(cancellationToken);
             logger.Information("Connection started");
-
-            StartStreamToTcpClient(cancellationToken);
         }
 
         public async Task StopAsync() {
@@ -133,37 +136,16 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
+        public async Task SendTcpResponse(TransferTcpResponseModel response, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.InvokeAsync("TcpResponse", response, cancellationToken);
+            }
+        }
+
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
                 await connection.InvokeAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
             }
-        }
-
-        void StartStreamToTcpClient(CancellationToken cancellationToken) {
-            _ = Task.Run(async () => {
-                if(connection?.State != HubConnectionState.Connected) {
-                    return;
-                }
-                var streamData = connection.StreamAsync<TcpStreamDataModel>("StreamToTcpClient", outgoingQueue.ReceiveAllAsync(cancellationToken),
-                    cancellationToken);
-
-                await foreach(var data in streamData) {
-                    try {
-                        var client = clientsService.ObtainTcpClient(data.Port, data.OriginPort, this);
-                        await client.SendData(data, cancellationToken);
-                    } catch(Exception ex) {
-                        logger.Error(ex.GetBaseException().Message);
-                    }
-                }
-                Debug.WriteLine($"                  ------ client stopped");
-            }, cancellationToken);
-        }
-
-        public async Task PushOutgoingTcpData(TcpStreamDataModel streamData, CancellationToken cancellationToken) {
-            while(outgoingQueue.Count > 20 && !cancellationToken.IsCancellationRequested) {
-                await Task.Delay(10);
-            }
-            await outgoingQueue.SendAsync(streamData);
         }
     }
 }
