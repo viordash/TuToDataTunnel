@@ -72,8 +72,8 @@ namespace TutoProxy.Server.CommandLine {
                     AddSignalR()
                       .AddHubOptions<SignalRHub>(options => {
                           options.MaximumReceiveMessageSize = 1024 * 1024;
-                          options.MaximumParallelInvocationsPerClient = 16;
-                          options.EnableDetailedErrors = true;
+                          options.MaximumParallelInvocationsPerClient = 256;
+                          //options.EnableDetailedErrors = true;
                       });
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
