@@ -99,16 +99,12 @@ namespace TutoProxy.Server.Communication {
             }
 
             public async Task SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
-                bool connected = Socket.Connected;
                 var transmitted = Interlocked.Add(ref totalTransmitted, await Socket.SendAsync(buffer, SocketFlags.None, cancellationToken));
-                if(!connected) {
-                    TryShutdown(SocketShutdown.Send);
-                } else {
-                    var limit = Interlocked.Read(ref limitTotalTransmitted);
-                    if(limit >= 0) {
-                        if(transmitted >= limit) {
-                            TryShutdown(SocketShutdown.Send);
-                        }
+
+                var limit = Interlocked.Read(ref limitTotalTransmitted);
+                if(limit >= 0) {
+                    if(transmitted >= limit) {
+                        TryShutdown(SocketShutdown.Send);
                     }
                 }
             }

@@ -126,25 +126,25 @@ namespace TutoProxy.Client.Communication {
 
         public async Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("UdpResponse", response, cancellationToken);
+                await connection.SendAsync("UdpResponse", response, cancellationToken);
             }
         }
 
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("DisconnectUdp", socketAddress, totalTransfered, cancellationToken);
+                await connection.SendAsync("DisconnectUdp", socketAddress, totalTransfered, cancellationToken);
             }
         }
 
         public async Task SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("TcpResponse", response, cancellationToken);
+                await connection.SendAsync("TcpResponse", response, cancellationToken);
             }
         }
 
         public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
+                await connection.SendAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
             }
         }
     }
