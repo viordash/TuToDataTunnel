@@ -18,7 +18,7 @@ namespace TutoProxy.Client.Communication {
         Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
     }
 
-    internal class SignalRClient : ISignalRClient {
+    public class SignalRClient : ISignalRClient {
         #region inner classes
         class RetryPolicy : IRetryPolicy {
             readonly ILogger logger;

@@ -5,7 +5,7 @@ namespace TutoProxy.Client.Services {
         Task HandleUdpRequest(UdpDataRequestModel request, ISignalRClient dataTunnelClient, CancellationToken cancellationToken);
     }
 
-    internal class DataExchangeService : IDataExchangeService {
+    public class DataExchangeService : IDataExchangeService {
         readonly ILogger logger;
         readonly IClientsService clientsService;
 

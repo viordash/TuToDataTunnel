@@ -8,7 +8,7 @@ using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Communication {
-    internal class TcpServer : BaseServer {
+    public class TcpServer : BaseServer {
         readonly TcpListener tcpServer;
         readonly CancellationTokenSource cts;
         DateTime requestLogTimer = DateTime.Now;

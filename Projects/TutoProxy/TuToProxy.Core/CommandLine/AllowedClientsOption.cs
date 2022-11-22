@@ -8,7 +8,7 @@ namespace TuToProxy.Core.CommandLine {
         public List<string> Clients { get; set; } = new List<string>();
         public string Option { get; private set; }
 
-        AllowedClientsOption(string option) {
+        public AllowedClientsOption(string option) {
             Option = option;
         }
 

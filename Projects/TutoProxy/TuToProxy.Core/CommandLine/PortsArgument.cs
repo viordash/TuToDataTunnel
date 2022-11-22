@@ -8,7 +8,7 @@ namespace TuToProxy.Core.CommandLine {
         public List<int> Ports { get; set; } = new List<int>();
         public string Argument { get; private set; }
 
-        PortsArgument(string argument) {
+        public PortsArgument(string argument) {
             Argument = argument;
         }
 
