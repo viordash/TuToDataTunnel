@@ -14,7 +14,7 @@ namespace TutoProxy.Server.Tests.Services {
     public class DataTransferServiceTests {
         DataTransferService testable;
 
-        Mock<IClientProxy> clientProxyMock;
+        Mock<ISingleClientProxy> clientProxyMock;
         Mock<IHubClientsService> clientsServiceMock;
 
         DateTime nowDateTime;
