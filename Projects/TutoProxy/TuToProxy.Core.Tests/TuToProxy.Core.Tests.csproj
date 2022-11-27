@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <Nullable>enable</Nullable>
 
     <IsPackable>false</IsPackable>
@@ -16,6 +16,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TuToProxy.Core\TuToProxy.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ModelsTests\" />
   </ItemGroup>
 
 </Project>
