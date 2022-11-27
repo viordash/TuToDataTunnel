@@ -60,25 +60,27 @@ namespace TutoProxy.Server.Communication {
             this.receiveTimeout = receiveTimeout;
         }
 
-        public async Task Listen() {
-            while(!cancellationToken.IsCancellationRequested) {
-                try {
-                    while(!cancellationToken.IsCancellationRequested) {
-                        var result = await udpServer.ReceiveAsync(cancellationToken);
-                        AddRemoteEndPoint(result.RemoteEndPoint);
-                        await dataTransferService.SendUdpRequest(new UdpDataRequestModel() {
-                            Port = port, OriginPort = result.RemoteEndPoint.Port,
-                            Data = result.Buffer
-                        });
-                        if(requestLogTimer <= DateTime.Now) {
-                            requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                            logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}");
+        public Task Listen() {
+            return Task.Run(async () => {
+                while(!cancellationToken.IsCancellationRequested) {
+                    try {
+                        while(!cancellationToken.IsCancellationRequested) {
+                            var result = await udpServer.ReceiveAsync(cancellationToken);
+                            AddRemoteEndPoint(result.RemoteEndPoint);
+                            await dataTransferService.SendUdpRequest(new UdpDataRequestModel() {
+                                Port = port, OriginPort = result.RemoteEndPoint.Port,
+                                Data = result.Buffer
+                            });
+                            if(requestLogTimer <= DateTime.Now) {
+                                requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                                logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}");
+                            }
                         }
+                    } catch(SocketException ex) {
+                        logger.Error($"udp: {ex.Message}");
                     }
-                } catch(SocketException ex) {
-                    logger.Error($"udp: {ex.Message}");
                 }
-            }
+            }, cts.Token);
         }
 
         public async Task SendResponse(UdpDataResponseModel response) {
