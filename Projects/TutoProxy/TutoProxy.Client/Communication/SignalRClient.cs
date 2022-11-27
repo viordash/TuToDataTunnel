@@ -33,19 +33,15 @@ namespace TutoProxy.Client.Communication {
         #endregion
 
         readonly ILogger logger;
-        readonly IDataExchangeService dataExchangeService;
         readonly IClientsService clientsService;
         HubConnection? connection = null;
 
         public SignalRClient(
                 ILogger logger,
-                IDataExchangeService dataExchangeService,
                 IClientsService clientsService
                 ) {
             Guard.NotNull(logger, nameof(logger));
-            Guard.NotNull(dataExchangeService, nameof(dataExchangeService));
             this.logger = logger;
-            this.dataExchangeService = dataExchangeService;
             this.clientsService = clientsService;
         }
 
@@ -82,7 +78,11 @@ namespace TutoProxy.Client.Communication {
                  .Build();
 
             connection.On<UdpDataRequestModel>("UdpRequest", async (request) => {
-                await dataExchangeService.HandleUdpRequest(request, this, cancellationToken);
+                var client = clientsService.ObtainUdpClient(request.Port, request.OriginPort, this);
+                await client.SendRequest(request.Data!, cancellationToken);
+                if(!client.Listening) {
+                    client.Listen(request, this, cancellationToken);
+                }
             });
 
             connection.On<SocketAddressModel, Int64>("DisconnectUdp", (socketAddress, totalTransfered) => {
