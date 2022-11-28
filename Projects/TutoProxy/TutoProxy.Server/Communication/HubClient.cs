@@ -28,14 +28,14 @@ namespace TutoProxy.Server.Communication {
             logger = serviceProvider.GetRequiredService<ILogger>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
-                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, this, logger));
+                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger));
             } else {
                 tcpServers = new();
             }
 
             if(udpPorts != null) {
                 udpServers = udpPorts
-                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, this, logger, UdpSocketParams.ReceiveTimeout));
+                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, UdpSocketParams.ReceiveTimeout));
             } else {
                 udpServers = new();
             }

@@ -51,8 +51,8 @@ namespace TutoProxy.Server.Communication {
 
         protected readonly ConcurrentDictionary<int, RemoteEndPoint> remoteEndPoints = new();
 
-        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, HubClient hubClient, ILogger logger, TimeSpan receiveTimeout)
-            : base(port, localEndPoint, dataTransferService, hubClient, logger) {
+        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, TimeSpan receiveTimeout)
+            : base(port, localEndPoint, dataTransferService, logger) {
             udpServer = new UdpClient(new IPEndPoint(localEndPoint.Address, port));
             udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             cts = new CancellationTokenSource();
@@ -119,6 +119,7 @@ namespace TutoProxy.Server.Communication {
             foreach(var item in remoteEndPoints.Values) {
                 item.Dispose();
             }
+            GC.SuppressFinalize(this);
         }
 
         protected void AddRemoteEndPoint(IPEndPoint endPoint) {

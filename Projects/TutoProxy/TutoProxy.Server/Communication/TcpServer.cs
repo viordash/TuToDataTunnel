@@ -117,8 +117,8 @@ namespace TutoProxy.Server.Communication {
 
         protected readonly ConcurrentDictionary<int, Client> remoteSockets = new();
 
-        public TcpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, HubClient hubClient, ILogger logger)
-            : base(port, localEndPoint, dataTransferService, hubClient, logger) {
+        public TcpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger)
+            : base(port, localEndPoint, dataTransferService, logger) {
             tcpServer = new TcpListener(localEndPoint.Address, port);
 
             cts = new CancellationTokenSource();

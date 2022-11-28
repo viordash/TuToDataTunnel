@@ -7,14 +7,12 @@ namespace TutoProxy.Server.Communication {
         protected readonly int port;
         protected readonly IPEndPoint localEndPoint;
         protected readonly IDataTransferService dataTransferService;
-        protected readonly HubClient hubClient;
         protected readonly ILogger logger;
 
-        public BaseServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, HubClient hubClient, ILogger logger) {
+        public BaseServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger) {
             this.port = port;
             this.localEndPoint = localEndPoint;
             this.dataTransferService = dataTransferService;
-            this.hubClient = hubClient;
             this.logger = logger;
         }
 
