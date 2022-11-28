@@ -3,7 +3,6 @@ using System.Net;
 using Serilog;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
-using TuToProxy.Core.Models;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Tests.Services {
@@ -105,20 +104,18 @@ namespace TutoProxy.Client.Tests.Services {
 
         [Test]
         public async Task UdpClients_Is_Auto_Removed_After_Timeout_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 50).ToList());
+            testable.Start(IPAddress.Any, null, Enumerable.Range(1000, 50).ToList());
 
             for(int port = 0; port < 50; port++) {
                 for(int origPort = 0; origPort < 10; origPort++) {
                     Assert.IsNotNull(testable.ObtainUdpClient(1000 + port, 51000 + origPort, signalRClientMock.Object));
                 }
             }
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(Enumerable.Range(1000, 50)));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(Enumerable.Range(51000, 10)));
+            clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
             await Task.Delay(1100);
-            for(int i = 0; i < 50; i++) {
-                Assert.That(testable.PublicMorozovUdpClients[1000 + i].Keys, Is.Empty);
-            }
+
+            clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Exactly(500));
         }
 
         [Test]
@@ -127,22 +124,23 @@ namespace TutoProxy.Client.Tests.Services {
 
             Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
 
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
             await Task.Delay(500);
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
-
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
-            await Task.Delay(500);
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
             Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
             await Task.Delay(500);
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+
+            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            await Task.Delay(500);
+
+            clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+
             await Task.Delay(600);
+            clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Once);
 
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.Empty);
 
         }
     }

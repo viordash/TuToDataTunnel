@@ -4,7 +4,6 @@ using TutoProxy.Client.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TutoProxy.Client.Communication {
     public class UdpClient : BaseClient<System.Net.Sockets.UdpClient> {
@@ -12,15 +11,24 @@ namespace TutoProxy.Client.Communication {
         DateTime responseLogTimer = DateTime.Now;
         bool connected = false;
 
-        protected override TimeSpan ReceiveTimeout { get { return UdpSocketParams.ReceiveTimeout; } }
+        protected virtual TimeSpan ReceiveTimeout { get { return UdpSocketParams.ReceiveTimeout; } }
         public bool Listening { get; private set; } = false;
+        protected readonly Timer timeoutTimer;
 
         public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
+
+            timeoutTimer = new(OnTimedEvent, null, ReceiveTimeout, Timeout.InfiniteTimeSpan);
         }
 
-        protected override void OnTimedEvent(object? state) {
+        protected void OnTimedEvent(object? state) {
             clientsService.RemoveUdpClient(Port, OriginPort);
+        }
+
+        public void Refresh() {
+            if(!timeoutTimer.Change(ReceiveTimeout, Timeout.InfiniteTimeSpan)) {
+                logger.Error($"udp: {serverEndPoint}, o-port: {OriginPort}, Refresh error");
+            }
         }
 
         protected override System.Net.Sockets.UdpClient CreateSocket() {
