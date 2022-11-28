@@ -20,8 +20,6 @@ namespace TutoProxy.Client.Communication {
         Int64 limitTotalTransmitted;
         Int64 totalReceived;
 
-        protected override TimeSpan ReceiveTimeout { get { return TcpSocketParams.ReceiveTimeout; } }
-
         public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
             forceCloseTimer = new Timer(OnForceCloseTimedEvent);
@@ -68,8 +66,6 @@ namespace TutoProxy.Client.Communication {
         void StartClosingTimer() {
             forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
         }
-
-        protected override void OnTimedEvent(object? state) { }
 
         protected override Socket CreateSocket() {
             var tcpClient = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);

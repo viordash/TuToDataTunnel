@@ -60,7 +60,6 @@ namespace TutoProxy.Client.Services {
                     return clientFactory.CreateTcp(localIpAddress, port, originPort, this, dataTunnelClient);
                 }
             );
-            client.Refresh();
             return client;
         }
 

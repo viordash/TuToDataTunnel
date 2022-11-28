@@ -15,8 +15,6 @@ namespace TutoProxy.Client.Tests.Services {
                 : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
             }
 
-            protected override TimeSpan ReceiveTimeout { get { return TimeSpan.FromMilliseconds(1000); } }
-
             protected override System.Net.Sockets.Socket CreateSocket() {
                 return new System.Net.Sockets.Socket(System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
             }
@@ -101,49 +99,6 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
             Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
             Assert.That(testable.PublicMorozovTcpClients[1000][51000], Is.SameAs(client0));
-        }
-
-        [Test]
-        public async Task TcpClients_Is_Auto_Removed_After_Timeout_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 50).ToList());
-
-            for(int port = 0; port < 50; port++) {
-                for(int origPort = 0; origPort < 10; origPort++) {
-                    Assert.IsNotNull(testable.ObtainTcpClient(1000 + port, 51000 + origPort, signalRClientMock.Object));
-                }
-            }
-            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo(Enumerable.Range(1000, 50)));
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(Enumerable.Range(51000, 10)));
-
-            await Task.Delay(1100);
-            for(int i = 0; i < 50; i++) {
-                Assert.That(testable.PublicMorozovTcpClients[1000 + i].Keys, Is.Empty);
-            }
-        }
-
-        [Test]
-        public async Task TcpClient_Timeout_Timer_Is_Refreshed_During_Obtaining_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 1).ToList());
-
-            Assert.IsNotNull(testable.ObtainTcpClient(1000, 51000, signalRClientMock.Object));
-
-            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
-
-            await Task.Delay(500);
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
-
-            Assert.IsNotNull(testable.ObtainTcpClient(1000, 51000, signalRClientMock.Object));
-            await Task.Delay(500);
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
-
-            Assert.IsNotNull(testable.ObtainTcpClient(1000, 51000, signalRClientMock.Object));
-            await Task.Delay(500);
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
-            await Task.Delay(600);
-
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.Empty);
-
         }
     }
 }
