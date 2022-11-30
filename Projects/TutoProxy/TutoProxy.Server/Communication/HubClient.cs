@@ -43,7 +43,6 @@ namespace TutoProxy.Server.Communication {
 
         public void Dispose() {
             cts.Cancel();
-            cts.Dispose();
 
             foreach(var item in tcpServers.Values) {
                 item.Dispose();
@@ -61,7 +60,6 @@ namespace TutoProxy.Server.Communication {
                 Task.WhenAll(udpServers.Values.Select(x => x.Listen()));
             }
         }
-
 
         public async Task SendUdpResponse(UdpDataResponseModel response) {
             if(!udpServers.TryGetValue(response.Port, out UdpServer? server)) {

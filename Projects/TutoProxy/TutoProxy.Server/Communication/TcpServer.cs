@@ -7,6 +7,7 @@ using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
+using static TutoProxy.Server.Communication.UdpServer;
 
 namespace TutoProxy.Server.Communication {
     public class TcpServer : BaseServer {
@@ -62,10 +63,8 @@ namespace TutoProxy.Server.Communication {
                 }
 
                 if(shutdownReceive && shutdownTransmit) {
-                    if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out Client? client)) {
-                        parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
-                        client.Dispose();
-                    }
+                    Dispose();
+
                 } else {
                     StartClosingTimer();
                 }
@@ -81,15 +80,17 @@ namespace TutoProxy.Server.Communication {
             }
 
             public async void Dispose() {
-                try {
-                    Socket.Shutdown(SocketShutdown.Both);
-                } catch(SocketException) { }
-                try {
-                    await Socket.DisconnectAsync(true);
-                } catch(SocketException) { }
-                forceCloseTimer.Dispose();
-                Socket.Close(100);
-                Socket.Dispose();
+                if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out _)) {
+                    parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
+                    try {
+                        Socket.Shutdown(SocketShutdown.Both);
+                    } catch(SocketException) { }
+                    try {
+                        await Socket.DisconnectAsync(true);
+                    } catch(SocketException) { }
+                    forceCloseTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    Socket.Close(100);
+                }
                 GC.SuppressFinalize(this);
             }
 
@@ -145,7 +146,7 @@ namespace TutoProxy.Server.Communication {
                             if(clientConnected) {
                                 _ = HandleSocketAsync(client, cts.Token);
                             } else {
-                                client.Dispose();
+                                Dispose();
                             }
                         }
                     } catch(Exception ex) {
@@ -167,9 +168,10 @@ namespace TutoProxy.Server.Communication {
 
         public override void Dispose() {
             cts.Cancel();
-            cts.Dispose();
-            foreach(var client in remoteSockets.Values) {
-                client.Dispose();
+            foreach(var item in remoteSockets.Values.ToList()) {
+                if(remoteSockets.TryGetValue(item.RemoteEndPoint.Port, out Client? client)) {
+                    client.Dispose();
+                }
             }
             GC.SuppressFinalize(this);
         }

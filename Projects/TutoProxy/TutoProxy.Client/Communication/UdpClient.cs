@@ -6,7 +6,7 @@ using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Client.Communication {
-    public class UdpClient : BaseClient<System.Net.Sockets.UdpClient> {
+    public class UdpClient : BaseClient {
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
         bool connected = false;
@@ -14,11 +14,20 @@ namespace TutoProxy.Client.Communication {
         protected virtual TimeSpan ReceiveTimeout { get { return UdpSocketParams.ReceiveTimeout; } }
         public bool Listening { get; private set; } = false;
         protected readonly Timer timeoutTimer;
+        readonly System.Net.Sockets.UdpClient socket;
 
         public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
 
             timeoutTimer = new(OnTimedEvent, null, ReceiveTimeout, Timeout.InfiniteTimeSpan);
+            socket = new System.Net.Sockets.UdpClient(serverEndPoint.AddressFamily);
+            uint IOC_IN = 0x80000000;
+            uint IOC_VENDOR = 0x18000000;
+            uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+            socket.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+            socket.ExclusiveAddressUse = false;
+            socket.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, created");
         }
 
         protected void OnTimedEvent(object? state) {
@@ -29,18 +38,6 @@ namespace TutoProxy.Client.Communication {
             if(!timeoutTimer.Change(ReceiveTimeout, Timeout.InfiniteTimeSpan)) {
                 logger.Error($"udp: {serverEndPoint}, o-port: {OriginPort}, Refresh error");
             }
-        }
-
-        protected override System.Net.Sockets.UdpClient CreateSocket() {
-            var udpClient = new System.Net.Sockets.UdpClient(serverEndPoint.AddressFamily);
-            uint IOC_IN = 0x80000000;
-            uint IOC_VENDOR = 0x18000000;
-            uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-            udpClient.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-            udpClient.ExclusiveAddressUse = false;
-            udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, created");
-            return udpClient;
         }
 
         public async Task SendRequest(byte[] payload, CancellationToken cancellationToken) {
@@ -91,10 +88,11 @@ namespace TutoProxy.Client.Communication {
             });
         }
 
-        public override void Dispose() {
+        public void Dispose() {
             connected = false;
-            base.Dispose();
+            socket.Close();
             logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, destroyed");
+            GC.SuppressFinalize(this);
         }
 
         public void Disconnect(Int64 transferLimit) {

@@ -3,10 +3,9 @@ using TutoProxy.Client.Services;
 
 namespace TutoProxy.Client.Communication {
 
-    public abstract class BaseClient<TSocket> : IDisposable where TSocket : IDisposable {
+    public abstract class BaseClient {
         protected readonly IPEndPoint serverEndPoint;
         protected readonly ILogger logger;
-        protected readonly TSocket socket;
 
         protected readonly IClientsService clientsService;
         protected readonly ISignalRClient dataTunnelClient;
@@ -20,15 +19,6 @@ namespace TutoProxy.Client.Communication {
             this.logger = logger;
             this.clientsService = clientsService;
             this.dataTunnelClient = dataTunnelClient;
-            socket = CreateSocket();
-        }
-
-
-        protected abstract TSocket CreateSocket();
-
-        public virtual void Dispose() {
-            ((IDisposable)socket).Dispose();
-            GC.SuppressFinalize(this);
         }
     }
 }

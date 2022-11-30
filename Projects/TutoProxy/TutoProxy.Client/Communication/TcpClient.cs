@@ -7,11 +7,12 @@ using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Client.Communication {
 
-    public class TcpClient : BaseClient<Socket> {
+    public class TcpClient : BaseClient {
         int? localPort = null;
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
         readonly Timer forceCloseTimer;
+        readonly Socket socket;
 
         bool shutdownReceive;
         bool shutdownTransmit;
@@ -24,6 +25,9 @@ namespace TutoProxy.Client.Communication {
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
             forceCloseTimer = new Timer(OnForceCloseTimedEvent);
             limitTotalTransmitted = -1;
+
+            socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
         }
 
         void TryShutdown(SocketShutdown how) {
@@ -67,24 +71,18 @@ namespace TutoProxy.Client.Communication {
             forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
         }
 
-        protected override Socket CreateSocket() {
-            var tcpClient = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-            logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
-            return tcpClient;
-        }
-
-        public override async void Dispose() {
+        public async void Dispose() {
             try {
                 socket.Shutdown(SocketShutdown.Both);
             } catch(SocketException) { }
             try {
                 await socket.DisconnectAsync(true);
             } catch(SocketException) { }
-            forceCloseTimer.Dispose();
+            forceCloseTimer.Change(Timeout.Infinite, Timeout.Infinite);
             socket.Close(100);
-            base.Dispose();
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
+            GC.SuppressFinalize(this);
         }
 
         public async Task<bool> Connect(CancellationToken cancellationToken) {

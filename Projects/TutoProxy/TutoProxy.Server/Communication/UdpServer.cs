@@ -114,10 +114,12 @@ namespace TutoProxy.Server.Communication {
 
         public override void Dispose() {
             cts.Cancel();
-            cts.Dispose();
-            udpServer.Dispose();
-            foreach(var item in remoteEndPoints.Values) {
-                item.Dispose();
+            udpServer.Close();
+
+            foreach(var item in remoteEndPoints.Values.ToList()) {
+                if(remoteEndPoints.TryGetValue(item.EndPoint.Port, out RemoteEndPoint? endPoint)) {
+                    endPoint.Dispose();
+                }
             }
             GC.SuppressFinalize(this);
         }
