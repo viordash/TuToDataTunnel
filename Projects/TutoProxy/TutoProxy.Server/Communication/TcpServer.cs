@@ -144,7 +144,7 @@ namespace TutoProxy.Server.Communication {
                                     cts.Token);
 
                             if(clientConnected) {
-                                _ = HandleSocketAsync(client, cts.Token);
+                                _ = Task.Run(() => HandleSocketAsync(client, cts.Token), cts.Token);
                             } else {
                                 Dispose();
                             }
