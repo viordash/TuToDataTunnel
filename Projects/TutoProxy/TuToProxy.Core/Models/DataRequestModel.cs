@@ -1,28 +1,20 @@
-﻿using TuToProxy.Core.Models;
+﻿using MessagePack;
 
 namespace TuToProxy.Core.Models {
+
+    [MessagePackObject]
     public class UdpDataRequestModel : DataBaseModel {
 
-        public UdpDataRequestModel(int port, int originPort, byte[] data) : base(port, originPort, data) {
-        }
         public override string ToString() {
             return $"udp request {base.ToString()}";
         }
     }
 
+    [MessagePackObject]
     public class TcpDataRequestModel : DataBaseModel {
-        public TcpDataRequestModel(int port, int originPort, byte[] data) : base(port, originPort, data) {
-        }
+
         public override string ToString() {
             return $"tcp request {base.ToString()}";
-        }
-    }
-
-    public class TcpStreamParam : SocketAddressModel {
-        public TcpStreamParam(int port, int originPort) : base(port, originPort) {
-        }
-        public override string ToString() {
-            return $"tcp stream {base.ToString()}";
         }
     }
 }

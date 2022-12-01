@@ -2,7 +2,7 @@
   "profiles": {
     "TutoProxy.Server": {
       "commandName": "Project",
-      "commandLineArgs": "https://localhost:8088 --tcp=700,701 --udp=100,200,700,701 --clients=Client1,Client2",
+      "commandLineArgs": "http://127.0.0.1:8088 --tcp=8001 --clients=ClientSec",
       "hotReloadEnabled": false
     }
   }

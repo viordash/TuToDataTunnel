@@ -1,20 +1,19 @@
-﻿using System.CommandLine;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
 using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
         Task SendUdpRequest(UdpDataRequestModel request);
-        Task SendUdpCommand(UdpCommandModel command);
-        Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response);
-        Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command);
+        Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered);
+        Task HandleUdpResponse(string connectionId, UdpDataResponseModel response);
+        void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
 
-        Task CreateTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken);
-        IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam);
-        Task TcpStream2Srv(string connectionId, TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream);
+        Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
+        Task SendTcpRequest(TcpDataRequestModel request);
+        Task HandleTcpResponse(string connectionId, TcpDataResponseModel response);
+        Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered);
+        void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -44,44 +43,53 @@ namespace TutoProxy.Server.Services {
         }
 
         public async Task SendUdpRequest(UdpDataRequestModel request) {
-            var transferRequest = new TransferUdpRequestModel(request, idService.TransferRequest, dateTimeService.Now);
-            logger.Debug($"UdpRequest :{transferRequest}");
+            logger.Debug($"UdpRequest :{request}");
             var connectionId = clientsService.GetConnectionIdForUdp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", transferRequest);
+            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", request);
         }
 
-        public async Task SendUdpCommand(UdpCommandModel command) {
-            var transferCommand = new TransferUdpCommandModel(idService.TransferRequest, dateTimeService.Now, command);
-            logger.Debug($"UdpCommand :{transferCommand}");
-            var connectionId = clientsService.GetConnectionIdForUdp(command.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("UdpCommand", transferCommand);
+        public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            logger.Debug($"DisconnectUdp :{socketAddress}, {totalTransfered}");
+            var connectionId = clientsService.GetConnectionIdForUdp(socketAddress.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectUdp", socketAddress, totalTransfered);
         }
 
-        public async Task HandleUdpResponse(string connectionId, TransferUdpResponseModel response) {
+        public async Task HandleUdpResponse(string connectionId, UdpDataResponseModel response) {
             var client = clientsService.GetClient(connectionId);
-            await client.SendUdpResponse(response.Payload);
+            await client.SendUdpResponse(response);
         }
 
-        public async Task HandleUdpCommand(string connectionId, TransferUdpCommandModel command) {
+        public void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
             var client = clientsService.GetClient(connectionId);
-            await client.ProcessUdpCommand(command.Payload);
+            client.DisconnectUdp(socketAddress, totalTransfered);
         }
 
-
-        public async Task CreateTcpStream(TcpStreamParam streamParam, CancellationToken cancellationToken) {
-            logger.Debug($"CreateStream :{streamParam}");
-            var connectionId = clientsService.GetConnectionIdForTcp(streamParam.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("CreateStream", streamParam, cancellationToken);
+        public Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
+            logger.Debug($"ConnectTcp :{socketAddress}");
+            var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
+            return signalHub.Clients.Client(connectionId).InvokeAsync<bool>("ConnectTcp", socketAddress, cancellationToken);
         }
 
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(string connectionId, TcpStreamParam streamParam) {
+        public async Task SendTcpRequest(TcpDataRequestModel request) {
+            logger.Debug($"TcpRequest :{request}");
+            var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", request);
+        }
+
+        public async Task HandleTcpResponse(string connectionId, TcpDataResponseModel response) {
             var client = clientsService.GetClient(connectionId);
-            return client.TcpStream2Cln(streamParam);
+            await client.SendTcpResponse(response);
         }
 
-        public async Task TcpStream2Srv(string connectionId, TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
+        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            logger.Debug($"DisconnectTcp :{socketAddress}, {totalTransfered}");
+            var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
+            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectTcp", socketAddress, totalTransfered);
+        }
+
+        public void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
             var client = clientsService.GetClient(connectionId);
-            await client.TcpStream2Srv(streamParam, stream);
+            client.DisconnectTcp(socketAddress, totalTransfered);
         }
     }
 }

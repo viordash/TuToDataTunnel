@@ -1,8 +1,7 @@
-﻿using System.Threading;
+﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
-using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Hubs {
     public class SignalRHub : Hub {
@@ -22,7 +21,7 @@ namespace TutoProxy.Server.Hubs {
             this.clientsService = clientsService;
         }
 
-        public async Task UdpResponse(TransferUdpResponseModel model) {
+        public async Task UdpResponse(UdpDataResponseModel model) {
             logger.Debug($"UdpResponse: {model}");
             try {
                 await dataTransferService.HandleUdpResponse(Context.ConnectionId, model);
@@ -31,10 +30,28 @@ namespace TutoProxy.Server.Hubs {
             }
         }
 
-        public async Task UdpCommand(TransferUdpCommandModel model) {
-            logger.Debug($"UdpCommand: {model}");
+        public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            logger.Debug($"DisconnectUdp: {socketAddress}, {totalTransfered}");
             try {
-                await dataTransferService.HandleUdpCommand(Context.ConnectionId, model);
+                dataTransferService.HandleDisconnectUdp(Context.ConnectionId, socketAddress, totalTransfered);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
+        }
+
+        public async Task TcpResponse(TcpDataResponseModel model) {
+            logger.Debug($"TcpResponse: {model}");
+            try {
+                await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
+            } catch(TuToException ex) {
+                await Clients.Caller.SendAsync("Errors", ex.Message);
+            }
+        }
+
+        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            logger.Debug($"DisconnectTcp: {socketAddress}, {totalTransfered}");
+            try {
+                dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress, totalTransfered);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
             }
@@ -54,16 +71,6 @@ namespace TutoProxy.Server.Hubs {
         public override Task OnDisconnectedAsync(Exception? exception) {
             clientsService.Disconnect(Context.ConnectionId);
             return base.OnDisconnectedAsync(exception);
-        }
-
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
-            logger.Debug($"TcpStream2Cln: {streamParam}");
-            return dataTransferService.TcpStream2Cln(Context.ConnectionId, streamParam);
-        }
-
-        public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            logger.Debug($"TcpStream2Srv: {streamParam}");
-            await dataTransferService.TcpStream2Srv(Context.ConnectionId, streamParam, stream);
         }
     }
 }

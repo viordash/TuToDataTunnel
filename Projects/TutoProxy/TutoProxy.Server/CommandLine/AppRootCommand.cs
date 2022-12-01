@@ -12,6 +12,8 @@ using TuToProxy.Core;
 using TuToProxy.Core.Helpers;
 using TuToProxy.Core.ServiceProvider;
 using TuToProxy.Core.Services;
+using MessagePack;
+using MessagePack.Resolvers;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -72,10 +74,18 @@ namespace TutoProxy.Server.CommandLine {
                     AddSignalR()
                       .AddHubOptions<SignalRHub>(options => {
                           options.MaximumReceiveMessageSize = 1024 * 1024;
-                          options.MaximumParallelInvocationsPerClient = 8;
-                          options.StreamBufferCapacity = 256;
-                          options.EnableDetailedErrors = true;
-                      });
+                          options.MaximumParallelInvocationsPerClient = 256;
+                          //options.EnableDetailedErrors = true;
+                      })
+                    .AddMessagePackProtocol(options => {
+                        StaticCompositeResolver.Instance.Register(
+                            MessagePack.Resolvers.StandardResolver.Instance
+                        );
+                        options.SerializerOptions = MessagePackSerializerOptions.Standard
+                            .WithResolver(StaticCompositeResolver.Instance)
+                            .WithSecurity(MessagePackSecurity.UntrustedData);
+                    });
+
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();

@@ -49,18 +49,11 @@ namespace TutoProxy.Server.Tests.Services {
         }
 
         [Test]
-        public void SendTcpResponse_Throws_SocketPortNotBoundException_Test() {
-            using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(), Enumerable.Range(1000, 4), serviceProviderMock.Object);
-
-            Assert.ThrowsAsync<SocketPortNotBoundException>(async () => await testable.SendTcpResponse(new TcpDataResponseModel(11, 10000, new byte[] { 0, 1 })),
-                    "Tcp socket port(11) not bound");
-        }
-
-        [Test]
         public void SendUdpResponse_Throws_SocketPortNotBoundException_Test() {
             using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(), Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
-            Assert.ThrowsAsync<SocketPortNotBoundException>(async () => await testable.SendUdpResponse(new UdpDataResponseModel(11, 10000, new byte[] { 0, 1 })),
+            Assert.ThrowsAsync<SocketPortNotBoundException>(async () => await testable.SendUdpResponse(
+                new UdpDataResponseModel() { Port = 11, OriginPort = 10000, Data = new byte[] { 0, 1 } }),
                     "Udp socket port(11) not bound");
         }
     }

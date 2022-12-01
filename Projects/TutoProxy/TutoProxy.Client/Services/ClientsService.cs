@@ -7,9 +7,9 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
-        TcpClient ObtainTcpClient(int port, int originPort, CancellationTokenSource cts);
+        TcpClient ObtainTcpClient(int port, int originPort, ISignalRClient dataTunnelClient);
         void RemoveTcpClient(int port, int originPort);
-        UdpClient ObtainUdpClient(int port, int originPort, CancellationTokenSource cts);
+        UdpClient ObtainUdpClient(int port, int originPort, ISignalRClient dataTunnelClient);
         void RemoveUdpClient(int port, int originPort);
         void Stop();
     }
@@ -43,24 +43,23 @@ namespace TutoProxy.Client.Services {
             this.udpPorts = udpPorts;
         }
 
-        public TcpClient ObtainTcpClient(int port, int originPort, CancellationTokenSource cts) {
+        public TcpClient ObtainTcpClient(int port, int originPort, ISignalRClient dataTunnelClient) {
             var commonPortClients = tcpClients.GetOrAdd(port,
                     _ => {
                         if(tcpPorts == null || !tcpPorts.Contains(port)) {
                             throw new ClientNotFoundException(DataProtocol.Tcp, port);
                         }
-                        Debug.WriteLine($"ObtainClient: add tcp for port {port}");
+                        //Debug.WriteLine($"ObtainClient: add tcp for port {port}");
                         return new ConcurrentDictionary<int, TcpClient>();
                     }
                 );
 
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
-                    Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}, {tcpClients.Count}, {commonPortClients.Count}");
-                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, cts);
+                    //Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}, {tcpClients.Count}, {commonPortClients.Count}");
+                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, dataTunnelClient);
                 }
             );
-            client.Refresh();
             return client;
         }
 
@@ -68,25 +67,25 @@ namespace TutoProxy.Client.Services {
             if(tcpClients.TryGetValue(port, out ConcurrentDictionary<int, TcpClient>? removingClients)
                 && removingClients.TryRemove(originPort, out TcpClient? removedClient)) {
                 removedClient.Dispose();
-                Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}, {tcpClients.Count}, {removingClients.Count}");
+                //Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}, {tcpClients.Count}, {removingClients.Count}");
             }
         }
 
-        public UdpClient ObtainUdpClient(int port, int originPort, CancellationTokenSource cts) {
+        public UdpClient ObtainUdpClient(int port, int originPort, ISignalRClient dataTunnelClient) {
             var commonPortClients = udpClients.GetOrAdd(port,
                     _ => {
                         if(udpPorts == null || !udpPorts.Contains(port)) {
                             throw new ClientNotFoundException(DataProtocol.Udp, port);
                         }
-                        Debug.WriteLine($"ObtainClient: add udp for port {port}");
+                        //Debug.WriteLine($"ObtainClient: add udp for port {port}");
                         return new ConcurrentDictionary<int, UdpClient>();
                     }
                 );
 
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
-                    Debug.WriteLine($"ObtainClient: add udp for OriginPort {originPort}");
-                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this, cts);
+                    //Debug.WriteLine($"ObtainClient: add udp for OriginPort {originPort}");
+                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this, dataTunnelClient);
                 }
             );
             client.Refresh();
@@ -96,7 +95,7 @@ namespace TutoProxy.Client.Services {
         public void RemoveUdpClient(int port, int originPort) {
             if(udpClients.TryGetValue(port, out ConcurrentDictionary<int, UdpClient>? removingClients)) {
                 if(removingClients.TryRemove(originPort, out UdpClient? removedClient)) {
-                    Debug.WriteLine($"RemoveUdpClient: {port}, {originPort}");
+                    //Debug.WriteLine($"RemoveUdpClient: {port}, {originPort}");
                     removedClient.Dispose();
                 }
             }

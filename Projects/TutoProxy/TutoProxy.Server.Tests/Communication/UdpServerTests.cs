@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
@@ -13,6 +17,10 @@ namespace TutoProxy.Server.Tests.Communication {
     public class UdpServerTests {
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+
+        Mock<ILogger> loggerMock;
+        Mock<IDataTransferService> dataTransferServiceMock;
 
         class TestableUdpServer : UdpServer {
             public TestableUdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, TimeSpan receiveTimeout)
@@ -33,13 +41,11 @@ namespace TutoProxy.Server.Tests.Communication {
             }
         }
 
-        Mock<ILogger> loggerMock;
-        Mock<IDataTransferService> dataTransferServiceMock;
-
         [SetUp]
         public void Setup() {
             loggerMock = new();
             dataTransferServiceMock = new();
+
         }
 
         [Test]
@@ -92,7 +98,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Retry(3)]
         public async Task OnDispose_The_RemoteEndPoint_Timer_Cancelling_Test() {
             var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
-                TimeSpan.FromMilliseconds(500));
+               TimeSpan.FromMilliseconds(500));
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();

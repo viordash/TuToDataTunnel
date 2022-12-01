@@ -14,12 +14,12 @@ namespace TutoProxy.Server.Tests.Services {
     public class DataTransferServiceTests {
         DataTransferService testable;
 
-        Mock<IClientProxy> clientProxyMock;
+        Mock<ISingleClientProxy> clientProxyMock;
         Mock<IHubClientsService> clientsServiceMock;
 
         DateTime nowDateTime;
         string requestId = string.Empty;
-        TransferUdpRequestModel? sendedTransferUdpRequest;
+        UdpDataRequestModel? sendedTransferUdpRequest;
 
         [SetUp]
         public void Setup() {
@@ -57,7 +57,7 @@ namespace TutoProxy.Server.Tests.Services {
             clientProxyMock
                 .Setup(x => x.SendCoreAsync(It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
                 .Callback<string, object?[], CancellationToken>((method, args, cancellationToken) => {
-                    sendedTransferUdpRequest = args[0] as TransferUdpRequestModel;
+                    sendedTransferUdpRequest = args[0] as UdpDataRequestModel;
                 });
 
             clientsServiceMock
@@ -69,7 +69,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task SendUdpRequest_Test() {
-            var requestModel = new UdpDataRequestModel(700, 800, Array.Empty<byte>());
+            var requestModel = new UdpDataRequestModel() { Port = 700, OriginPort = 800, Data = Array.Empty<byte>() };
             await testable.SendUdpRequest(requestModel);
             clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "UdpRequest"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
         }

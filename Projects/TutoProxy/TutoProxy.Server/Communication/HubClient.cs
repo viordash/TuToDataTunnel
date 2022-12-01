@@ -13,6 +13,8 @@ namespace TutoProxy.Server.Communication {
 
         readonly Dictionary<int, TcpServer> tcpServers = new();
         readonly Dictionary<int, UdpServer> udpServers = new();
+        readonly CancellationTokenSource cts;
+        readonly ILogger logger;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -20,8 +22,10 @@ namespace TutoProxy.Server.Communication {
             TcpPorts = tcpPorts;
             UdpPorts = udpPorts;
 
+            cts = new CancellationTokenSource();
+
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
-            var logger = serviceProvider.GetRequiredService<ILogger>();
+            logger = serviceProvider.GetRequiredService<ILogger>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
                     .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger));
@@ -37,6 +41,17 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
+        public void Dispose() {
+            cts.Cancel();
+
+            foreach(var item in tcpServers.Values) {
+                item.Dispose();
+            }
+            foreach(var item in udpServers.Values) {
+                item.Dispose();
+            }
+        }
+
         public void Listen() {
             if(tcpServers != null) {
                 Task.WhenAll(tcpServers.Values.Select(x => x.Listen()));
@@ -46,7 +61,6 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
-
         public async Task SendUdpResponse(UdpDataResponseModel response) {
             if(!udpServers.TryGetValue(response.Port, out UdpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Udp, response.Port);
@@ -54,43 +68,25 @@ namespace TutoProxy.Server.Communication {
             await server.SendResponse(response);
         }
 
-        public Task ProcessUdpCommand(UdpCommandModel command) {
-            if(!udpServers.TryGetValue(command.Port, out UdpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Udp, command.Port);
+        public void DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            if(!udpServers.TryGetValue(socketAddress.Port, out UdpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Udp, socketAddress.Port);
             }
-
-            switch(command.Command) {
-                case SocketCommand.Disconnect:
-                    server.Disconnect(command);
-                    break;
-                default:
-                    break;
-            }
-            return Task.CompletedTask;
+            server.Disconnect(socketAddress, totalTransfered);
         }
 
-
-        public IAsyncEnumerable<byte[]> TcpStream2Cln(TcpStreamParam streamParam) {
-            if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
+        public async Task SendTcpResponse(TcpDataResponseModel response) {
+            if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
             }
-            return server.CreateStream(streamParam);
+            await server.SendResponse(response);
         }
 
-        public async Task TcpStream2Srv(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream) {
-            if(!tcpServers.TryGetValue(streamParam.Port, out TcpServer? server)) {
-                throw new SocketPortNotBoundException(DataProtocol.Tcp, streamParam.Port);
+        public void DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+            if(!tcpServers.TryGetValue(socketAddress.Port, out TcpServer? server)) {
+                throw new SocketPortNotBoundException(DataProtocol.Tcp, socketAddress.Port);
             }
-            await server.AcceptClientStream(streamParam, stream);
-        }
-
-        public void Dispose() {
-            foreach(var item in tcpServers.Values) {
-                item.Dispose();
-            }
-            foreach(var item in udpServers.Values) {
-                item.Dispose();
-            }
+            server.Disconnect(socketAddress, totalTransfered);
         }
     }
 }

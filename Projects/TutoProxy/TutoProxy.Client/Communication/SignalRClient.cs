@@ -1,21 +1,24 @@
 ﻿using System.CommandLine;
-using System.Threading;
+using MessagePack;
+using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
-    public interface ISignalRClient {
+    public interface ISignalRClient : IDisposable {
         Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
-        Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken);
-        Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken);
+        Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken);
+        Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
 
-        Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken);
+        Task SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken);
+        Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
     }
 
-    internal class SignalRClient : ISignalRClient {
+    public class SignalRClient : ISignalRClient {
         #region inner classes
         class RetryPolicy : IRetryPolicy {
             readonly ILogger logger;
@@ -30,17 +33,19 @@ namespace TutoProxy.Client.Communication {
         #endregion
 
         readonly ILogger logger;
-        readonly IDataExchangeService dataExchangeService;
+        readonly IClientsService clientsService;
         HubConnection? connection = null;
 
         public SignalRClient(
                 ILogger logger,
-                IDataExchangeService dataExchangeService
+                IClientsService clientsService
                 ) {
             Guard.NotNull(logger, nameof(logger));
-            Guard.NotNull(dataExchangeService, nameof(dataExchangeService));
             this.logger = logger;
-            this.dataExchangeService = dataExchangeService;
+            this.clientsService = clientsService;
+        }
+
+        public void Dispose() {
         }
 
         public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken) {
@@ -62,29 +67,50 @@ namespace TutoProxy.Client.Communication {
             connection = new HubConnectionBuilder()
                  .WithUrl(ub.Uri)
                  .WithAutomaticReconnect(new RetryPolicy(logger))
+                 .AddMessagePackProtocol(config => {
+                     StaticCompositeResolver.Instance.Register(
+                        MessagePack.Resolvers.StandardResolver.Instance
+                    );
+                     config.SerializerOptions = MessagePackSerializerOptions.Standard
+                            .WithResolver(StaticCompositeResolver.Instance)
+                            .WithSecurity(MessagePackSecurity.UntrustedData);
+                 })
                  .Build();
 
-            connection.On<TransferUdpRequestModel>("UdpRequest", async (request) => {
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                await dataExchangeService.HandleUdpRequest(request, this, cts);
+            connection.On<UdpDataRequestModel>("UdpRequest", async (request) => {
+                var client = clientsService.ObtainUdpClient(request.Port, request.OriginPort, this);
+                await client.SendRequest(request.Data!, cancellationToken);
+                if(!client.Listening) {
+                    client.Listen(request, this, cancellationToken);
+                }
             });
 
-            connection.On<TransferUdpCommandModel>("UdpCommand", async (command) => {
-                await dataExchangeService.HandleUdpCommand(command, this, cancellationToken);
+            connection.On<SocketAddressModel, Int64>("DisconnectUdp", (socketAddress, totalTransfered) => {
+                logger.Debug($"HandleDisconnectUdp :{socketAddress}, {totalTransfered}");
+                var client = clientsService.ObtainUdpClient(socketAddress.Port, socketAddress.OriginPort, this);
+                client.Disconnect(totalTransfered);
+            });
+
+            connection.On<SocketAddressModel, bool>("ConnectTcp", async (socketAddress) => {
+                logger.Debug($"HandleConnectTcp :{socketAddress}");
+                var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
+                return await client.Connect(cancellationToken);
+            });
+
+            connection.On<TcpDataRequestModel>("TcpRequest", async (request) => {
+                var client = clientsService.ObtainTcpClient(request.Port, request.OriginPort, this);
+                await client.SendRequest(request.Data, cancellationToken);
+            });
+
+            connection.On<SocketAddressModel, Int64>("DisconnectTcp", (socketAddress, totalTransfered) => {
+                logger.Debug($"HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
+                var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
+                client.Disconnect(totalTransfered, cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {
                 logger.Error(message);
                 await StopAsync();
-            });
-
-
-            connection.On<TcpStreamParam>("CreateStream", (streamParam) => {
-                _ = Task.Run(async () => {
-                    var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    var stream = connection.StreamAsync<byte[]>("TcpStream2Cln", streamParam, cts.Token);
-                    await dataExchangeService.CreateStream(streamParam, stream, this, cts);
-                }, cancellationToken);
             });
 
             connection.Reconnecting += e => {
@@ -109,21 +135,27 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendUdpResponse(TransferUdpResponseModel response, CancellationToken cancellationToken) {
+        public async Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("UdpResponse", response, cancellationToken);
+                await connection.SendAsync("UdpResponse", response, cancellationToken);
             }
         }
 
-        public async Task SendUdpCommand(TransferUdpCommandModel command, CancellationToken cancellationToken) {
+        public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.InvokeAsync("UdpCommand", command, cancellationToken);
+                await connection.SendAsync("DisconnectUdp", socketAddress, totalTransfered, cancellationToken);
             }
         }
 
-        public async Task CreateStream(TcpStreamParam streamParam, IAsyncEnumerable<byte[]> stream, CancellationToken cancellationToken) {
+        public async Task SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.SendAsync("TcpStream2Srv", streamParam, stream, cancellationToken);
+                await connection.SendAsync("TcpResponse", response, cancellationToken);
+            }
+        }
+
+        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
+            if(connection?.State == HubConnectionState.Connected) {
+                await connection.SendAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
             }
         }
     }

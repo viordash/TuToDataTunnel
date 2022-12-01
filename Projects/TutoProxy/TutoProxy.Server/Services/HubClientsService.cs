@@ -4,11 +4,10 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Primitives;
-using TuToProxy.Core.CommandLine;
 using TutoProxy.Server.Communication;
 using TuToProxy.Core;
+using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Exceptions;
-using TuToProxy.Core.Models;
 
 namespace TutoProxy.Server.Services {
     public interface IHubClientsService : IDisposable {

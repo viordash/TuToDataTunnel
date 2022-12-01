@@ -9,7 +9,7 @@ using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Helpers;
 
 namespace TutoProxy.Server.CommandLine {
-    internal class AppRootCommand : RootCommand {
+    public class AppRootCommand : RootCommand {
         public AppRootCommand() : base("Прокси клиент TuTo") {
             Add(new Argument<string>("server", "Remote server address"));
             Add(new Argument<string>("ip", "Local IP address"));
