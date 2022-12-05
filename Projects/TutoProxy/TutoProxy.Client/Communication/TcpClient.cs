@@ -98,7 +98,7 @@ namespace TutoProxy.Client.Communication {
                 return false;
             }
             localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
-            _ = ReceivingStream(cancellationToken);
+            _ = Task.Run(() => ReceivingStream(cancellationToken), cancellationToken);
             return true;
         }
 
