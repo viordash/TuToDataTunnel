@@ -83,7 +83,7 @@ namespace TutoProxy.Client.Communication {
                 var response = new TcpDataResponseModel() { Port = Port, OriginPort = OriginPort, Data = data };
                 var transmitted = await dataTunnelClient.SendTcpResponse(response, cts.Token);
                 if(receivedBytes != transmitted) {
-                    logger.Error($"tcp({localPort}) response from {serverEndPoint} send error");
+                    logger.Error($"tcp({localPort}) response from {serverEndPoint} send error ({transmitted})");
                 }
                 if(responseLogTimer <= DateTime.Now) {
                     responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -109,11 +109,13 @@ namespace TutoProxy.Client.Communication {
                 }
                 return transmitted;
             } catch(SocketException) {
+                return -3;
             } catch(ObjectDisposedException) {
+                return -2;
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
+                return -1;
             }
-            return -1;
         }
 
         public ValueTask<bool> DisconnectAsync(CancellationToken cancellationToken) {

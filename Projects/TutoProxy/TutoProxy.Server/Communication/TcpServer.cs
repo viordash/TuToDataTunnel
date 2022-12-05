@@ -145,7 +145,7 @@ namespace TutoProxy.Server.Communication {
                 var data = receiveBuffer[..receivedBytes].ToArray();
                 var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = port, OriginPort = client.RemoteEndPoint.Port, Data = data }, cts.Token);
                 if(receivedBytes != transmitted) {
-                    logger.Error($"tcp({port}) request from {client.RemoteEndPoint} send error");
+                    logger.Error($"tcp({port}) request from {client.RemoteEndPoint} send error ({transmitted})");
                 }
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -176,11 +176,13 @@ namespace TutoProxy.Server.Communication {
                 }
                 return transmitted;
             } catch(SocketException) {
+                return -3;
             } catch(ObjectDisposedException) {
+                return -2;
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
+                return -1;
             }
-            return -1;
         }
     }
 }
