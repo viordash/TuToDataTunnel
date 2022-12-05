@@ -64,7 +64,7 @@ namespace TutoProxy.Client.Communication {
                     if(receivedBytes == 0) {
                         break;
                     }
-                } catch(OperationCanceledException ex) {
+                } catch(OperationCanceledException) {
                     break;
                 } catch(SocketException ex) {
                     logger.Error(ex.GetBaseException().Message);

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using TutoProxy.Client.Communication;
 using TuToProxy.Core.Exceptions;
@@ -7,8 +8,10 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
-        TcpClient ObtainTcpClient(int port, int originPort, ISignalRClient dataTunnelClient);
+        TcpClient AddTcpClient(int port, int originPort, ISignalRClient dataTunnelClient);
+        bool ObtainTcpClient(int port, int originPort, out TcpClient? client);
         ValueTask<bool> RemoveTcpClient(int port, int originPort);
+
         UdpClient ObtainUdpClient(int port, int originPort, ISignalRClient dataTunnelClient);
         ValueTask<bool> RemoveUdpClient(int port, int originPort);
         void Stop();
@@ -43,7 +46,7 @@ namespace TutoProxy.Client.Services {
             this.udpPorts = udpPorts;
         }
 
-        public TcpClient ObtainTcpClient(int port, int originPort, ISignalRClient dataTunnelClient) {
+        public TcpClient AddTcpClient(int port, int originPort, ISignalRClient dataTunnelClient) {
             var commonPortClients = tcpClients.GetOrAdd(port,
                     _ => {
                         if(tcpPorts == null || !tcpPorts.Contains(port)) {
@@ -61,6 +64,20 @@ namespace TutoProxy.Client.Services {
                 }
             );
             return client;
+        }
+
+        public bool ObtainTcpClient(int port, int originPort, [MaybeNullWhen(false)] out TcpClient client) {
+            var commonPortClients = tcpClients.GetOrAdd(port,
+                    _ => {
+                        if(tcpPorts == null || !tcpPorts.Contains(port)) {
+                            throw new ClientNotFoundException(DataProtocol.Tcp, port);
+                        }
+                        //Debug.WriteLine($"ObtainClient: add tcp for port {port}");
+                        return new ConcurrentDictionary<int, TcpClient>();
+                    }
+                );
+
+            return commonPortClients.TryGetValue(originPort, out client);
         }
 
         public async ValueTask<bool> RemoveTcpClient(int port, int originPort) {

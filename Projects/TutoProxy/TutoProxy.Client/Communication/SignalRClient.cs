@@ -93,19 +93,22 @@ namespace TutoProxy.Client.Communication {
 
             connection.On<SocketAddressModel, bool>("ConnectTcp", async (socketAddress) => {
                 logger.Debug($"HandleConnectTcp :{socketAddress}");
-                var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
+                var client = clientsService.AddTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
                 return await client.Connect(cancellationToken);
             });
 
             connection.On<TcpDataRequestModel, int>("TcpRequest", async (request) => {
-                var client = clientsService.ObtainTcpClient(request.Port, request.OriginPort, this);
-                return await client.SendRequest(request.Data, cancellationToken);
+                if(!clientsService.ObtainTcpClient(request.Port, request.OriginPort, out TcpClient? client)) {
+                    return -1;
+                }
+                return await client!.SendRequest(request.Data, cancellationToken);
             });
 
             connection.On<SocketAddressModel, bool>("DisconnectTcp", async (socketAddress) => {
-                logger.Debug($"HandleDisconnectTcp :{socketAddress}");
-                var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
-                return await client.DisconnectAsync();
+                if(!clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, out TcpClient? client)) {
+                    return true;
+                }
+                return await client!.DisconnectAsync();
             });
 
             connection.On<string>("Errors", async (message) => {
