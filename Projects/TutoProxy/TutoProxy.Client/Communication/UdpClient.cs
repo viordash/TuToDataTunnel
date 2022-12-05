@@ -88,8 +88,8 @@ namespace TutoProxy.Client.Communication {
             });
         }
 
-        public override void Dispose() {
-            base.Dispose();
+        public override async ValueTask DisposeAsync() {
+            await base.DisposeAsync();
             connected = false;
             socket.Close();
             logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, destroyed");

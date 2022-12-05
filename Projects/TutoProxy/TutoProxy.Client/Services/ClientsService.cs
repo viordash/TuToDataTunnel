@@ -8,9 +8,9 @@ namespace TutoProxy.Client.Services {
     public interface IClientsService {
         void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
         TcpClient ObtainTcpClient(int port, int originPort, ISignalRClient dataTunnelClient);
-        void RemoveTcpClient(int port, int originPort);
+        ValueTask<bool> RemoveTcpClient(int port, int originPort);
         UdpClient ObtainUdpClient(int port, int originPort, ISignalRClient dataTunnelClient);
-        void RemoveUdpClient(int port, int originPort);
+        ValueTask<bool> RemoveUdpClient(int port, int originPort);
         void Stop();
     }
 
@@ -63,12 +63,14 @@ namespace TutoProxy.Client.Services {
             return client;
         }
 
-        public void RemoveTcpClient(int port, int originPort) {
+        public async ValueTask<bool> RemoveTcpClient(int port, int originPort) {
             if(tcpClients.TryGetValue(port, out ConcurrentDictionary<int, TcpClient>? removingClients)
                 && removingClients.TryRemove(originPort, out TcpClient? removedClient)) {
-                removedClient.Dispose();
+                await removedClient.DisposeAsync();
+                return true;
                 //Debug.WriteLine($"RemoveTcpClient: {port}, {originPort}, {tcpClients.Count}, {removingClients.Count}");
             }
+            return false;
         }
 
         public UdpClient ObtainUdpClient(int port, int originPort, ISignalRClient dataTunnelClient) {
@@ -92,23 +94,25 @@ namespace TutoProxy.Client.Services {
             return client;
         }
 
-        public void RemoveUdpClient(int port, int originPort) {
+        public async ValueTask<bool> RemoveUdpClient(int port, int originPort) {
             if(udpClients.TryGetValue(port, out ConcurrentDictionary<int, UdpClient>? removingClients)) {
                 if(removingClients.TryRemove(originPort, out UdpClient? removedClient)) {
                     //Debug.WriteLine($"RemoveUdpClient: {port}, {originPort}");
-                    removedClient.Dispose();
+                    await removedClient.DisposeAsync();
+                    return true;
                 }
             }
+            return false;
         }
 
-        public void Stop() {
+        public async void Stop() {
             foreach(var client in tcpClients.Values.SelectMany(x => x.Values)) {
-                client.Dispose();
+                await client.DisposeAsync();
             }
             tcpClients.Clear();
 
             foreach(var client in udpClients.Values.SelectMany(x => x.Values)) {
-                client.Dispose();
+                await client.DisposeAsync();
             }
             udpClients.Clear();
         }

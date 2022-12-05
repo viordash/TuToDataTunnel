@@ -86,7 +86,7 @@ namespace TutoProxy.Server.Communication {
             if(!tcpServers.TryGetValue(socketAddress.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, socketAddress.Port);
             }
-            return server.Disconnect(socketAddress);
+            return server.DisconnectAsync(socketAddress);
         }
     }
 }

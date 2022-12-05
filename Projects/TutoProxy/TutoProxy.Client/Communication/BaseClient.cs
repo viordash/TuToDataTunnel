@@ -3,7 +3,7 @@ using TutoProxy.Client.Services;
 
 namespace TutoProxy.Client.Communication {
 
-    public abstract class BaseClient : IDisposable {
+    public abstract class BaseClient : IAsyncDisposable {
         protected readonly IPEndPoint serverEndPoint;
         protected readonly ILogger logger;
         protected readonly CancellationTokenSource cancellationTokenSource;
@@ -23,9 +23,10 @@ namespace TutoProxy.Client.Communication {
             cancellationTokenSource = new CancellationTokenSource();
         }
 
-        public virtual void Dispose() {
+        public virtual ValueTask DisposeAsync() {
             cancellationTokenSource.Cancel();
             GC.SuppressFinalize(this);
+            return ValueTask.CompletedTask;
         }
     }
 }

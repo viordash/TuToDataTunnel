@@ -105,7 +105,7 @@ namespace TutoProxy.Client.Communication {
             connection.On<SocketAddressModel, bool>("DisconnectTcp", async (socketAddress) => {
                 logger.Debug($"HandleDisconnectTcp :{socketAddress}");
                 var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
-                return await client.Disconnect(cancellationToken);
+                return await client.DisconnectAsync(cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {

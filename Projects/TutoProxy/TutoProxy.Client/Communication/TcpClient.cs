@@ -1,5 +1,4 @@
-﻿using System.CommandLine.Parsing;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
@@ -12,76 +11,32 @@ namespace TutoProxy.Client.Communication {
         int? localPort = null;
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
-        readonly Timer forceCloseTimer;
         readonly Socket socket;
-
-        bool shutdownReceive;
-        bool shutdownTransmit;
 
         Int64 totalTransmitted;
         Int64 totalReceived;
 
         public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
-            forceCloseTimer = new Timer(OnForceCloseTimedEvent);
 
             socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
         }
 
-        void TryShutdown(SocketShutdown how) {
-            switch(how) {
-                case SocketShutdown.Receive:
-                    shutdownReceive = true;
-                    if(socket.Connected) {
-                        try {
-                            socket.Shutdown(SocketShutdown.Receive);
-                        } catch(Exception) { }
-                    }
-                    break;
-                case SocketShutdown.Send:
-                    shutdownTransmit = true;
-                    if(socket.Connected) {
-                        try {
-                            socket.Shutdown(SocketShutdown.Send);
-                        } catch(Exception) { }
-                    }
-                    break;
-                case SocketShutdown.Both:
-                    shutdownReceive = true;
-                    shutdownTransmit = true;
-                    break;
-            }
-
-
-            if(shutdownReceive && shutdownTransmit) {
-                clientsService.RemoveTcpClient(Port, OriginPort);
-            } else {
-                StartClosingTimer();
-            }
+        ValueTask<bool> TryShutdown() {
+            return clientsService.RemoveTcpClient(Port, OriginPort);
         }
 
-        void OnForceCloseTimedEvent(object? state) {
-            Debug.WriteLine($"tcp({localPort}), o-port: {OriginPort}, attempt to close");
-            TryShutdown(SocketShutdown.Both);
-        }
-
-        void StartClosingTimer() {
-            forceCloseTimer.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
-        }
-
-        public override async void Dispose() {
-            base.Dispose();
+        public override async ValueTask DisposeAsync() {
+            await base.DisposeAsync();
             try {
                 socket.Shutdown(SocketShutdown.Both);
             } catch(SocketException) { }
             try {
                 await socket.DisconnectAsync(true);
             } catch(SocketException) { }
-            forceCloseTimer.Change(Timeout.Infinite, Timeout.Infinite);
             socket.Close(100);
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
-            GC.SuppressFinalize(this);
         }
 
         public async ValueTask<bool> Connect(CancellationToken cancellationToken) {
@@ -114,7 +69,6 @@ namespace TutoProxy.Client.Communication {
                         break;
                     }
                 } catch(OperationCanceledException ex) {
-                    logger.Error(ex.GetBaseException().Message);
                     break;
                 } catch(SocketException ex) {
                     logger.Error(ex.GetBaseException().Message);
@@ -140,7 +94,7 @@ namespace TutoProxy.Client.Communication {
                 if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
                     logger.Error($"tcp({localPort}) response from {serverEndPoint} disconnect error");
                 }
-                TryShutdown(SocketShutdown.Both);
+                await TryShutdown();
             }
         }
 
@@ -162,9 +116,8 @@ namespace TutoProxy.Client.Communication {
             return -1;
         }
 
-        public ValueTask<bool> Disconnect(CancellationToken cancellationToken) {
-            TryShutdown(SocketShutdown.Both);
-            return ValueTask.FromResult(true);
+        public ValueTask<bool> DisconnectAsync(CancellationToken cancellationToken) {
+            return TryShutdown();
         }
 
     }

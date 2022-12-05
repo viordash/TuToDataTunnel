@@ -18,71 +18,30 @@ namespace TutoProxy.Server.Communication {
 
 
         #region inner classes
-        protected class Client : IDisposable {
+        protected class Client : IAsyncDisposable {
             public readonly Socket Socket;
             public readonly IPEndPoint RemoteEndPoint;
             readonly TcpServer parent;
-            readonly Timer forceCloseTimer;
             public readonly CancellationTokenSource CancellationToken;
-            public bool shutdownReceive;
-            public bool shutdownTransmit;
 
             Int64 totalTransmitted;
-            Int64 limitTotalTransmitted;
             public Int64 TotalReceived;
 
             public Client(Socket socket, TcpServer parent) {
                 this.parent = parent;
                 Socket = socket;
                 RemoteEndPoint = (IPEndPoint)socket.RemoteEndPoint!;
-                forceCloseTimer = new Timer(OnForceCloseTimedEvent);
-                limitTotalTransmitted = -1;
                 CancellationToken = new CancellationTokenSource();
             }
 
-            public void TryShutdown(SocketShutdown how) {
-                switch(how) {
-                    case SocketShutdown.Receive:
-                        shutdownReceive = true;
-                        try {
-                            if(Socket.Connected) {
-                                Socket.Shutdown(SocketShutdown.Receive);
-                            }
-                        } catch(Exception) { }
-                        break;
-                    case SocketShutdown.Send:
-                        shutdownTransmit = true;
-                        try {
-                            if(Socket.Connected) {
-                                Socket.Shutdown(SocketShutdown.Send);
-                            }
-                        } catch(Exception) { }
-                        break;
-                    case SocketShutdown.Both:
-                        shutdownReceive = true;
-                        shutdownTransmit = true;
-                        break;
-                }
-
-                if(shutdownReceive && shutdownTransmit) {
-                    Dispose();
-
-                } else {
-                    StartClosingTimer();
-                }
+            public async ValueTask<bool> TryShutdown() {
+                await DisposeAsync();
+                return true;
             }
 
-            void OnForceCloseTimedEvent(object? state) {
-                Debug.WriteLine($"Attempt to close: {parent.port}, {RemoteEndPoint.Port}");
-                TryShutdown(SocketShutdown.Both);
-            }
-
-            void StartClosingTimer() {
-                forceCloseTimer.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
-            }
-
-            public async void Dispose() {
+            public async ValueTask DisposeAsync() {
                 if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out _)) {
+
                     parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
                     CancellationToken.Cancel();
                     try {
@@ -91,7 +50,6 @@ namespace TutoProxy.Server.Communication {
                     try {
                         await Socket.DisconnectAsync(true);
                     } catch(SocketException) { }
-                    forceCloseTimer.Change(Timeout.Infinite, Timeout.Infinite);
                     Socket.Close(100);
                 }
                 GC.SuppressFinalize(this);
@@ -101,9 +59,8 @@ namespace TutoProxy.Server.Communication {
                 return Socket.SendAsync(buffer, SocketFlags.None, cancellationToken);
             }
 
-            public ValueTask<bool> Disconnect() {
-                TryShutdown(SocketShutdown.Both);
-                return ValueTask.FromResult(true);
+            public ValueTask<bool> DisconnectAsync() {
+                return TryShutdown();
             }
         }
         #endregion
@@ -150,18 +107,18 @@ namespace TutoProxy.Server.Communication {
             }, CancellationToken.Token);
         }
 
-        public ValueTask<bool> Disconnect(SocketAddressModel socketAddress) {
+        public ValueTask<bool> DisconnectAsync(SocketAddressModel socketAddress) {
             if(!remoteSockets.TryGetValue(socketAddress.OriginPort, out Client? client)) {
                 return ValueTask.FromResult(false);
             }
-            return client.Disconnect();
+            return client.DisconnectAsync();
         }
 
-        public override void Dispose() {
+        public override async void Dispose() {
             CancellationToken.Cancel();
             foreach(var item in remoteSockets.Values.ToList()) {
                 if(remoteSockets.TryGetValue(item.RemoteEndPoint.Port, out Client? client)) {
-                    client.Dispose();
+                    await client.DisposeAsync();
                 }
             }
             GC.SuppressFinalize(this);
@@ -195,14 +152,13 @@ namespace TutoProxy.Server.Communication {
                     logger.Information($"tcp({port}) request from {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
                 }
             }
-
             if(!client.CancellationToken.IsCancellationRequested) {
                 if(!await dataTransferService.DisconnectTcp(new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port },
                      cancellationToken)) {
                     logger.Error($"tcp({port}) request from {client.RemoteEndPoint} disconnect error");
                 }
+                await client.TryShutdown();
             }
-            client.TryShutdown(SocketShutdown.Both);
         }
 
         public async ValueTask<int> SendResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
