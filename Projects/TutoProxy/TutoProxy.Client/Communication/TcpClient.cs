@@ -23,10 +23,6 @@ namespace TutoProxy.Client.Communication {
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
         }
 
-        ValueTask<bool> TryShutdown() {
-            return clientsService.RemoveTcpClient(Port, OriginPort);
-        }
-
         public override async ValueTask DisposeAsync() {
             await base.DisposeAsync();
             try {
@@ -94,7 +90,7 @@ namespace TutoProxy.Client.Communication {
                 if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
                     logger.Error($"tcp({localPort}) response from {serverEndPoint} disconnect error");
                 }
-                await TryShutdown();
+                await DisconnectAsync();
             }
         }
 
@@ -102,7 +98,7 @@ namespace TutoProxy.Client.Communication {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
             try {
                 var transmitted = await socket.SendAsync(payload, SocketFlags.None, cts.Token);
-
+                totalTransmitted += transmitted;
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
                     logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
@@ -118,8 +114,8 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public ValueTask<bool> DisconnectAsync(CancellationToken cancellationToken) {
-            return TryShutdown();
+        public ValueTask<bool> DisconnectAsync() {
+            return clientsService.RemoveTcpClient(Port, OriginPort);
         }
 
     }

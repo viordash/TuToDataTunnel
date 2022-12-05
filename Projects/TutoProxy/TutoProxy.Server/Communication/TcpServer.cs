@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Microsoft.AspNetCore.DataProtection;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
@@ -34,34 +35,25 @@ namespace TutoProxy.Server.Communication {
                 CancellationToken = new CancellationTokenSource();
             }
 
-            public async ValueTask<bool> TryShutdown() {
-                await DisposeAsync();
-                return true;
-            }
-
             public async ValueTask DisposeAsync() {
-                if(parent.remoteSockets.TryRemove(RemoteEndPoint.Port, out _)) {
-
-                    parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
-                    CancellationToken.Cancel();
-                    try {
-                        Socket.Shutdown(SocketShutdown.Both);
-                    } catch(SocketException) { }
-                    try {
-                        await Socket.DisconnectAsync(true);
-                    } catch(SocketException) { }
-                    Socket.Close(100);
-                }
+                CancellationToken.Cancel();
+                try {
+                    Socket.Shutdown(SocketShutdown.Both);
+                } catch(SocketException) { }
+                try {
+                    await Socket.DisconnectAsync(true);
+                } catch(SocketException) { }
+                Socket.Close(100);
                 GC.SuppressFinalize(this);
+                parent.logger.Information($"tcp({parent.port}) disconnected {RemoteEndPoint}, tx:{totalTransmitted}, rx:{TotalReceived}");
             }
 
-            public ValueTask<int> SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
-                return Socket.SendAsync(buffer, SocketFlags.None, cancellationToken);
+            public async ValueTask<int> SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
+                var transmitted = await Socket.SendAsync(buffer, SocketFlags.None, cancellationToken);
+                totalTransmitted += transmitted;
+                return transmitted;
             }
 
-            public ValueTask<bool> DisconnectAsync() {
-                return TryShutdown();
-            }
         }
         #endregion
 
@@ -107,11 +99,12 @@ namespace TutoProxy.Server.Communication {
             }, CancellationToken.Token);
         }
 
-        public ValueTask<bool> DisconnectAsync(SocketAddressModel socketAddress) {
-            if(!remoteSockets.TryGetValue(socketAddress.OriginPort, out Client? client)) {
-                return ValueTask.FromResult(false);
+        public async ValueTask<bool> DisconnectAsync(SocketAddressModel socketAddress) {
+            if(remoteSockets.TryRemove(socketAddress.OriginPort, out Client? client)) {
+                await client.DisposeAsync();
+                return true;
             }
-            return client.DisconnectAsync();
+            return false;
         }
 
         public override async void Dispose() {
@@ -153,11 +146,11 @@ namespace TutoProxy.Server.Communication {
                 }
             }
             if(!client.CancellationToken.IsCancellationRequested) {
-                if(!await dataTransferService.DisconnectTcp(new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port },
-                     cancellationToken)) {
+                var socketAddress = new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port };
+                if(!await dataTransferService.DisconnectTcp(socketAddress, cancellationToken)) {
                     logger.Error($"tcp({port}) request from {client.RemoteEndPoint} disconnect error");
                 }
-                await client.TryShutdown();
+                await DisconnectAsync(socketAddress);
             }
         }
 
