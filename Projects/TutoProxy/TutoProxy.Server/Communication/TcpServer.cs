@@ -78,7 +78,7 @@ namespace TutoProxy.Server.Communication {
             }
 
             void StartClosingTimer() {
-                forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+                forceCloseTimer.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
             }
 
             public async void Dispose() {
@@ -206,10 +206,12 @@ namespace TutoProxy.Server.Communication {
                 }
             }
 
-            await dataTransferService.DisconnectTcp(new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port }, client.TotalReceived,
+            if(!client.CancellationToken.IsCancellationRequested) {
+                await dataTransferService.DisconnectTcp(new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port }, client.TotalReceived,
                     cancellationToken);
 
-            client.TryShutdown(SocketShutdown.Receive);
+                client.TryShutdown(SocketShutdown.Receive);
+            }
         }
 
         public async Task SendResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {

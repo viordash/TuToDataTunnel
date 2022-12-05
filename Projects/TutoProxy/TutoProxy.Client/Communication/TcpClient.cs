@@ -64,12 +64,12 @@ namespace TutoProxy.Client.Communication {
         }
 
         void OnForceCloseTimedEvent(object? state) {
-            Debug.WriteLine($"tcp({localPort}) , o-port: {OriginPort}, attempt to close");
+            Debug.WriteLine($"tcp({localPort}), o-port: {OriginPort}, attempt to close");
             TryShutdown(SocketShutdown.Both);
         }
 
         void StartClosingTimer() {
-            forceCloseTimer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            forceCloseTimer.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
         }
 
         public override async void Dispose() {
@@ -135,9 +135,11 @@ namespace TutoProxy.Client.Communication {
                     logger.Information($"tcp({localPort}) response from {serverEndPoint}, bytes:{data.ToShortDescriptions()}.");
                 }
             }
-            await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, totalReceived, cancellationToken);
+            if(!cancellationTokenSource.IsCancellationRequested) {
+                await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, totalReceived, cancellationToken);
 
-            TryShutdown(SocketShutdown.Receive);
+                TryShutdown(SocketShutdown.Receive);
+            }
         }
 
         public async Task SendRequest(byte[] payload, CancellationToken cancellationToken) {
