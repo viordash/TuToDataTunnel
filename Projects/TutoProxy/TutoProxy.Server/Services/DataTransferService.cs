@@ -10,10 +10,10 @@ namespace TutoProxy.Server.Services {
         void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
 
         Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
-        Task SendTcpRequest(TcpDataRequestModel request);
-        Task HandleTcpResponse(string connectionId, TcpDataResponseModel response);
-        Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
-        void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
+        Task<int> SendTcpRequest(TcpDataRequestModel request, CancellationToken cancellationToken);
+        ValueTask<int> HandleTcpResponse(string connectionId, TcpDataResponseModel response);
+        Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
+        ValueTask<bool> HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress);
     }
 
     public class DataTransferService : IDataTransferService {
@@ -70,26 +70,26 @@ namespace TutoProxy.Server.Services {
             return signalHub.Clients.Client(connectionId).InvokeAsync<bool>("ConnectTcp", socketAddress, cancellationToken);
         }
 
-        public async Task SendTcpRequest(TcpDataRequestModel request) {
+        public async Task<int> SendTcpRequest(TcpDataRequestModel request, CancellationToken cancellationToken) {
             logger.Debug($"TcpRequest :{request}");
             var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("TcpRequest", request);
+            return await signalHub.Clients.Client(connectionId).InvokeAsync<int>("TcpRequest", request, cancellationToken);
         }
 
-        public async Task HandleTcpResponse(string connectionId, TcpDataResponseModel response) {
+        public ValueTask<int> HandleTcpResponse(string connectionId, TcpDataResponseModel response) {
             var client = clientsService.GetClient(connectionId);
-            await client.SendTcpResponse(response);
+            return client.SendTcpResponse(response);
         }
 
-        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
-            logger.Debug($"DisconnectTcp :{socketAddress}, {totalTransfered}");
+        public Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
+            logger.Debug($"DisconnectTcp :{socketAddress}");
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
+            return signalHub.Clients.Client(connectionId).InvokeAsync<bool>("DisconnectTcp", socketAddress, cancellationToken);
         }
 
-        public void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
+        public ValueTask<bool> HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress) {
             var client = clientsService.GetClient(connectionId);
-            client.DisconnectTcp(socketAddress, totalTransfered);
+            return client.DisconnectTcp(socketAddress);
         }
     }
 }

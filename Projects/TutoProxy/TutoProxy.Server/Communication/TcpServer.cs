@@ -97,24 +97,13 @@ namespace TutoProxy.Server.Communication {
                 GC.SuppressFinalize(this);
             }
 
-            public async Task SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
-                var transmitted = Interlocked.Add(ref totalTransmitted, await Socket.SendAsync(buffer, SocketFlags.None, cancellationToken));
-
-                var limit = Interlocked.Read(ref limitTotalTransmitted);
-                if(limit >= 0) {
-                    if(transmitted >= limit) {
-                        TryShutdown(SocketShutdown.Send);
-                    }
-                }
+            public ValueTask<int> SendDataAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) {
+                return Socket.SendAsync(buffer, SocketFlags.None, cancellationToken);
             }
 
-            public void Disconnect(Int64 transferLimit) {
-                if(Interlocked.Read(ref totalTransmitted) >= transferLimit) {
-                    TryShutdown(SocketShutdown.Both);
-                } else {
-                    Interlocked.Exchange(ref limitTotalTransmitted, transferLimit);
-                    StartClosingTimer();
-                }
+            public ValueTask<bool> Disconnect() {
+                TryShutdown(SocketShutdown.Both);
+                return ValueTask.FromResult(true);
             }
         }
         #endregion
@@ -161,12 +150,11 @@ namespace TutoProxy.Server.Communication {
             }, CancellationToken.Token);
         }
 
-        public void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered) {
+        public ValueTask<bool> Disconnect(SocketAddressModel socketAddress) {
             if(!remoteSockets.TryGetValue(socketAddress.OriginPort, out Client? client)) {
-                return;
+                return ValueTask.FromResult(false);
             }
-
-            client.Disconnect(totalTransfered);
+            return client.Disconnect();
         }
 
         public override void Dispose() {
@@ -198,8 +186,10 @@ namespace TutoProxy.Server.Communication {
                 }
                 client.TotalReceived += receivedBytes;
                 var data = receiveBuffer[..receivedBytes].ToArray();
-                await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = port, OriginPort = client.RemoteEndPoint.Port, Data = data });
-
+                var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = port, OriginPort = client.RemoteEndPoint.Port, Data = data }, cts.Token);
+                if(receivedBytes != transmitted) {
+                    logger.Error($"tcp({port}) request from {client.RemoteEndPoint} send error");
+                }
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
                     logger.Information($"tcp({port}) request from {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
@@ -207,33 +197,34 @@ namespace TutoProxy.Server.Communication {
             }
 
             if(!client.CancellationToken.IsCancellationRequested) {
-                await dataTransferService.DisconnectTcp(new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port }, client.TotalReceived,
-                    cancellationToken);
-
-                client.TryShutdown(SocketShutdown.Receive);
+                if(!await dataTransferService.DisconnectTcp(new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port },
+                     cancellationToken)) {
+                    logger.Error($"tcp({port}) request from {client.RemoteEndPoint} disconnect error");
+                }
             }
+            client.TryShutdown(SocketShutdown.Both);
         }
 
-        public async Task SendResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
-
+        public async ValueTask<int> SendResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
             if(!remoteSockets.TryGetValue(response.OriginPort, out Client? client)) {
                 logger.Error($"tcp({port}) client stream on missed socket {response.OriginPort}");
-                return;
+                return -1;
             }
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, client.CancellationToken.Token, CancellationToken.Token);
             try {
-                await client.SendDataAsync(response.Data, cts.Token);
+                var transmitted = await client.SendDataAsync(response.Data, cts.Token);
+
+                if(responseLogTimer <= DateTime.Now) {
+                    responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{response.Data.ToShortDescriptions()}");
+                }
+                return transmitted;
             } catch(SocketException) {
-                client.TryShutdown(SocketShutdown.Send);
             } catch(ObjectDisposedException) {
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
             }
-
-            if(responseLogTimer <= DateTime.Now) {
-                responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                logger.Information($"tcp({port}) response to {client.RemoteEndPoint}, bytes:{response.Data.ToShortDescriptions()}");
-            }
+            return -1;
         }
     }
 }

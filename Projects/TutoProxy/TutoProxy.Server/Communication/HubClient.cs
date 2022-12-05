@@ -75,18 +75,18 @@ namespace TutoProxy.Server.Communication {
             server.Disconnect(socketAddress, totalTransfered);
         }
 
-        public async Task SendTcpResponse(TcpDataResponseModel response) {
+        public ValueTask<int> SendTcpResponse(TcpDataResponseModel response) {
             if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
             }
-            await server.SendResponse(response, cts.Token);
+            return server.SendResponse(response, cts.Token);
         }
 
-        public void DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+        public ValueTask<bool> DisconnectTcp(SocketAddressModel socketAddress) {
             if(!tcpServers.TryGetValue(socketAddress.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, socketAddress.Port);
             }
-            server.Disconnect(socketAddress, totalTransfered);
+            return server.Disconnect(socketAddress);
         }
     }
 }

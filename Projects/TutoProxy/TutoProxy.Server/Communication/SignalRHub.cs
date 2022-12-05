@@ -39,21 +39,23 @@ namespace TutoProxy.Server.Hubs {
             }
         }
 
-        public async Task TcpResponse(TcpDataResponseModel model) {
+        public async Task<int> TcpResponse(TcpDataResponseModel model) {
             logger.Debug($"TcpResponse: {model}");
             try {
-                await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
+                return await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
+                return -1;
             }
         }
 
-        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
-            logger.Debug($"DisconnectTcp: {socketAddress}, {totalTransfered}");
+        public async Task<bool> DisconnectTcp(SocketAddressModel socketAddress) {
+            logger.Debug($"DisconnectTcp: {socketAddress}");
             try {
-                dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress, totalTransfered);
+                return await dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
+                return false;
             }
         }
 

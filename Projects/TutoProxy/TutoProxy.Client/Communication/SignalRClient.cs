@@ -14,8 +14,8 @@ namespace TutoProxy.Client.Communication {
         Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
 
-        Task SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken);
-        Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
+        Task<int> SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken);
+        Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
     }
 
     public class SignalRClient : ISignalRClient {
@@ -97,15 +97,15 @@ namespace TutoProxy.Client.Communication {
                 return await client.Connect(cancellationToken);
             });
 
-            connection.On<TcpDataRequestModel>("TcpRequest", async (request) => {
+            connection.On<TcpDataRequestModel, int>("TcpRequest", async (request) => {
                 var client = clientsService.ObtainTcpClient(request.Port, request.OriginPort, this);
-                await client.SendRequest(request.Data, cancellationToken);
+                return await client.SendRequest(request.Data, cancellationToken);
             });
 
-            connection.On<SocketAddressModel, Int64>("DisconnectTcp", (socketAddress, totalTransfered) => {
-                logger.Debug($"HandleDisconnectTcp :{socketAddress}, {totalTransfered}");
+            connection.On<SocketAddressModel, bool>("DisconnectTcp", async (socketAddress) => {
+                logger.Debug($"HandleDisconnectTcp :{socketAddress}");
                 var client = clientsService.ObtainTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
-                client.Disconnect(totalTransfered, cancellationToken);
+                return await client.Disconnect(cancellationToken);
             });
 
             connection.On<string>("Errors", async (message) => {
@@ -147,16 +147,18 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
+        public Task<int> SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.SendAsync("TcpResponse", response, cancellationToken);
+                return connection.InvokeAsync<int>("TcpResponse", response, cancellationToken);
             }
+            return Task.FromResult(-1);
         }
 
-        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
+        public Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
             if(connection?.State == HubConnectionState.Connected) {
-                await connection.SendAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
+                return connection.InvokeAsync<bool>("DisconnectTcp", socketAddress, cancellationToken);
             }
+            return Task.FromResult(false);
         }
     }
 }
