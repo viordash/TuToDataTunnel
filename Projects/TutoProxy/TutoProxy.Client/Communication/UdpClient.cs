@@ -88,11 +88,11 @@ namespace TutoProxy.Client.Communication {
             });
         }
 
-        public void Dispose() {
+        public override void Dispose() {
+            base.Dispose();
             connected = false;
             socket.Close();
             logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, destroyed");
-            GC.SuppressFinalize(this);
         }
 
         public void Disconnect(Int64 transferLimit) {

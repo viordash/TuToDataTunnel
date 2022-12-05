@@ -79,7 +79,7 @@ namespace TutoProxy.Server.Communication {
             if(!tcpServers.TryGetValue(response.Port, out TcpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Tcp, response.Port);
             }
-            await server.SendResponse(response);
+            await server.SendResponse(response, cts.Token);
         }
 
         public void DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {

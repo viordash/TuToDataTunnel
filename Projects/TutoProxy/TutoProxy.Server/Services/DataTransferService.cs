@@ -12,7 +12,7 @@ namespace TutoProxy.Server.Services {
         Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
         Task SendTcpRequest(TcpDataRequestModel request);
         Task HandleTcpResponse(string connectionId, TcpDataResponseModel response);
-        Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered);
+        Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
         void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
     }
 
@@ -81,10 +81,10 @@ namespace TutoProxy.Server.Services {
             await client.SendTcpResponse(response);
         }
 
-        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+        public async Task DisconnectTcp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
             logger.Debug($"DisconnectTcp :{socketAddress}, {totalTransfered}");
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectTcp", socketAddress, totalTransfered);
+            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectTcp", socketAddress, totalTransfered, cancellationToken);
         }
 
         public void HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
