@@ -110,7 +110,7 @@ namespace TutoProxy.Server.Communication {
         public override async void Dispose() {
             CancellationToken.Cancel();
             foreach(var item in remoteSockets.Values.ToList()) {
-                if(remoteSockets.TryGetValue(item.RemoteEndPoint.Port, out Client? client)) {
+                if(remoteSockets.TryRemove(item.RemoteEndPoint.Port, out Client? client)) {
                     await client.DisposeAsync();
                 }
             }
