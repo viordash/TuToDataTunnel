@@ -87,7 +87,7 @@ namespace TutoProxy.Server.Communication {
                             if(clientConnected) {
                                 _ = Task.Run(() => HandleSocketAsync(client, CancellationToken.Token), CancellationToken.Token);
                             } else {
-                                Dispose();
+                                logger.Error($"tcp({port}) not connected {socket.RemoteEndPoint}");
                             }
                         }
                     } catch(Exception ex) {
