@@ -66,13 +66,13 @@ namespace TutoProxy.Server.CommandLine {
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
                 var title = $"Прокси клиент TuTo [{Id}], сервер {Server}";
-                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
+                var version = $"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}";
+                logger.Information(version);
                 logger.Information(title);
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
                     await signalrClient.StopAsync();
                     clientsService.Stop();
-                    Application.Shutdown();
                 });
 
 
@@ -99,7 +99,7 @@ namespace TutoProxy.Server.CommandLine {
                     }, appStoppingReg.Token);
                 };
 
-                Application.Top.Add(new MainMenu(), mainWindow);
+                Application.Top.Add(new MainMenu(version), mainWindow);
                 Application.Run();
 
                 Application.Shutdown();
