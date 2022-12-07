@@ -1,10 +1,13 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Diagnostics;
 using System.Net;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
+using Terminal.Gui;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
+using TutoProxy.Client.Windows;
 using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Helpers;
 
@@ -62,28 +65,46 @@ namespace TutoProxy.Server.CommandLine {
                 Guard.NotNullOrEmpty(Ip, nameof(Ip));
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
+                var title = $"Прокси клиент TuTo [{Id}], сервер {Server}";
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"Прокси клиент TuTo [{Id}], сервер {Server}");
+                logger.Information(title);
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
                     await signalrClient.StopAsync();
                     clientsService.Stop();
+                    Application.Shutdown();
                 });
 
-                while(!appStoppingReg.Token.IsCancellationRequested) {
-                    try {
-                        await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, appStoppingReg.Token);
-                        break;
-                    } catch(HttpRequestException) {
-                        logger.Error("Connection failed");
-                        await Task.Delay(5000, appStoppingReg.Token);
-                        logger.Information("Retry connect");
-                        continue;
-                    }
-                }
 
-                clientsService.Start(IPAddress.Parse(Ip!), Tcp?.Ports, Udp?.Ports);
-                _ = appStoppingReg.Token.WaitHandle.WaitOne();
+                Application.Init();
+
+                var mainWindow = new MainWindow(title);
+
+                mainWindow.Ready += () => {
+                    clientsService.Start(IPAddress.Parse(Ip!), Tcp?.Ports, Udp?.Ports);
+                    _ = Task.Run(async () => {
+                        while(!appStoppingReg.Token.IsCancellationRequested) {
+                            try {
+                                Debug.WriteLine("       000");
+                                await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, appStoppingReg.Token);
+                                break;
+                            } catch(HttpRequestException) {
+                                logger.Error("Connection failed");
+                                await Task.Delay(5000, appStoppingReg.Token);
+                                logger.Information("Retry connect");
+                                continue;
+                            }
+                        }
+                        Debug.WriteLine("sdsdsd");
+                    }, appStoppingReg.Token);
+                };
+
+                Application.Top.Add(new MainMenu(), mainWindow);
+                Application.Run();
+
+                Application.Shutdown();
+                applicationLifetime.StopApplication();
+
                 return 0;
             }
         }
