@@ -1,4 +1,5 @@
-﻿using System.CommandLine;
+﻿using System;
+using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Net;
@@ -37,6 +38,7 @@ namespace TutoProxy.Server.CommandLine {
             readonly ISignalRClient signalrClient;
             readonly IHostApplicationLifetime applicationLifetime;
             readonly IClientsService clientsService;
+            readonly IProcessMonitor processMonitor;
 
             public string? Server { get; set; }
             public string? Ip { get; set; }
@@ -48,19 +50,22 @@ namespace TutoProxy.Server.CommandLine {
                 ILogger logger,
                 ISignalRClient signalrClient,
                 IHostApplicationLifetime applicationLifetime,
-                IClientsService clientsService
+                IClientsService clientsService,
+                IProcessMonitor processMonitor
                 ) {
                 Guard.NotNull(logger, nameof(logger));
                 Guard.NotNull(signalrClient, nameof(signalrClient));
                 Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
                 Guard.NotNull(clientsService, nameof(clientsService));
+                Guard.NotNull(processMonitor, nameof(processMonitor));
                 this.logger = logger;
                 this.signalrClient = signalrClient;
                 this.applicationLifetime = applicationLifetime;
                 this.clientsService = clientsService;
+                this.processMonitor = processMonitor;
             }
 
-            public async Task<int> InvokeAsync(InvocationContext context) {
+            public Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNull(Server, nameof(Server));
                 Guard.NotNullOrEmpty(Ip, nameof(Ip));
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
@@ -75,27 +80,33 @@ namespace TutoProxy.Server.CommandLine {
                     clientsService.Stop();
                 });
 
-
                 Application.Init();
 
                 var mainWindow = new MainWindow(title);
-
                 mainWindow.Ready += () => {
                     clientsService.Start(IPAddress.Parse(Ip!), Tcp?.Ports, Udp?.Ports);
                     _ = Task.Run(async () => {
                         while(!appStoppingReg.Token.IsCancellationRequested) {
                             try {
-                                Debug.WriteLine("       000");
+                                Application.MainLoop.Invoke(() => {
+                                    mainWindow.Title = $"{title} - connection to server...";
+                                });
                                 await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, appStoppingReg.Token);
+
+                                Application.MainLoop.Invoke(() => {
+                                    mainWindow.Title = $"{title} - connected";
+                                });
                                 break;
                             } catch(HttpRequestException) {
                                 logger.Error("Connection failed");
+                                Application.MainLoop.Invoke(() => {
+                                    mainWindow.Title = $"{title} - connection failed. Retry...";
+                                });
                                 await Task.Delay(5000, appStoppingReg.Token);
                                 logger.Information("Retry connect");
                                 continue;
                             }
                         }
-                        Debug.WriteLine("sdsdsd");
                     }, appStoppingReg.Token);
                 };
 
@@ -105,7 +116,7 @@ namespace TutoProxy.Server.CommandLine {
                 Application.Shutdown();
                 applicationLifetime.StopApplication();
 
-                return 0;
+                return Task.FromResult(0);
             }
         }
     }

@@ -16,8 +16,8 @@ namespace TutoProxy.Client.Communication {
         Int64 totalTransmitted;
         Int64 totalReceived;
 
-        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
-            : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
+        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, IProcessMonitor processMonitor)
+            : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
 
             socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
@@ -32,6 +32,7 @@ namespace TutoProxy.Client.Communication {
                 await socket.DisconnectAsync(true);
             } catch(SocketException) { }
             socket.Close(100);
+            processMonitor.DisconnectTcpClient(Port, OriginPort);
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
         }
 
@@ -43,6 +44,7 @@ namespace TutoProxy.Client.Communication {
 
             try {
                 await socket.ConnectAsync(serverEndPoint);
+                processMonitor.ConnectTcpClient(Port, OriginPort);
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
                 return false;

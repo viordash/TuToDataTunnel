@@ -16,8 +16,8 @@ namespace TutoProxy.Client.Communication {
         protected readonly Timer timeoutTimer;
         readonly System.Net.Sockets.UdpClient socket;
 
-        public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
-            : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
+        public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, IProcessMonitor processMonitor)
+            : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
 
             timeoutTimer = new(OnTimedEvent, null, ReceiveTimeout, Timeout.InfiniteTimeSpan);
             socket = new System.Net.Sockets.UdpClient(serverEndPoint.AddressFamily);

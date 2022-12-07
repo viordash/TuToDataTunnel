@@ -10,17 +10,19 @@ namespace TutoProxy.Client.Communication {
 
         protected readonly IClientsService clientsService;
         protected readonly ISignalRClient dataTunnelClient;
+        protected readonly IProcessMonitor processMonitor;
 
         public int Port { get { return serverEndPoint.Port; } }
         public int OriginPort { get; private set; }
 
-        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient) {
+        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, IProcessMonitor processMonitor) {
             this.serverEndPoint = serverEndPoint;
             OriginPort = originPort;
             this.logger = logger;
             this.clientsService = clientsService;
             this.dataTunnelClient = dataTunnelClient;
             cancellationTokenSource = new CancellationTokenSource();
+            this.processMonitor = processMonitor;
         }
 
         public virtual ValueTask DisposeAsync() {

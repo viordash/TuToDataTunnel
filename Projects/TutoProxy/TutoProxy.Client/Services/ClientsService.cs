@@ -20,6 +20,7 @@ namespace TutoProxy.Client.Services {
     public class ClientsService : IClientsService {
         readonly ILogger logger;
         readonly IClientFactory clientFactory;
+        readonly IProcessMonitor processMonitor;
         IPAddress localIpAddress;
         List<int>? tcpPorts;
         List<int>? udpPorts;
@@ -29,12 +30,15 @@ namespace TutoProxy.Client.Services {
 
         public ClientsService(
             ILogger logger,
-            IClientFactory clientFactory
+            IClientFactory clientFactory,
+            IProcessMonitor processMonitor
             ) {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(clientFactory, nameof(clientFactory));
+            Guard.NotNull(processMonitor, nameof(processMonitor));
             this.logger = logger;
             this.clientFactory = clientFactory;
+            this.processMonitor = processMonitor;
 
             localIpAddress = IPAddress.None;
         }
@@ -60,7 +64,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}, {tcpClients.Count}, {commonPortClients.Count}");
-                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, dataTunnelClient);
+                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, dataTunnelClient, processMonitor);
                 }
             );
             return client;
@@ -104,7 +108,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     //Debug.WriteLine($"ObtainClient: add udp for OriginPort {originPort}");
-                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this, dataTunnelClient);
+                    return clientFactory.CreateUdp(localIpAddress, port, originPort, this, dataTunnelClient, processMonitor);
                 }
             );
             client.Refresh();
