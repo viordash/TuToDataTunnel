@@ -1,31 +1,28 @@
 ﻿using Terminal.Gui;
+using TutoProxy.Client.Communication;
 using TutoProxy.Client.Windows;
 
 namespace TutoProxy.Client.Services {
     public interface IProcessMonitor {
-        void ConnectTcpClient(int port, int originPort);
-        void DisconnectTcpClient(int port, int originPort);
-        void RequestToTcpClient(int port, int originPort, int bytes);
-        void ResponseFromTcpClient(int port, int originPort, int bytes);
+        void ConnectTcpClient(BaseClient client);
+        void DisconnectTcpClient(BaseClient client);
+        void TcpClientData(BaseClient client, Int64 transmitted, Int64 received);
     }
 
-
     public class ProcessMonitor : IProcessMonitor {
-        public void ConnectTcpClient(int port, int originPort) {
+        public void ConnectTcpClient(BaseClient client) {
             var mainWindow = Application.Top.Focused as MainWindow;
-            throw new NotImplementedException();
+            mainWindow?.AddTcpClient(client);
         }
 
-        public void DisconnectTcpClient(int port, int originPort) {
-            throw new NotImplementedException();
+        public void DisconnectTcpClient(BaseClient client) {
+            var mainWindow = Application.Top.Focused as MainWindow;
+            mainWindow?.RemoveTcpClient(client);
         }
 
-        public void RequestToTcpClient(int port, int originPort, int bytes) {
-            throw new NotImplementedException();
-        }
-
-        public void ResponseFromTcpClient(int port, int originPort, int bytes) {
-            throw new NotImplementedException();
+        public void TcpClientData(BaseClient client, Int64 transmitted, Int64 received) {
+            var mainWindow = Application.Top.Focused as MainWindow;
+            mainWindow?.TcpClientData(client, transmitted, received);
         }
     }
 }

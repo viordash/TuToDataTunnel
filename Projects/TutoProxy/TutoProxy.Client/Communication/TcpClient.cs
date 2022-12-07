@@ -23,6 +23,10 @@ namespace TutoProxy.Client.Communication {
             logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
         }
 
+        public override string ToString() {
+            return $"tcp({localPort,5}) {base.ToString()}";
+        }
+
         public override async ValueTask DisposeAsync() {
             await base.DisposeAsync();
             try {
@@ -32,19 +36,19 @@ namespace TutoProxy.Client.Communication {
                 await socket.DisconnectAsync(true);
             } catch(SocketException) { }
             socket.Close(100);
-            processMonitor.DisconnectTcpClient(Port, OriginPort);
-            logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
+            processMonitor.DisconnectTcpClient(this);
+            logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
         }
 
         public async ValueTask<bool> Connect(CancellationToken cancellationToken) {
             if(socket.Connected) {
-                logger.Error($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, already connected");
+                logger.Error($"{this}, already connected");
                 return false;
             }
 
             try {
                 await socket.ConnectAsync(serverEndPoint);
-                processMonitor.ConnectTcpClient(Port, OriginPort);
+                processMonitor.ConnectTcpClient(this);
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
                 return false;
@@ -81,16 +85,17 @@ namespace TutoProxy.Client.Communication {
                 var response = new TcpDataResponseModel() { Port = Port, OriginPort = OriginPort, Data = data };
                 var transmitted = await dataTunnelClient.SendTcpResponse(response, cts.Token);
                 if(receivedBytes != transmitted) {
-                    logger.Error($"tcp({localPort}) response from {serverEndPoint} send error ({transmitted})");
+                    logger.Error($"{this} response transmit error ({transmitted})");
                 }
                 if(responseLogTimer <= DateTime.Now) {
                     responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({localPort}) response from {serverEndPoint}, bytes:{data.ToShortDescriptions()}.");
+                    logger.Information($"{this} response, bytes:{data.ToShortDescriptions()}.");
+                    processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
             }
             if(!cancellationTokenSource.IsCancellationRequested) {
                 if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
-                    logger.Error($"tcp({localPort}) response from {serverEndPoint} disconnect error");
+                    logger.Error($"{this} disconnect command error");
                 }
                 await DisconnectAsync();
             }
@@ -103,7 +108,8 @@ namespace TutoProxy.Client.Communication {
                 totalTransmitted += transmitted;
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({localPort}) request to {serverEndPoint}, bytes:{payload.ToShortDescriptions()}");
+                    logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
+                    processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
                 return transmitted;
             } catch(SocketException) {
