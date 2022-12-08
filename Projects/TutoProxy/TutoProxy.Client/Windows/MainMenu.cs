@@ -21,15 +21,26 @@ namespace TutoProxy.Client.Windows {
                         okButton.Clicked += () => {
                             Application.RequestStop ();
                         };
-                        var dialog = new Dialog ("About", 60, 10, okButton);
-                        var txtVersion = new TextField () {
+                        var dialog = new Dialog ("About", 60, 20, okButton);
+                        var txtVersion = new Label () {
                             X = 1,
                             Y = 1,
-                            Width = Dim.Fill (),
+                            Width = Dim.Fill(),
                             Height = 1,
                             Text = version
                         };
-                        dialog.Add (txtVersion);
+
+                        var mainWindow = Application.Top.Focused as MainWindow;
+                        var txtTitle = new Label () {
+                            X = 1,
+                            Y = 3,
+                            Width = Dim.Fill(),
+                            Height = Dim.Fill() - 3,
+                            Text = mainWindow?.Title,
+                            AutoSize = false
+                        };
+
+                        dialog.Add (txtVersion, txtTitle);
                         Application.Run (dialog);
                     })
             };
