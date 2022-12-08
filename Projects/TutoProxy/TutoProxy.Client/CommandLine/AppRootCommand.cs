@@ -82,7 +82,7 @@ namespace TutoProxy.Server.CommandLine {
 
                 Application.Init();
 
-                var mainWindow = new MainWindow(title);
+                var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
                 mainWindow.Ready += () => {
                     clientsService.Start(IPAddress.Parse(Sendto!), Tcp?.Ports, Udp?.Ports);
                     _ = Task.Run(async () => {

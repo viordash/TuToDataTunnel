@@ -15,7 +15,11 @@ namespace TutoProxy.Client.Windows {
         TreeNode tcpClients;
         TreeNode udpClients;
 
-        public MainWindow(string title) : base(title) {
+        Dictionary<int, TreeNode> tcpPortsNodes = new();
+        Dictionary<int, TreeNode> udpPortsNodes = new();
+
+
+        public MainWindow(string title, List<int>? tcpPorts, List<int>? udpPorts) : base(title) {
             X = 0;
             Y = 0;
             Width = Dim.Fill();
@@ -31,48 +35,81 @@ namespace TutoProxy.Client.Windows {
             Add(treeViewClients);
 
             tcpClients = new TreeNode();
-            RefreshTcpClientsTitle();
 
             udpClients = new TreeNode();
-            RefreshUdpClientsTitle();
 
             treeViewClients.AddObject(tcpClients);
             treeViewClients.AddObject(udpClients);
+
+            if(tcpPorts != null) {
+                foreach(var port in tcpPorts) {
+                    var node = new TreeNode() { Tag = port };
+                    tcpPortsNodes[port] = node;
+                    tcpClients.Children.Add(node);
+                }
+            }
+
+            if(udpPorts != null) {
+                foreach(var port in udpPorts) {
+                    var node = new TreeNode() { Tag = port };
+                    udpPortsNodes[port] = node;
+                    udpClients.Children.Add(node);
+                }
+            }
+
             treeViewClients.ExpandAll();
+            RefreshTcpClientsTitle();
+            RefreshUdpClientsTitle();
             SetupScrollBar();
         }
 
         void RefreshTcpClientsTitle() {
-            tcpClients.Text = $"TCP clients ({tcpClients.Children.Count})";
+            var count = 0;
+            foreach(var portNode in tcpClients.Children) {
+                count += portNode.Children.Count;
+                portNode.Text = $"port:{portNode.Tag,5} ({portNode.Children.Count})";
+            }
+            tcpClients.Text = $"TCP clients ({count})";
         }
 
         void RefreshUdpClientsTitle() {
-            udpClients.Text = $"UDP clients ({udpClients.Children.Count})";
+            var count = 0;
+            foreach(var portNode in udpClients.Children) {
+                count += portNode.Children.Count;
+                portNode.Text = $"port:{portNode.Tag,5} ({portNode.Children.Count})";
+            }
+            udpClients.Text = $"UDP clients ({count})";
         }
 
         public void AddTcpClient(BaseClient client) {
             Application.MainLoop.Invoke(() => {
-                if(tcpClients.Children.Any(x => x.Tag == client)) {
+                var selectedPortNode = tcpPortsNodes[client.Port];
+
+                if(selectedPortNode.Children.Any(x => x.Tag == client)) {
                     throw new TuToException($"{client}, already connected");
                 }
-                tcpClients.Children.Add(new TreeNode(client.ToString()) { Tag = client });
+
+                selectedPortNode.Children.Add(new TreeNode(client.ToString()) { Tag = client });
+                treeViewClients.Expand(selectedPortNode);
                 RefreshTcpClientsTitle();
-                treeViewClients.RefreshObject(tcpClients);
+                treeViewClients.RefreshObject(selectedPortNode);
             });
         }
 
         public void RemoveTcpClient(BaseClient client) {
             Application.MainLoop.Invoke(() => {
-                var node = tcpClients.Children.FirstOrDefault(x => x.Tag == client);
-                tcpClients.Children.Remove(node);
+                var selectedPortNode = tcpPortsNodes[client.Port];
+                var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
+                selectedPortNode.Children.Remove(node);
                 RefreshTcpClientsTitle();
-                treeViewClients.RefreshObject(tcpClients);
+                treeViewClients.RefreshObject(selectedPortNode);
             });
         }
 
         public void TcpClientData(BaseClient client, Int64 transmitted, Int64 received) {
             Application.MainLoop.Invoke(() => {
-                var node = tcpClients.Children.FirstOrDefault(x => x.Tag == client);
+                var selectedPortNode = tcpPortsNodes[client.Port];
+                var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
                 if(node != null) {
                     node.Text = $"{client}, tx:{transmitted,10}, rx:{received,10}";
                     treeViewClients.RefreshObject(node);
