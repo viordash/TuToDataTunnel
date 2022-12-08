@@ -63,35 +63,33 @@ namespace TutoProxy.Client.Communication {
 
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
 
-            while(socket.Connected && !cts.IsCancellationRequested) {
-                int receivedBytes;
-                try {
+            try {
+                while(socket.Connected && !cts.IsCancellationRequested) {
+                    int receivedBytes;
                     receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cts.Token);
                     if(receivedBytes == 0) {
                         break;
                     }
-                } catch(OperationCanceledException) {
-                    break;
-                } catch(SocketException ex) {
-                    logger.Error(ex.GetBaseException().Message);
-                    break;
-                } catch(Exception ex) {
-                    logger.Error(ex.GetBaseException().Message);
-                    break;
-                }
-                totalReceived += receivedBytes;
-                var data = receiveBuffer[..receivedBytes].ToArray();
 
-                var response = new TcpDataResponseModel() { Port = Port, OriginPort = OriginPort, Data = data };
-                var transmitted = await dataTunnelClient.SendTcpResponse(response, cts.Token);
-                if(receivedBytes != transmitted) {
-                    logger.Error($"{this} response transmit error ({transmitted})");
+                    totalReceived += receivedBytes;
+                    var data = receiveBuffer[..receivedBytes].ToArray();
+
+                    var response = new TcpDataResponseModel() { Port = Port, OriginPort = OriginPort, Data = data };
+                    var transmitted = await dataTunnelClient.SendTcpResponse(response, cts.Token);
+                    if(receivedBytes != transmitted) {
+                        logger.Error($"{this} response transmit error ({transmitted})");
+                    }
+                    if(responseLogTimer <= DateTime.Now) {
+                        responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                        logger.Information($"{this} response, bytes:{data.ToShortDescriptions()}.");
+                        processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
+                    }
                 }
-                if(responseLogTimer <= DateTime.Now) {
-                    responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"{this} response, bytes:{data.ToShortDescriptions()}.");
-                    processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
-                }
+            } catch(OperationCanceledException) {
+            } catch(SocketException ex) {
+                logger.Error(ex.GetBaseException().Message);
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
             }
             if(!cancellationTokenSource.IsCancellationRequested) {
                 if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {

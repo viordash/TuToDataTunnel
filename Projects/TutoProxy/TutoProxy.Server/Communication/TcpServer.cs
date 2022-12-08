@@ -123,27 +123,29 @@ namespace TutoProxy.Server.Communication {
 
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, client.CancellationToken.Token);
 
-            while(client.Socket.Connected && !cts.IsCancellationRequested) {
-                try {
+            try {
+                while(client.Socket.Connected && !cts.IsCancellationRequested) {
                     receivedBytes = await client.Socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cts.Token);
                     if(receivedBytes == 0) {
                         break;
                     }
-                } catch(OperationCanceledException) {
-                    break;
-                } catch(SocketException) {
-                    break;
+                    client.TotalReceived += receivedBytes;
+                    var data = receiveBuffer[..receivedBytes].ToArray();
+                    var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = port, OriginPort = client.RemoteEndPoint.Port, Data = data }, cts.Token);
+                    if(receivedBytes != transmitted) {
+                        logger.Error($"tcp({port}) request from {client.RemoteEndPoint} send error ({transmitted})");
+                    }
+                    if(requestLogTimer <= DateTime.Now) {
+                        requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                        logger.Information($"tcp({port}) request from {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
+                    }
                 }
-                client.TotalReceived += receivedBytes;
-                var data = receiveBuffer[..receivedBytes].ToArray();
-                var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = port, OriginPort = client.RemoteEndPoint.Port, Data = data }, cts.Token);
-                if(receivedBytes != transmitted) {
-                    logger.Error($"tcp({port}) request from {client.RemoteEndPoint} send error ({transmitted})");
-                }
-                if(requestLogTimer <= DateTime.Now) {
-                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"tcp({port}) request from {client.RemoteEndPoint}, bytes:{data.ToShortDescriptions()}");
-                }
+            } catch(OperationCanceledException ex) {
+                logger.Error(ex.GetBaseException().Message);
+            } catch(SocketException ex) {
+                logger.Error(ex.GetBaseException().Message);
+            } catch(Exception ex) {
+                logger.Error(ex.GetBaseException().Message);
             }
             if(!client.CancellationToken.IsCancellationRequested) {
                 var socketAddress = new SocketAddressModel() { Port = port, OriginPort = client.RemoteEndPoint.Port };
