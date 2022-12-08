@@ -16,7 +16,7 @@ namespace TutoProxy.Server.CommandLine {
     public class AppRootCommand : RootCommand {
         public AppRootCommand() : base("Прокси клиент TuTo") {
             Add(new Argument<string>("server", "Remote server address"));
-            Add(new Argument<string>("ip", "Local IP address"));
+            Add(new Argument<string>("sendto", "Sendto IP address"));
             Add(new Option<string>("--id", "Client ID"));
             var tcpOption = PortsArgument.CreateOption("--tcp", $"Tunneling ports, format like '--tcp=80,81,443,8000-8100'");
             var udpOption = PortsArgument.CreateOption("--udp", $"Tunneling ports, format like '--udp=700-900,65500'");
@@ -41,7 +41,7 @@ namespace TutoProxy.Server.CommandLine {
             readonly IProcessMonitor processMonitor;
 
             public string? Server { get; set; }
-            public string? Ip { get; set; }
+            public string? Sendto { get; set; }
             public string? Id { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
@@ -67,10 +67,10 @@ namespace TutoProxy.Server.CommandLine {
 
             public Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNull(Server, nameof(Server));
-                Guard.NotNullOrEmpty(Ip, nameof(Ip));
+                Guard.NotNullOrEmpty(Sendto, nameof(Sendto));
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
-                var title = $"Прокси клиент TuTo [{Id}], сервер {Server}";
+                var title = $"Connback proxy client TuTo [{Id}], {Server} >>>> {Sendto}";
                 var version = $"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}";
                 logger.Information(version);
                 logger.Information(title);
@@ -84,7 +84,7 @@ namespace TutoProxy.Server.CommandLine {
 
                 var mainWindow = new MainWindow(title);
                 mainWindow.Ready += () => {
-                    clientsService.Start(IPAddress.Parse(Ip!), Tcp?.Ports, Udp?.Ports);
+                    clientsService.Start(IPAddress.Parse(Sendto!), Tcp?.Ports, Udp?.Ports);
                     _ = Task.Run(async () => {
                         while(!appStoppingReg.Token.IsCancellationRequested) {
                             try {

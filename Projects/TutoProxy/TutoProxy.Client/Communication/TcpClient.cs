@@ -20,7 +20,7 @@ namespace TutoProxy.Client.Communication {
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
 
             socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            logger.Information($"tcp({localPort}) server: {serverEndPoint}, o-port: {OriginPort}, created");
+            logger.Information($"{this}, created");
         }
 
         public override string ToString() {

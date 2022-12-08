@@ -32,7 +32,7 @@ namespace TutoProxy.Client.Communication {
         }
 
         public override string ToString() {
-            return $"server: {serverEndPoint,20}, o-port:{OriginPort,5}";
+            return $" << srv: p{OriginPort,-5} < p{serverEndPoint.Port,-5}";
         }
     }
 }

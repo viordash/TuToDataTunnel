@@ -81,7 +81,6 @@ namespace TutoProxy.Client.Windows {
         }
 
         void SetupScrollBar() {
-            // When using scroll bar leave the last row of the control free (for over-rendering with scroll bar)
             treeViewClients.Style.LeaveLastRow = true;
 
             var scrollBar = new ScrollBarView(treeViewClients, true);
