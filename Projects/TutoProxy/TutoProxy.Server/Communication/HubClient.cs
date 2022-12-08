@@ -25,17 +25,18 @@ namespace TutoProxy.Server.Communication {
             cts = new CancellationTokenSource();
 
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
+            var processMonitor = serviceProvider.GetRequiredService<IProcessMonitor>();
             logger = serviceProvider.GetRequiredService<ILogger>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
-                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger));
+                    .ToDictionary(k => k, v => new TcpServer(v, localEndPoint, dataTransferService, logger, processMonitor));
             } else {
                 tcpServers = new();
             }
 
             if(udpPorts != null) {
                 udpServers = udpPorts
-                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, UdpSocketParams.ReceiveTimeout));
+                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, processMonitor, UdpSocketParams.ReceiveTimeout));
             } else {
                 udpServers = new();
             }

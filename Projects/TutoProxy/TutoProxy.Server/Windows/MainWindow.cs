@@ -1,5 +1,6 @@
 ﻿using Terminal.Gui;
 using Terminal.Gui.Trees;
+using TutoProxy.Server.Communication;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Windows {
@@ -74,41 +75,41 @@ namespace TutoProxy.Server.Windows {
             udpClients.Text = $"UDP clients ({count})";
         }
 
-        //public void AddTcpClient(BaseClient client) {
-        //    Application.MainLoop.Invoke(() => {
-        //        var selectedPortNode = tcpPortsNodes[client.Port];
+        public void AddTcpClient(BaseClient client) {
+            Application.MainLoop.Invoke(() => {
+                var selectedPortNode = tcpPortsNodes[client.Port];
 
-        //        if(selectedPortNode.Children.Any(x => x.Tag == client)) {
-        //            throw new TuToException($"{client}, already connected");
-        //        }
+                if(selectedPortNode.Children.Any(x => x.Tag == client)) {
+                    throw new TuToException($"{client}, already connected");
+                }
 
-        //        selectedPortNode.Children.Add(new TreeNode(client.ToString()) { Tag = client });
-        //        treeViewClients.Expand(selectedPortNode);
-        //        RefreshTcpClientsTitle();
-        //        treeViewClients.RefreshObject(selectedPortNode);
-        //    });
-        //}
+                selectedPortNode.Children.Add(new TreeNode(client.ToString()) { Tag = client });
+                treeViewClients.Expand(selectedPortNode);
+                RefreshTcpClientsTitle();
+                treeViewClients.RefreshObject(selectedPortNode);
+            });
+        }
 
-        //public void RemoveTcpClient(BaseClient client) {
-        //    Application.MainLoop.Invoke(() => {
-        //        var selectedPortNode = tcpPortsNodes[client.Port];
-        //        var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
-        //        selectedPortNode.Children.Remove(node);
-        //        RefreshTcpClientsTitle();
-        //        treeViewClients.RefreshObject(selectedPortNode);
-        //    });
-        //}
+        public void RemoveTcpClient(BaseClient client) {
+            Application.MainLoop.Invoke(() => {
+                var selectedPortNode = tcpPortsNodes[client.Port];
+                var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
+                selectedPortNode.Children.Remove(node);
+                RefreshTcpClientsTitle();
+                treeViewClients.RefreshObject(selectedPortNode);
+            });
+        }
 
-        //public void TcpClientData(BaseClient client, Int64 transmitted, Int64 received) {
-        //    Application.MainLoop.Invoke(() => {
-        //        var selectedPortNode = tcpPortsNodes[client.Port];
-        //        var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
-        //        if(node != null) {
-        //            node.Text = $"{client}, tx:{transmitted,10}, rx:{received,10}";
-        //            treeViewClients.RefreshObject(node);
-        //        }
-        //    });
-        //}
+        public void TcpClientData(BaseClient client, Int64 transmitted, Int64 received) {
+            Application.MainLoop.Invoke(() => {
+                var selectedPortNode = tcpPortsNodes[client.Port];
+                var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
+                if(node != null) {
+                    node.Text = $"{client}, tx:{transmitted,10}, rx:{received,10}";
+                    treeViewClients.RefreshObject(node);
+                }
+            });
+        }
 
         void SetupScrollBar() {
             treeViewClients.Style.LeaveLastRow = true;
