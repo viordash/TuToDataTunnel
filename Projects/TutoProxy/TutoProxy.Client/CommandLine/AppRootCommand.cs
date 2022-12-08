@@ -1,7 +1,5 @@
-﻿using System;
-using System.CommandLine;
+﻿using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Diagnostics;
 using System.Net;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
@@ -10,7 +8,6 @@ using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
 using TutoProxy.Client.Windows;
 using TuToProxy.Core.CommandLine;
-using TuToProxy.Core.Helpers;
 
 namespace TutoProxy.Server.CommandLine {
     public class AppRootCommand : RootCommand {
@@ -91,10 +88,10 @@ namespace TutoProxy.Server.CommandLine {
                                 Application.MainLoop.Invoke(() => {
                                     mainWindow.Title = $"{title} - connection to server...";
                                 });
-                                await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, appStoppingReg.Token);
+                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, appStoppingReg.Token);
 
                                 Application.MainLoop.Invoke(() => {
-                                    mainWindow.Title = $"{title} - connected";
+                                    mainWindow.Title = $"{title} - {connectionId}";
                                 });
                                 break;
                             } catch(HttpRequestException) {

@@ -98,6 +98,7 @@ namespace TutoProxy.Server.CommandLine {
                     sp.GetRequiredService<ILogger>(),
                     sp.GetRequiredService<IHostApplicationLifetime>(),
                     sp.GetRequiredService<IServiceProvider>(),
+                    sp.GetRequiredService<IProcessMonitor>(),
                     new IPEndPoint(IpAddressHelpers.ParseUrl(Host!), 0),
                     Tcp?.Ports,
                     Udp?.Ports,

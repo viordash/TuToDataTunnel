@@ -9,7 +9,7 @@ using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient : IDisposable {
-        Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
+        Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
@@ -48,7 +48,7 @@ namespace TutoProxy.Client.Communication {
         public void Dispose() {
         }
 
-        public async Task StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken) {
+        public async Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken) {
             Guard.NotNullOrEmpty(server, nameof(server));
             Guard.NotNull(tcpQuery ?? udpQuery, $"Tcp ?? Udp");
 
@@ -128,6 +128,7 @@ namespace TutoProxy.Client.Communication {
 
             await connection.StartAsync(cancellationToken);
             logger.Information("Connection started");
+            return connection.ConnectionId;
         }
 
         public async Task StopAsync() {

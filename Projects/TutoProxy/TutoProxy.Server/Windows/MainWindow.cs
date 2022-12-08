@@ -37,7 +37,7 @@ namespace TutoProxy.Server.Windows {
 
             if(tcpPorts != null) {
                 foreach(var port in tcpPorts) {
-                    var node = new TreeNode() { Tag = port };
+                    var node = new TreeNode() { Tag = $"port:{port,5}" };
                     tcpPortsNodes[port] = node;
                     tcpClients.Children.Add(node);
                 }
@@ -45,7 +45,7 @@ namespace TutoProxy.Server.Windows {
 
             if(udpPorts != null) {
                 foreach(var port in udpPorts) {
-                    var node = new TreeNode() { Tag = port };
+                    var node = new TreeNode() { Tag = $"port:{port,5}" };
                     udpPortsNodes[port] = node;
                     udpClients.Children.Add(node);
                 }
@@ -61,7 +61,7 @@ namespace TutoProxy.Server.Windows {
             var count = 0;
             foreach(var portNode in tcpClients.Children) {
                 count += portNode.Children.Count;
-                portNode.Text = $"port:{portNode.Tag,5} ({portNode.Children.Count})";
+                portNode.Text = $"{portNode.Tag} ({portNode.Children.Count})";
             }
             tcpClients.Text = $"TCP clients ({count})";
         }
@@ -70,9 +70,51 @@ namespace TutoProxy.Server.Windows {
             var count = 0;
             foreach(var portNode in udpClients.Children) {
                 count += portNode.Children.Count;
-                portNode.Text = $"port:{portNode.Tag,5} ({portNode.Children.Count})";
+                portNode.Text = $"{portNode.Tag} ({portNode.Children.Count})";
             }
             udpClients.Text = $"UDP clients ({count})";
+        }
+
+        public void HubClientConnected(string connectionId, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts) {
+            Application.MainLoop.Invoke(() => {
+                if(tcpPorts != null) {
+                    foreach(var port in tcpPorts) {
+                        var selectedPortNode = tcpPortsNodes[port];
+                        selectedPortNode.Tag = $"port:{port,5} (hub-client:{connectionId})";
+                    }
+                    RefreshTcpClientsTitle();
+                }
+
+                if(udpPorts != null) {
+                    foreach(var port in udpPorts) {
+                        var selectedPortNode = udpPortsNodes[port];
+                        selectedPortNode.Tag = $"port:{port,5} (hub-client:{connectionId})";
+                    }
+                    RefreshUdpClientsTitle();
+                }
+                treeViewClients.SetNeedsDisplay();
+            });
+        }
+
+        public void HubClientDisconnected(string connectionId, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts) {
+            Application.MainLoop.Invoke(() => {
+                if(tcpPorts != null) {
+                    foreach(var port in tcpPorts) {
+                        var selectedPortNode = tcpPortsNodes[port];
+                        selectedPortNode.Tag = $"port:{port,5}";
+                    }
+                    RefreshTcpClientsTitle();
+                }
+
+                if(udpPorts != null) {
+                    foreach(var port in udpPorts) {
+                        var selectedPortNode = udpPortsNodes[port];
+                        selectedPortNode.Tag = $"port:{port,5}";
+                    }
+                    RefreshUdpClientsTitle();
+                }
+                treeViewClients.SetNeedsDisplay();
+            });
         }
 
         public void AddTcpClient(BaseClient client) {
