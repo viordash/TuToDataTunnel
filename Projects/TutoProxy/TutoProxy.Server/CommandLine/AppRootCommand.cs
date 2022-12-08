@@ -14,6 +14,9 @@ using TuToProxy.Core.ServiceProvider;
 using TuToProxy.Core.Services;
 using MessagePack;
 using MessagePack.Resolvers;
+using System;
+using TutoProxy.Server.Windows;
+using Terminal.Gui;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -55,13 +58,14 @@ namespace TutoProxy.Server.CommandLine {
                 this.applicationLifetime = applicationLifetime;
             }
 
-            public async Task<int> InvokeAsync(InvocationContext context) {
+            public Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNullOrEmpty(Host, nameof(Host));
                 Guard.NotNull(Tcp ?? Udp, "Tcp ?? Udp");
 
-                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"Прокси сервер TuTo, хост {Host}, доступные tcp-порты {Tcp}, udp-порты {Udp}{(Clients != null ? ", клиенты " + Clients : "")}");
-
+                var title = $"Connback proxy server TuTo [{Host}], TCP ports: {Tcp}, UDP-ports: {Udp}{(Clients != null ? ", clients: " + Clients : "")}";
+                var version = $"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}";
+                logger.Information(version);
+                logger.Information(title);
 
                 var builder = WebApplication.CreateBuilder();
 
@@ -102,8 +106,20 @@ namespace TutoProxy.Server.CommandLine {
                 var app = builder.Build();
                 app.MapHub<SignalRHub>(SignalRParams.Path);
 
-                await app.RunAsync(Host);
-                return 0;
+                Application.Init();
+
+                var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
+                mainWindow.Ready += () => {
+                    _ = Task.Run(async () => {
+                        await app.RunAsync(Host);
+                    });
+                };
+
+                Application.Top.Add(new MainMenu(version), mainWindow);
+                Application.Run();
+                Application.Shutdown();
+
+                return Task.FromResult(0);
             }
         }
     }

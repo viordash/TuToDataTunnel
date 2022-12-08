@@ -112,7 +112,6 @@ namespace TutoProxy.Server.CommandLine {
 
                 Application.Top.Add(new MainMenu(version), mainWindow);
                 Application.Run();
-
                 Application.Shutdown();
                 applicationLifetime.StopApplication();
 

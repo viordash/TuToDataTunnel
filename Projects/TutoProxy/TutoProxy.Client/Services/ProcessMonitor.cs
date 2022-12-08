@@ -9,6 +9,7 @@ namespace TutoProxy.Client.Services {
         void TcpClientData(BaseClient client, Int64 transmitted, Int64 received);
     }
 
+
     public class ProcessMonitor : IProcessMonitor {
         public void ConnectTcpClient(BaseClient client) {
             var mainWindow = Application.Top.Focused as MainWindow;
