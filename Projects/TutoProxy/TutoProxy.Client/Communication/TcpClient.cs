@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
@@ -92,9 +91,11 @@ namespace TutoProxy.Client.Communication {
                 logger.Error(ex.GetBaseException().Message);
             }
             if(!cancellationTokenSource.IsCancellationRequested) {
-                if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
-                    logger.Error($"{this} disconnect command error");
-                }
+                try {
+                    if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
+                        logger.Error($"{this} disconnect command error");
+                    }
+                } catch(Exception) { }
                 await DisconnectAsync();
             }
         }

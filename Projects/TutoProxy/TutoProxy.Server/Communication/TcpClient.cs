@@ -73,11 +73,14 @@ namespace TutoProxy.Server.Communication {
             } catch(Exception ex) {
                 logger.Error(ex.GetBaseException().Message);
             }
+
             if(!cancellationTokenSource.IsCancellationRequested) {
                 var socketAddress = new SocketAddressModel() { Port = server.Port, OriginPort = OriginPort };
-                if(!await dataTransferService.DisconnectTcp(socketAddress, cancellationToken)) {
-                    logger.Error($"{this} disconnect command error");
-                }
+                try {
+                    if(!await dataTransferService.DisconnectTcp(socketAddress, cancellationToken)) {
+                        logger.Error($"{this} disconnect command error");
+                    }
+                } catch(Exception) { }
                 await ((TcpServer)server).DisconnectAsync(socketAddress);
             }
         }
