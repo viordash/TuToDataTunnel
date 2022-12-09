@@ -52,15 +52,15 @@ namespace TutoProxy.Client.Communication {
                 await socket.ConnectAsync(serverEndPoint);
                 processMonitor.ConnectTcpClient(this);
             } catch(SocketException ex) {
-                logger.Error($"{this}, socket ex: {ex.GetBaseException().Message}");
                 if(ex.SocketErrorCode == SocketError.ConnectionRefused && nestedLevel < 3) {
                     logger.Warning($"{this}, socket attempt to reconnect");
                     await Task.Delay(100 + nestedLevel * 400);
                     return await ConnectInternal(cancellationToken, nestedLevel + 1);
                 }
+                logger.Error($"{this}, connect socket ex: {ex.GetBaseException().Message}");
                 return ex.SocketErrorCode;
             } catch(Exception ex) {
-                logger.Error($"{this}, ex: {ex.GetBaseException().Message}");
+                logger.Error($"{this}, connect ex: {ex.GetBaseException().Message}");
                 return SocketError.SocketError;
             }
             localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
@@ -101,9 +101,9 @@ namespace TutoProxy.Client.Communication {
                 }
             } catch(OperationCanceledException) {
             } catch(SocketException ex) {
-                logger.Error(ex.GetBaseException().Message);
+                logger.Error($"{this} rx socket ex:{ex.GetBaseException().Message}");
             } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
+                logger.Error($"{this} rx ex:{ex.GetBaseException().Message}");
             }
             if(!cancellationTokenSource.IsCancellationRequested) {
                 try {
@@ -119,6 +119,9 @@ namespace TutoProxy.Client.Communication {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
             try {
                 var transmitted = await socket.SendAsync(payload, SocketFlags.None, cts.Token);
+                if(transmitted != payload.Length) {
+                    logger.Error($"{this} request transmit error ({transmitted} != {payload.Length})");
+                }
                 totalTransmitted += transmitted;
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -126,12 +129,13 @@ namespace TutoProxy.Client.Communication {
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
                 return transmitted;
-            } catch(SocketException) {
+            } catch(SocketException ex) {
+                logger.Error($"{this} send socket ex:{ex.GetBaseException().Message}");
                 return -3;
             } catch(ObjectDisposedException) {
                 return -2;
             } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
+                logger.Error($"{this} send ex:{ex.GetBaseException().Message}");
                 return -1;
             }
         }
