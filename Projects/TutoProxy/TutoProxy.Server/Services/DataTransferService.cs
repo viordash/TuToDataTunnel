@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.Net.Sockets;
+using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
 using TuToProxy.Core.Services;
 
@@ -9,7 +10,7 @@ namespace TutoProxy.Server.Services {
         Task HandleUdpResponse(string connectionId, UdpDataResponseModel response);
         void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
 
-        Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
+        Task<SocketError> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
         Task<int> SendTcpRequest(TcpDataRequestModel request, CancellationToken cancellationToken);
         ValueTask<int> HandleTcpResponse(string connectionId, TcpDataResponseModel response);
         Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
@@ -64,10 +65,10 @@ namespace TutoProxy.Server.Services {
             client.DisconnectUdp(socketAddress, totalTransfered);
         }
 
-        public Task<bool> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
+        public Task<SocketError> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
             logger.Debug($"ConnectTcp :{socketAddress}");
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
-            return signalHub.Clients.Client(connectionId).InvokeAsync<bool>("ConnectTcp", socketAddress, cancellationToken);
+            return signalHub.Clients.Client(connectionId).InvokeAsync<SocketError>("ConnectTcp", socketAddress, cancellationToken);
         }
 
         public async Task<int> SendTcpRequest(TcpDataRequestModel request, CancellationToken cancellationToken) {

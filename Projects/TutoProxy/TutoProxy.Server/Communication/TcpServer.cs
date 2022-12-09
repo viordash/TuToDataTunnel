@@ -45,12 +45,12 @@ namespace TutoProxy.Server.Communication {
                                 }
                             }
 
-                            bool clientConnected = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                            if(clientConnected) {
+                            var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            if(socketError == SocketError.Success) {
                                 var receivingAction = async () => await client.ReceivingStream(CancellationToken.Token);
                                 _ = Task.Run(receivingAction, CancellationToken.Token);
                             } else {
-                                logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}");
+                                logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
                                 await DisconnectAsync(socketAddress);
                             }
                         }

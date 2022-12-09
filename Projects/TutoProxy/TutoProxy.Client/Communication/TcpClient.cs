@@ -40,22 +40,25 @@ namespace TutoProxy.Client.Communication {
             GC.SuppressFinalize(this);
         }
 
-        public async ValueTask<bool> Connect(CancellationToken cancellationToken) {
+        public async ValueTask<SocketError> Connect(CancellationToken cancellationToken) {
             if(socket.Connected) {
                 logger.Error($"{this}, already connected");
-                return true;
+                return SocketError.Success;
             }
 
             try {
                 await socket.ConnectAsync(serverEndPoint);
                 processMonitor.ConnectTcpClient(this);
+            } catch(SocketException ex) {
+                logger.Error($"{this}, socket ex: {ex.GetBaseException().Message}");
+                return ex.SocketErrorCode;
             } catch(Exception ex) {
                 logger.Error($"{this}, ex: {ex.GetBaseException().Message}");
-                return false;
+                return SocketError.SocketError;
             }
             localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
             _ = Task.Run(async () => await ReceivingStream(cancellationToken), cancellationToken);
-            return true;
+            return SocketError.Success;
         }
 
         async Task ReceivingStream(CancellationToken cancellationToken) {

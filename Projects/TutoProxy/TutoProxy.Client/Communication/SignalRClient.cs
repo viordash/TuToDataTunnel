@@ -1,4 +1,5 @@
 ﻿using System.CommandLine;
+using System.Net.Sockets;
 using MessagePack;
 using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Http;
@@ -91,7 +92,7 @@ namespace TutoProxy.Client.Communication {
                 client.Disconnect(totalTransfered);
             });
 
-            connection.On<SocketAddressModel, bool>("ConnectTcp", async (socketAddress) => {
+            connection.On<SocketAddressModel, SocketError>("ConnectTcp", async (socketAddress) => {
                 logger.Debug($"HandleConnectTcp :{socketAddress}");
                 var client = clientsService.AddTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
                 return await client.Connect(cancellationToken);
