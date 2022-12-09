@@ -97,6 +97,7 @@ namespace TutoProxy.Client.Communication {
             connected = false;
             socket.Close();
             logger.Information($"{this}, destroyed");
+            GC.SuppressFinalize(this);
         }
 
         public void Disconnect(Int64 transferLimit) {

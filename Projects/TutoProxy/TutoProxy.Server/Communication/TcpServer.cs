@@ -1,6 +1,10 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using Terminal.Gui;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
 
@@ -29,22 +33,26 @@ namespace TutoProxy.Server.Communication {
 
                             logger.Information($"tcp({Port}) accept  {socket.RemoteEndPoint}");
 
+                            var socketAddress = new SocketAddressModel { Port = Port, OriginPort = ((IPEndPoint)socket.RemoteEndPoint!).Port };
                             var client = new TcpClient(socket, this, dataTransferService, logger, processMonitor);
-                            if(!remoteSockets.TryAdd(client.OriginPort, client)) {
-                                throw new TuToException($"{client} already exists");
-                            }
-
-                            _ = Task.Run(async () => {
-                                bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel { Port = Port, OriginPort = client.OriginPort },
-                                    CancellationToken.Token);
-                                if(clientConnected) {
-                                    await client.ReceivingStream(CancellationToken.Token);
-                                } else {
-                                    logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}");
+                            if(!remoteSockets.TryAdd(socketAddress.OriginPort, client)) {
+                                logger.Warning($"tcp({Port}): {client} already exists, try to remove");
+                                if(await DisconnectAsync(socketAddress)) {
+                                    logger.Warning($"tcp({Port}): {client} already exists, removed");
+                                }
+                                if(!remoteSockets.TryAdd(socketAddress.OriginPort, client)) {
+                                    throw new TuToException($"{client} already exists");
                                 }
                             }
-                            , CancellationToken.Token);
 
+                            bool clientConnected = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            if(clientConnected) {
+                                var receivingAction = async () => await client.ReceivingStream(CancellationToken.Token);
+                                _ = Task.Run(receivingAction, CancellationToken.Token);
+                            } else {
+                                logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}");
+                                await DisconnectAsync(socketAddress);
+                            }
                         }
                     } catch(Exception ex) {
                         logger.Error($"tcp({Port}): {ex.Message}");

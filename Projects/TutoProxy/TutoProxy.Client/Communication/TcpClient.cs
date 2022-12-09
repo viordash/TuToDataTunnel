@@ -37,19 +37,20 @@ namespace TutoProxy.Client.Communication {
             socket.Close(100);
             processMonitor.DisconnectTcpClient(this);
             logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
+            GC.SuppressFinalize(this);
         }
 
         public async ValueTask<bool> Connect(CancellationToken cancellationToken) {
             if(socket.Connected) {
                 logger.Error($"{this}, already connected");
-                return false;
+                return true;
             }
 
             try {
                 await socket.ConnectAsync(serverEndPoint);
                 processMonitor.ConnectTcpClient(this);
             } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
+                logger.Error($"{this}, ex: {ex.GetBaseException().Message}");
                 return false;
             }
             localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
