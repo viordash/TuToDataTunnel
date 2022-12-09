@@ -74,7 +74,7 @@ namespace TutoProxy.Client.Communication {
                     var data = receiveBuffer[..receivedBytes].ToArray();
 
                     var response = new TcpDataResponseModel() { Port = Port, OriginPort = OriginPort, Data = data };
-                    var transmitted = await dataTunnelClient.SendTcpResponse(response, cts.Token);
+                    var transmitted = await dataTunnelClient.SendTcpResponse(response, cancellationToken);
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} response transmit error ({transmitted})");
                     }
