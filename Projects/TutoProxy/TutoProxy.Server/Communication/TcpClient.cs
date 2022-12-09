@@ -19,6 +19,7 @@ namespace TutoProxy.Server.Communication {
 
             this.socket = socket;
             socket.ReceiveBufferSize = TcpSocketParams.ReceiveBufferSize;
+            socket.SendBufferSize = TcpSocketParams.ReceiveBufferSize;
             logger.Information($"{this}, created");
         }
 
