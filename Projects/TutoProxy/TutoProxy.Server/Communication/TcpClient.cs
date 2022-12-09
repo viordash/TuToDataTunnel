@@ -70,9 +70,9 @@ namespace TutoProxy.Server.Communication {
                 }
             } catch(OperationCanceledException) {
             } catch(SocketException ex) {
-                logger.Error(ex.GetBaseException().Message);
+                logger.Error($"{this} rx socket ex:{ex.GetBaseException().Message}");
             } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
+                logger.Error($"{this} rx ex:{ex.GetBaseException().Message}");
             }
 
             if(!cancellationTokenSource.IsCancellationRequested) {
@@ -90,6 +90,9 @@ namespace TutoProxy.Server.Communication {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
             try {
                 var transmitted = await socket.SendAsync(payload, SocketFlags.None, cts.Token);
+                if(transmitted != payload.Length) {
+                    logger.Error($"{this} response transmit error ({transmitted} != {payload.Length})");
+                }
                 totalTransmitted += transmitted;
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
@@ -97,12 +100,13 @@ namespace TutoProxy.Server.Communication {
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
                 return transmitted;
-            } catch(SocketException) {
+            } catch(SocketException ex) {
+                logger.Error($"{this} send socket ex:{ex.GetBaseException().Message}");
                 return -3;
             } catch(ObjectDisposedException) {
                 return -2;
             } catch(Exception ex) {
-                logger.Error(ex.GetBaseException().Message);
+                logger.Error($"{this} send ex:{ex.GetBaseException().Message}");
                 return -1;
             }
         }
