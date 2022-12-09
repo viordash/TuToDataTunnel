@@ -34,14 +34,17 @@ namespace TutoProxy.Server.Communication {
                                 throw new TuToException($"{client} already exists");
                             }
 
-                            bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel { Port = Port, OriginPort = client.OriginPort },
+                            _ = Task.Run(async () => {
+                                bool clientConnected = await dataTransferService.ConnectTcp(new SocketAddressModel { Port = Port, OriginPort = client.OriginPort },
                                     CancellationToken.Token);
-
-                            if(clientConnected) {
-                                _ = Task.Run(() => client.ReceivingStream(CancellationToken.Token), CancellationToken.Token);
-                            } else {
-                                logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}");
+                                if(clientConnected) {
+                                    await client.ReceivingStream(CancellationToken.Token);
+                                } else {
+                                    logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}");
+                                }
                             }
+                            , CancellationToken.Token);
+
                         }
                     } catch(Exception ex) {
                         logger.Error($"tcp({Port}): {ex.Message}");
