@@ -18,6 +18,7 @@ namespace TutoProxy.Server.Communication {
             : base(tcpServer, ((IPEndPoint)socket.RemoteEndPoint!).Port, dataTransferService, logger, processMonitor) {
 
             this.socket = socket;
+            socket.ReceiveBufferSize = TcpSocketParams.ReceiveBufferSize;
             logger.Information($"{this}, created");
         }
 
