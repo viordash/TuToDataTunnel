@@ -42,7 +42,6 @@ namespace TutoProxy.Client.Communication {
             GC.SuppressFinalize(this);
         }
 
-
         async ValueTask<SocketError> ConnectInternal(CancellationToken cancellationToken, int nestedLevel) {
             if(socket.Connected) {
                 logger.Error($"{this}, already connected");
@@ -53,11 +52,6 @@ namespace TutoProxy.Client.Communication {
                 await socket.ConnectAsync(serverEndPoint);
                 processMonitor.ConnectTcpClient(this);
             } catch(SocketException ex) {
-                if(ex.SocketErrorCode == SocketError.ConnectionRefused && nestedLevel < 3) {
-                    logger.Warning($"{this}, socket attempt to reconnect");
-                    await Task.Delay(100 + nestedLevel * 400);
-                    return await ConnectInternal(cancellationToken, nestedLevel + 1);
-                }
                 logger.Error($"{this}, connect socket ex: {ex.GetBaseException().Message}");
                 return ex.SocketErrorCode;
             } catch(Exception ex) {

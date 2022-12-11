@@ -38,25 +38,61 @@ namespace TutoProxy.Server.Communication {
                                 throw new TuToException($"{client} already exists");
                             }
 
-                            var receivingAction = async () => {
-                                var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                                if(socketError == SocketError.Success) {
-                                    await client.ReceivingStream(CancellationToken.Token);
-                                } else {
-                                    logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
-                                    await DisconnectAsync(socketAddress);
-                                }
-                            };
-                            _ = Task.Run(receivingAction, CancellationToken.Token);
+                            //var receivingAction = async () => {
+                            //    var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            //    if(socketError == SocketError.ConnectionRefused) {
+                            //        logger.Warning($"{this}, socket attempt to reconnect #1");
+                            //        await Task.Delay(200);
+                            //        socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            //        if(socketError == SocketError.ConnectionRefused) {
+                            //            logger.Warning($"{this}, socket attempt to reconnect #2");
+                            //            await Task.Delay(200);
+                            //            socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            //            if(socketError == SocketError.ConnectionRefused) {
+                            //                logger.Warning($"{this}, socket attempt to reconnect #3");
+                            //                await Task.Delay(200);
+                            //                socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            //                if(socketError == SocketError.ConnectionRefused) {
+                            //                    logger.Warning($"{this}, socket attempt to reconnect #4");
+                            //                    await Task.Delay(200);
+                            //                    socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            //                }
+                            //            }
+                            //        }
+                            //    }
+                            //    if(socketError == SocketError.Success) {
+                            //        await client.ReceivingStream(CancellationToken.Token);
+                            //    } else {
+                            //        logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
+                            //        await DisconnectAsync(socketAddress);
+                            //    }
+                            //};
+                            //_ = Task.Run(receivingAction, CancellationToken.Token);
 
-                            //var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                            //if(socketError == SocketError.Success) {
-                            //    var receivingAction = async () => await client.ReceivingStream(CancellationToken.Token);
-                            //    _ = Task.Run(receivingAction, CancellationToken.Token);
-                            //} else {
-                            //    logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
-                            //    await DisconnectAsync(socketAddress);
-                            //}
+                            var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            if(socketError == SocketError.ConnectionRefused) {
+                                logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #1");
+                                socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                if(socketError == SocketError.ConnectionRefused) {
+                                    logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #2");
+                                    socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                    if(socketError == SocketError.ConnectionRefused) {
+                                        logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #3");
+                                        socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                        if(socketError == SocketError.ConnectionRefused) {
+                                            logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #4");
+                                            socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                        }
+                                    }
+                                }
+                            }
+                            if(socketError == SocketError.Success) {
+                                var receivingAction = async () => await client.ReceivingStream(CancellationToken.Token);
+                                _ = Task.Run(receivingAction, CancellationToken.Token);
+                            } else {
+                                logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
+                                await DisconnectAsync(socketAddress);
+                            }
                         }
                     } catch(Exception ex) {
                         logger.Error($"tcp({Port}): {ex.Message}");
