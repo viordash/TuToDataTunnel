@@ -95,7 +95,11 @@ namespace TutoProxy.Client.Communication {
             connection.On<SocketAddressModel, SocketError>("ConnectTcp", async (socketAddress) => {
                 logger.Debug($"HandleConnectTcp :{socketAddress}");
                 var client = clientsService.AddTcpClient(socketAddress.Port, socketAddress.OriginPort, this);
-                return await client.Connect(cancellationToken);
+                var result = await client.Connect(cancellationToken);
+                if(result != SocketError.Success) {
+                    await client!.DisconnectAsync();
+                }
+                return result;
             });
 
             connection.On<TcpDataRequestModel, int>("TcpRequest", async (request) => {

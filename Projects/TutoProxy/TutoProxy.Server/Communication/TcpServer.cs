@@ -33,10 +33,7 @@ namespace TutoProxy.Server.Communication {
 
                             logger.Information($"tcp({Port}) accept  {socket.RemoteEndPoint}");
                             var socketAddress = new SocketAddressModel { Port = Port, OriginPort = ((IPEndPoint)socket.RemoteEndPoint!).Port };
-                            var client = new TcpClient(socket, this, dataTransferService, logger, processMonitor);
-                            if(!remoteSockets.TryAdd(socketAddress.OriginPort, client)) {
-                                throw new TuToException($"{client} already exists");
-                            }
+
 
                             //var receivingAction = async () => {
                             //    var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
@@ -87,11 +84,17 @@ namespace TutoProxy.Server.Communication {
                                 }
                             }
                             if(socketError == SocketError.Success) {
-                                var receivingAction = async () => await client.ReceivingStream(CancellationToken.Token);
-                                _ = Task.Run(receivingAction, CancellationToken.Token);
+                                var client = new TcpClient(socket, this, dataTransferService, logger, processMonitor);
+                                if(!remoteSockets.TryAdd(socketAddress.OriginPort, client)) {
+                                    logger.Error($"{client} already exists");
+                                    await client.DisposeAsync();
+                                } else {
+                                    var receivingAction = async () => await client.ReceivingStream(CancellationToken.Token);
+                                    _ = Task.Run(receivingAction, CancellationToken.Token);
+                                }
                             } else {
                                 logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
-                                await DisconnectAsync(socketAddress);
+                                socket.Close();
                             }
                         }
                     } catch(Exception ex) {
