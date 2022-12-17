@@ -2,21 +2,22 @@
 using System.CommandLine.Invocation;
 using System.Net;
 using System.Reflection;
+using MessagePack;
+using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using TuToProxy.Core.CommandLine;
+using Microsoft.Extensions.Logging;
+using Terminal.Gui;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
+using TutoProxy.Server.Windows;
 using TuToProxy.Core;
+using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Helpers;
 using TuToProxy.Core.ServiceProvider;
 using TuToProxy.Core.Services;
-using MessagePack;
-using MessagePack.Resolvers;
-using System;
-using TutoProxy.Server.Windows;
-using Terminal.Gui;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -40,7 +41,7 @@ namespace TutoProxy.Server.CommandLine {
         }
 
         public new class Handler : ICommandHandler {
-            readonly ILogger logger;
+            readonly Serilog.ILogger logger;
             readonly IHostApplicationLifetime applicationLifetime;
 
             public string? Host { get; set; }
@@ -49,7 +50,7 @@ namespace TutoProxy.Server.CommandLine {
             public AllowedClientsOption? Clients { get; set; }
 
             public Handler(
-                ILogger logger,
+                Serilog.ILogger logger,
                 IHostApplicationLifetime applicationLifetime
                 ) {
                 Guard.NotNull(logger, nameof(logger));
@@ -74,6 +75,9 @@ namespace TutoProxy.Server.CommandLine {
                     return ServiceProviderFactory.Instance;
                 });
 
+                builder.Logging.ClearProviders();
+                builder.Logging.AddSerilog();
+
                 builder.Services.
                     AddSignalR()
                       .AddHubOptions<SignalRHub>(options => {
@@ -95,7 +99,7 @@ namespace TutoProxy.Server.CommandLine {
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
                 builder.Services.AddSingleton<IProcessMonitor, ProcessMonitor>();
                 builder.Services.AddSingleton<IHubClientsService>((sp) => new HubClientsService(
-                    sp.GetRequiredService<ILogger>(),
+                    sp.GetRequiredService<Serilog.ILogger>(),
                     sp.GetRequiredService<IHostApplicationLifetime>(),
                     sp.GetRequiredService<IServiceProvider>(),
                     sp.GetRequiredService<IProcessMonitor>(),
