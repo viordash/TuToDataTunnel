@@ -77,6 +77,7 @@ namespace TutoProxy.Server.CommandLine {
                     clientsService.Stop();
                 });
 
+                Application.IsMouseDisabled = true;
                 Application.Init();
 
                 var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);

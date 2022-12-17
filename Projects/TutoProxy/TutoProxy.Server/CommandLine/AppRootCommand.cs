@@ -112,6 +112,7 @@ namespace TutoProxy.Server.CommandLine {
                 var app = builder.Build();
                 app.MapHub<SignalRHub>(SignalRParams.Path);
 
+                Application.IsMouseDisabled = true;
                 Application.Init();
 
                 var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
