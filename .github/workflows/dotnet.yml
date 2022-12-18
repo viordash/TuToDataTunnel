@@ -36,12 +36,5 @@ jobs:
       run: dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease  --no-self-contained --use-current-runtime -o ./out/win/TutoProxy.Client --os win -p:PublishProfile=FolderProfile -p:DebugType=None -p:DebugSymbols=false
     - name: Deploy-Linux-Client
       run: dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Client --os linux -p:PublishProfile=FolderProfile -p:DebugType=None 
-      
-    - name: Archive production artifacts
-    - uses: actions/upload-artifact@v3
-      with:
-          name: dist-without-markdown
-          path: |
-            ./out
 
 
