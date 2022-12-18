@@ -4,9 +4,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
-using Serilog;
 using TutoProxy.Server.Communication;
-using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Models;
 
@@ -61,6 +59,16 @@ namespace TutoProxy.Server.Tests.Services {
                     return udpServerMock.Object;
                 });
 
+        }
+
+        [Test]
+        public void Listen_Test() {
+            using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+                Enumerable.Range(1000, 4), serviceProviderMock.Object);
+
+            testable.Listen();
+            tcpServerMock.Verify(x => x.Listen(), Times.Exactly(10));
+            udpServerMock.Verify(x => x.Listen(), Times.Exactly(4));
         }
 
         [Test]
