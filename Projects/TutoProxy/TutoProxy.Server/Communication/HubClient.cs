@@ -12,7 +12,7 @@ namespace TutoProxy.Server.Communication {
         public IEnumerable<int>? UdpPorts { get; private set; }
 
         readonly Dictionary<int, TcpServer> tcpServers = new();
-        readonly Dictionary<int, UdpServer> udpServers = new();
+        readonly Dictionary<int, IUdpServer> udpServers = new();
         readonly CancellationTokenSource cts;
         readonly ILogger logger;
 
@@ -26,6 +26,7 @@ namespace TutoProxy.Server.Communication {
 
             var dataTransferService = serviceProvider.GetRequiredService<IDataTransferService>();
             var processMonitor = serviceProvider.GetRequiredService<IProcessMonitor>();
+            var serverFactory = serviceProvider.GetRequiredService<IServerFactory>();
             logger = serviceProvider.GetRequiredService<ILogger>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
@@ -36,7 +37,7 @@ namespace TutoProxy.Server.Communication {
 
             if(udpPorts != null) {
                 udpServers = udpPorts
-                    .ToDictionary(k => k, v => new UdpServer(v, localEndPoint, dataTransferService, logger, processMonitor, UdpSocketParams.ReceiveTimeout));
+                    .ToDictionary(k => k, v => serverFactory.CreateUdp(v, localEndPoint, UdpSocketParams.ReceiveTimeout));
             } else {
                 udpServers = new();
             }
@@ -63,14 +64,14 @@ namespace TutoProxy.Server.Communication {
         }
 
         public async Task SendUdpResponse(UdpDataResponseModel response) {
-            if(!udpServers.TryGetValue(response.Port, out UdpServer? server)) {
+            if(!udpServers.TryGetValue(response.Port, out IUdpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Udp, response.Port);
             }
             await server.SendResponse(response);
         }
 
         public void DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
-            if(!udpServers.TryGetValue(socketAddress.Port, out UdpServer? server)) {
+            if(!udpServers.TryGetValue(socketAddress.Port, out IUdpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Udp, socketAddress.Port);
             }
             server.Disconnect(socketAddress, totalTransfered);

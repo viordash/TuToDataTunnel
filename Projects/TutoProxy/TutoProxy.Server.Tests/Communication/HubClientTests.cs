@@ -2,12 +2,13 @@
 using System.Linq;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
-using TuToProxy.Core.Models;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
+using TuToProxy.Core.Models;
 
 namespace TutoProxy.Server.Tests.Services {
     public class HubClientTests {
@@ -19,6 +20,9 @@ namespace TutoProxy.Server.Tests.Services {
         Mock<IClientProxy> clientProxyMock;
         Mock<IDataTransferService> dataTransferServiceMock;
         Mock<IProcessMonitor> processMonitorMock;
+        Mock<IServerFactory> serverFactoryMock;
+        Mock<IUdpServer> udpServerMock;
+
         IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
         string? clientsRequest;
@@ -30,6 +34,8 @@ namespace TutoProxy.Server.Tests.Services {
             clientProxyMock = new();
             dataTransferServiceMock = new();
             processMonitorMock = new();
+            serverFactoryMock = new();
+            udpServerMock = new();
 
             clientsRequest = null;
             clientProxyMock
@@ -45,18 +51,52 @@ namespace TutoProxy.Server.Tests.Services {
                         _ when type == typeof(IDataTransferService) => dataTransferServiceMock.Object,
                         _ when type == typeof(ILogger) => loggerMock.Object,
                         _ when type == typeof(IProcessMonitor) => processMonitorMock.Object,
+                        _ when type == typeof(IServerFactory) => serverFactoryMock.Object,
                         _ => null
                     };
+                });
+
+            serverFactoryMock
+                .Setup(x => x.CreateUdp(It.IsAny<int>(), It.IsAny<IPEndPoint>(), It.IsAny<TimeSpan>()))
+                .Returns(() => {
+                    return udpServerMock.Object;
                 });
 
         }
 
         [Test]
+        public async Task SendUdpResponse_Test() {
+            using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+                Enumerable.Range(1000, 4), serviceProviderMock.Object);
+
+            await testable.SendUdpResponse(new UdpDataResponseModel() { Port = 1000, OriginPort = 1000, Data = new byte[] { 0, 1 } });
+            udpServerMock.Verify(x => x.SendResponse(It.IsAny<UdpDataResponseModel>()), Times.Once);
+        }
+
+        [Test]
         public void SendUdpResponse_Throws_SocketPortNotBoundException_Test() {
-            using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(), Enumerable.Range(1000, 4), serviceProviderMock.Object);
+            using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+                Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             Assert.ThrowsAsync<SocketPortNotBoundException>(async () => await testable.SendUdpResponse(
                 new UdpDataResponseModel() { Port = 11, OriginPort = 10000, Data = new byte[] { 0, 1 } }),
+                    "Udp socket port(11) not bound");
+        }
+
+        [Test]
+        public void DisconnectUdp_Test() {
+            using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+                Enumerable.Range(1000, 4), serviceProviderMock.Object);
+
+            testable.DisconnectUdp(new SocketAddressModel() { Port = 1000, OriginPort = 10000 }, 42);
+            udpServerMock.Verify(x => x.Disconnect(It.IsAny<SocketAddressModel>(), It.IsAny<long>()), Times.Once);
+        }
+
+        [Test]
+        public void DisconnectUdp_Throws_SocketPortNotBoundException_Test() {
+            using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(), Enumerable.Range(1000, 4), serviceProviderMock.Object);
+
+            Assert.Throws<SocketPortNotBoundException>(() => testable.DisconnectUdp(new SocketAddressModel() { Port = 11, OriginPort = 10000 }, 42),
                     "Udp socket port(11) not bound");
         }
     }
