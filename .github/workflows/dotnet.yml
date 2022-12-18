@@ -37,4 +37,9 @@ jobs:
     - name: Deploy-Linux-Client
       run: dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Client --os linux -p:PublishProfile=FolderProfile -p:DebugType=None 
 
-
+    - name: 'Upload Server Win'
+      uses: actions/upload-artifact@v3
+      with:
+        name: win-Server
+        path: ./out/win/TutoProxy.Server/TutoProxy.Server.exe
+        retention-days: 30
