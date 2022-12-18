@@ -9,21 +9,17 @@ namespace TutoProxy.Client.Tests.Services {
     public class UdpClientsServiceTests {
 
         public class TestableUdpClient : UdpClient {
-
-            public TestableUdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient)
-                : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient) {
+            public TestableUdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient,
+                    IProcessMonitor processMonitor)
+                : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
             }
 
             protected override TimeSpan ReceiveTimeout { get { return TimeSpan.FromMilliseconds(1000); } }
-
-            protected override System.Net.Sockets.UdpClient CreateSocket() {
-                return new System.Net.Sockets.UdpClient();
-            }
         }
 
         class TestableClientsService : ClientsService {
-            public TestableClientsService(ILogger logger, IClientFactory clientFactory)
-                : base(logger, clientFactory) {
+            public TestableClientsService(ILogger logger, IClientFactory clientFactory, IProcessMonitor processMonitor)
+                : base(logger, clientFactory, processMonitor) {
             }
 
             public ConcurrentDictionary<int, ConcurrentDictionary<int, UdpClient>> PublicMorozovUdpClients {
@@ -35,6 +31,7 @@ namespace TutoProxy.Client.Tests.Services {
         Mock<IClientFactory> clientFactoryMock;
         Mock<IClientsService> clientsServiceMock;
         Mock<ISignalRClient> signalRClientMock;
+        Mock<IProcessMonitor> processMonitorMock;
 
         TestableClientsService testable;
 
@@ -44,14 +41,16 @@ namespace TutoProxy.Client.Tests.Services {
             clientFactoryMock = new();
             clientsServiceMock = new();
             signalRClientMock = new();
+            processMonitorMock = new();
 
             clientFactoryMock
-                .Setup(x => x.CreateUdp(It.IsAny<IPAddress>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IClientsService>(), It.IsAny<ISignalRClient>()))
-                .Returns<IPAddress, int, int, IClientsService, ISignalRClient>((localIpAddress, port, originPort, clientsService, dataTunnelClient) => {
-                    return new TestableUdpClient(new IPEndPoint(localIpAddress, port), originPort, loggerMock.Object, clientsServiceMock.Object, signalRClientMock.Object);
+                .Setup(x => x.CreateUdp(It.IsAny<IPAddress>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IClientsService>(), It.IsAny<ISignalRClient>(), It.IsAny<IProcessMonitor>()))
+                .Returns<IPAddress, int, int, IClientsService, ISignalRClient, IProcessMonitor>((localIpAddress, port, originPort, clientsService, dataTunnelClient, processMonitor) => {
+                    return new TestableUdpClient(new IPEndPoint(localIpAddress, port), originPort, loggerMock.Object, clientsServiceMock.Object, signalRClientMock.Object,
+                        processMonitorMock.Object);
                 });
 
-            testable = new TestableClientsService(loggerMock.Object, clientFactoryMock.Object);
+            testable = new TestableClientsService(loggerMock.Object, clientFactoryMock.Object, processMonitorMock.Object);
         }
 
         [Test]

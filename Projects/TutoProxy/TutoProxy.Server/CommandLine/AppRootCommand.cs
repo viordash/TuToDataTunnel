@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Terminal.Gui;
+using TutoProxy.Server.Communication;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
 using TutoProxy.Server.Windows;
@@ -98,6 +99,7 @@ namespace TutoProxy.Server.CommandLine {
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
                 builder.Services.AddSingleton<IProcessMonitor, ProcessMonitor>();
+                builder.Services.AddSingleton<IServerFactory, ServerFactory>();
                 builder.Services.AddSingleton<IHubClientsService>((sp) => new HubClientsService(
                     sp.GetRequiredService<Serilog.ILogger>(),
                     sp.GetRequiredService<IHostApplicationLifetime>(),

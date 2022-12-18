@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using Terminal.Gui;
 using TutoProxy.Server.Services;
-using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Communication {
-    public class TcpServer : BaseServer {
+    public interface ITcpServer : IDisposable {
+        Task Listen();
+        ValueTask<int> SendResponse(TcpDataResponseModel response, CancellationToken cancellationToken);
+        ValueTask<bool> DisconnectAsync(SocketAddressModel socketAddress);
+    }
+
+    public class TcpServer : BaseServer, ITcpServer {
         readonly TcpListener tcpServer;
         readonly CancellationTokenSource CancellationToken;
 
@@ -33,38 +34,6 @@ namespace TutoProxy.Server.Communication {
 
                             logger.Information($"tcp({Port}) accept  {socket.RemoteEndPoint}");
                             var socketAddress = new SocketAddressModel { Port = Port, OriginPort = ((IPEndPoint)socket.RemoteEndPoint!).Port };
-
-
-                            //var receivingAction = async () => {
-                            //    var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                            //    if(socketError == SocketError.ConnectionRefused) {
-                            //        logger.Warning($"{this}, socket attempt to reconnect #1");
-                            //        await Task.Delay(200);
-                            //        socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                            //        if(socketError == SocketError.ConnectionRefused) {
-                            //            logger.Warning($"{this}, socket attempt to reconnect #2");
-                            //            await Task.Delay(200);
-                            //            socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                            //            if(socketError == SocketError.ConnectionRefused) {
-                            //                logger.Warning($"{this}, socket attempt to reconnect #3");
-                            //                await Task.Delay(200);
-                            //                socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                            //                if(socketError == SocketError.ConnectionRefused) {
-                            //                    logger.Warning($"{this}, socket attempt to reconnect #4");
-                            //                    await Task.Delay(200);
-                            //                    socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
-                            //                }
-                            //            }
-                            //        }
-                            //    }
-                            //    if(socketError == SocketError.Success) {
-                            //        await client.ReceivingStream(CancellationToken.Token);
-                            //    } else {
-                            //        logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
-                            //        await DisconnectAsync(socketAddress);
-                            //    }
-                            //};
-                            //_ = Task.Run(receivingAction, CancellationToken.Token);
 
                             var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
                             if(socketError == SocketError.ConnectionRefused) {

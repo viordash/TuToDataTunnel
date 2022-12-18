@@ -8,7 +8,13 @@ using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Communication {
-    public class UdpServer : BaseServer {
+    public interface IUdpServer : IDisposable {
+        Task Listen();
+        Task SendResponse(UdpDataResponseModel response);
+        void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered);
+    }
+
+    public class UdpServer : BaseServer, IUdpServer {
         #region inner classes
         public class RemoteEndPoint : IDisposable {
             readonly Action<int> timeoutAction;
