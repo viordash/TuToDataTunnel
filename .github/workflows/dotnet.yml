@@ -43,3 +43,10 @@ jobs:
         name: win-Server
         path: ./out/win/TutoProxy.Server/TutoProxy.Server.exe
         retention-days: 30
+        
+    - name: 'Upload Server Linux'
+      uses: actions/upload-artifact@v3
+      with:
+        name: linux-Server
+        path: ./out/linux/TutoProxy.Server/TutoProxy.Server.exe
+        retention-days: 30
