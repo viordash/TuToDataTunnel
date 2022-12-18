@@ -71,6 +71,7 @@ namespace TutoProxy.Server.Tests.Services {
                         _ when type == typeof(IDataTransferService) => dataTransferServiceMock.Object,
                         _ when type == typeof(ILogger) => loggerMock.Object,
                         _ when type == typeof(IDateTimeService) => dateTimeServiceMock.Object,
+                        _ when type == typeof(IProcessMonitor) => processMonitorMock.Object,
                         _ => null
                     };
                 });

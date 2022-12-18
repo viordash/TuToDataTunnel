@@ -18,6 +18,7 @@ namespace TutoProxy.Server.Tests.Services {
         Mock<IServiceProvider> serviceProviderMock;
         Mock<IClientProxy> clientProxyMock;
         Mock<IDataTransferService> dataTransferServiceMock;
+        Mock<IProcessMonitor> processMonitorMock;
         IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
         string? clientsRequest;
@@ -28,6 +29,7 @@ namespace TutoProxy.Server.Tests.Services {
             serviceProviderMock = new();
             clientProxyMock = new();
             dataTransferServiceMock = new();
+            processMonitorMock = new();
 
             clientsRequest = null;
             clientProxyMock
@@ -42,6 +44,7 @@ namespace TutoProxy.Server.Tests.Services {
                     return type switch {
                         _ when type == typeof(IDataTransferService) => dataTransferServiceMock.Object,
                         _ when type == typeof(ILogger) => loggerMock.Object,
+                        _ when type == typeof(IProcessMonitor) => processMonitorMock.Object,
                         _ => null
                     };
                 });
