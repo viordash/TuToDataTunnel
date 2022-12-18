@@ -26,3 +26,13 @@ jobs:
       run: dotnet build ./Projects/TutoProxy/TutoProxy.sln --no-restore 
     - name: Test
       run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
+      
+    - name: Deploy-Win-Server
+      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Server/TutoProxy.Server.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/win/TutoProxy.Server --os win -p:PublishProfile=FolderProfile -p:DebugType=None -p:DebugSymbols=false
+    - name: Deploy-Linux-Server
+      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Server/TutoProxy.Server.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Server --os linux -p:PublishProfile=FolderProfile -p:DebugType=None 
+
+    - name: Deploy-Win-Client
+      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease  --no-self-contained --use-current-runtime -o ./out/win/TutoProxy.Client --os win -p:PublishProfile=FolderProfile -p:DebugType=None -p:DebugSymbols=false
+    - name: Deploy-Linux-Client
+      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Client --os linux -p:PublishProfile=FolderProfile -p:DebugType=None 
