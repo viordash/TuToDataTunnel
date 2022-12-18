@@ -23,6 +23,7 @@ namespace TutoProxy.Server.Services {
         protected readonly ConcurrentDictionary<string, HubClient> connectedClients = new();
         readonly IHostApplicationLifetime applicationLifetime;
         readonly IServiceProvider serviceProvider;
+        readonly IProcessMonitor processMonitor;
         readonly IPEndPoint localEndPoint;
         readonly IEnumerable<int>? alowedTcpPorts;
         readonly IEnumerable<int>? alowedUdpPorts;
@@ -32,6 +33,7 @@ namespace TutoProxy.Server.Services {
             ILogger logger,
             IHostApplicationLifetime applicationLifetime,
             IServiceProvider serviceProvider,
+            IProcessMonitor processMonitor,
             IPEndPoint localEndPoint,
             IEnumerable<int>? alowedTcpPorts,
             IEnumerable<int>? alowedUdpPorts,
@@ -39,11 +41,13 @@ namespace TutoProxy.Server.Services {
             Guard.NotNull(logger, nameof(logger));
             Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
             Guard.NotNull(serviceProvider, nameof(serviceProvider));
+            Guard.NotNull(processMonitor, nameof(processMonitor));
             Guard.NotNull(localEndPoint, nameof(localEndPoint));
             Guard.NotNull(alowedTcpPorts ?? alowedUdpPorts, "alowedTcpPorts ?? alowedUdpPorts");
             this.logger = logger;
             this.applicationLifetime = applicationLifetime;
             this.serviceProvider = serviceProvider;
+            this.processMonitor = processMonitor;
             this.localEndPoint = localEndPoint;
             this.alowedTcpPorts = alowedTcpPorts;
             this.alowedUdpPorts = alowedUdpPorts;
@@ -118,12 +122,14 @@ namespace TutoProxy.Server.Services {
             if(connectedClients.TryAdd(connectionId, hubClient)) {
                 logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
                 hubClient.Listen();
+                processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
             }
         }
 
         public void Disconnect(string connectionId) {
             logger.Information($"Disconnect hubClient :{connectionId}");
             if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {
+                processMonitor.DisconnectHubClient(connectionId, hubClient.TcpPorts, hubClient.UdpPorts);
                 hubClient.Dispose();
             }
         }

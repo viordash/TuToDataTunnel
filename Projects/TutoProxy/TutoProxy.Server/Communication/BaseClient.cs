@@ -1,26 +1,22 @@
-﻿using System.Net;
-using TutoProxy.Client.Services;
+﻿using TutoProxy.Server.Services;
 
-namespace TutoProxy.Client.Communication {
+namespace TutoProxy.Server.Communication {
 
     public abstract class BaseClient : IAsyncDisposable {
-        protected readonly IPEndPoint serverEndPoint;
+        protected readonly IDataTransferService dataTransferService;
         protected readonly ILogger logger;
         protected readonly CancellationTokenSource cancellationTokenSource;
-
-        protected readonly IClientsService clientsService;
-        protected readonly ISignalRClient dataTunnelClient;
         protected readonly IProcessMonitor processMonitor;
+        protected readonly BaseServer server;
 
-        public int Port { get { return serverEndPoint.Port; } }
+        public int Port { get { return server.Port; } }
         public int OriginPort { get; private set; }
 
-        public BaseClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, IProcessMonitor processMonitor) {
-            this.serverEndPoint = serverEndPoint;
+        public BaseClient(BaseServer server, int originPort, IDataTransferService dataTransferService, ILogger logger, IProcessMonitor processMonitor) {
+            this.server = server;
             OriginPort = originPort;
+            this.dataTransferService = dataTransferService;
             this.logger = logger;
-            this.clientsService = clientsService;
-            this.dataTunnelClient = dataTunnelClient;
             cancellationTokenSource = new CancellationTokenSource();
             this.processMonitor = processMonitor;
         }
@@ -32,7 +28,7 @@ namespace TutoProxy.Client.Communication {
         }
 
         public override string ToString() {
-            return $"<< srv: {OriginPort,5}";
+            return $"{OriginPort,5}";
         }
     }
 }

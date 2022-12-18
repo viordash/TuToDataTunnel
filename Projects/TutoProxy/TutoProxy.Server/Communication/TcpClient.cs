@@ -1,13 +1,12 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using TutoProxy.Client.Services;
+using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
 
-namespace TutoProxy.Client.Communication {
+namespace TutoProxy.Server.Communication {
 
     public class TcpClient : BaseClient {
-        int? localPort = null;
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
         readonly Socket socket;
@@ -15,21 +14,22 @@ namespace TutoProxy.Client.Communication {
         Int64 totalTransmitted;
         Int64 totalReceived;
 
-        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, IProcessMonitor processMonitor)
-            : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
+        public TcpClient(Socket socket, BaseServer tcpServer, IDataTransferService dataTransferService, ILogger logger, IProcessMonitor processMonitor)
+            : base(tcpServer, ((IPEndPoint)socket.RemoteEndPoint!).Port, dataTransferService, logger, processMonitor) {
 
-            socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            this.socket = socket;
             socket.ReceiveBufferSize = TcpSocketParams.ReceiveBufferSize;
             socket.SendBufferSize = TcpSocketParams.ReceiveBufferSize;
             logger.Information($"{this}, created");
         }
 
         public override string ToString() {
-            return $"tcp({localPort,5}) {base.ToString()}";
+            return $"tcp({base.ToString()})";
         }
 
         public override async ValueTask DisposeAsync() {
             await base.DisposeAsync();
+
             try {
                 socket.Shutdown(SocketShutdown.Both);
             } catch(SocketException) { }
@@ -38,38 +38,14 @@ namespace TutoProxy.Client.Communication {
             } catch(SocketException) { }
             socket.Close(100);
             processMonitor.DisconnectTcpClient(this);
-            logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
-            GC.SuppressFinalize(this);
+            logger.Information($"{this}, disconnected, tx:{totalTransmitted}, rx:{totalReceived}");
         }
 
-        async ValueTask<SocketError> ConnectInternal(CancellationToken cancellationToken, int nestedLevel) {
-            if(socket.Connected) {
-                logger.Error($"{this}, already connected");
-                return SocketError.Success;
-            }
 
-            try {
-                await socket.ConnectAsync(serverEndPoint);
-                processMonitor.ConnectTcpClient(this);
-            } catch(SocketException ex) {
-                logger.Error($"{this}, connect socket ex: {ex.GetBaseException().Message}");
-                return ex.SocketErrorCode;
-            } catch(Exception ex) {
-                logger.Error($"{this}, connect ex: {ex.GetBaseException().Message}");
-                return SocketError.SocketError;
-            }
-            localPort = (socket.LocalEndPoint as IPEndPoint)!.Port;
-            _ = Task.Run(async () => await ReceivingStream(cancellationToken), cancellationToken);
-            return SocketError.Success;
-        }
-
-        public ValueTask<SocketError> Connect(CancellationToken cancellationToken) {
-            return ConnectInternal(cancellationToken, 0);
-        }
-
-        async Task ReceivingStream(CancellationToken cancellationToken) {
+        public async Task ReceivingStream(CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
 
+            processMonitor.ConnectTcpClient(this);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
 
             try {
@@ -83,14 +59,13 @@ namespace TutoProxy.Client.Communication {
                     totalReceived += receivedBytes;
                     var data = receiveBuffer[..receivedBytes].ToArray();
 
-                    var response = new TcpDataResponseModel() { Port = Port, OriginPort = OriginPort, Data = data };
-                    var transmitted = await dataTunnelClient.SendTcpResponse(response, cancellationToken);
+                    var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = server.Port, OriginPort = OriginPort, Data = data }, cancellationToken);
                     if(receivedBytes != transmitted) {
-                        logger.Error($"{this} response transmit error ({transmitted})");
+                        logger.Error($"{this} request transmit error ({transmitted})");
                     }
                     if(responseLogTimer <= DateTime.Now) {
                         responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                        logger.Information($"{this} response, bytes:{data.ToShortDescriptions()}.");
+                        logger.Information($"{this} request, bytes:{data.ToShortDescriptions()}.");
                         processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                     }
                 }
@@ -100,27 +75,29 @@ namespace TutoProxy.Client.Communication {
             } catch(Exception ex) {
                 logger.Error($"{this} rx ex:{ex.GetBaseException().Message}");
             }
+
             if(!cancellationTokenSource.IsCancellationRequested) {
+                var socketAddress = new SocketAddressModel() { Port = server.Port, OriginPort = OriginPort };
                 try {
-                    if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
+                    if(!await dataTransferService.DisconnectTcp(socketAddress, cancellationToken)) {
                         logger.Error($"{this} disconnect command error");
                     }
                 } catch(Exception) { }
-                await DisconnectAsync();
+                await ((TcpServer)server).DisconnectAsync(socketAddress);
             }
         }
 
-        public async ValueTask<int> SendRequest(byte[] payload, CancellationToken cancellationToken) {
+        public async ValueTask<int> SendDataAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken) {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
             try {
                 var transmitted = await socket.SendAsync(payload, SocketFlags.None, cts.Token);
                 if(transmitted != payload.Length) {
-                    logger.Error($"{this} request transmit error ({transmitted} != {payload.Length})");
+                    logger.Error($"{this} response transmit error ({transmitted} != {payload.Length})");
                 }
                 totalTransmitted += transmitted;
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
+                    logger.Information($"{this} response, bytes:{payload.ToArray().ToShortDescriptions()}");
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
                 return transmitted;
@@ -133,10 +110,6 @@ namespace TutoProxy.Client.Communication {
                 logger.Error($"{this} send ex:{ex.GetBaseException().Message}");
                 return -1;
             }
-        }
-
-        public ValueTask<bool> DisconnectAsync() {
-            return clientsService.RemoveTcpClient(Port, OriginPort);
         }
 
     }

@@ -2,18 +2,22 @@
 using System.CommandLine.Invocation;
 using System.Net;
 using System.Reflection;
+using MessagePack;
+using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using TuToProxy.Core.CommandLine;
+using Microsoft.Extensions.Logging;
+using Terminal.Gui;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
+using TutoProxy.Server.Windows;
 using TuToProxy.Core;
+using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Helpers;
 using TuToProxy.Core.ServiceProvider;
 using TuToProxy.Core.Services;
-using MessagePack;
-using MessagePack.Resolvers;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -37,7 +41,7 @@ namespace TutoProxy.Server.CommandLine {
         }
 
         public new class Handler : ICommandHandler {
-            readonly ILogger logger;
+            readonly Serilog.ILogger logger;
             readonly IHostApplicationLifetime applicationLifetime;
 
             public string? Host { get; set; }
@@ -46,7 +50,7 @@ namespace TutoProxy.Server.CommandLine {
             public AllowedClientsOption? Clients { get; set; }
 
             public Handler(
-                ILogger logger,
+                Serilog.ILogger logger,
                 IHostApplicationLifetime applicationLifetime
                 ) {
                 Guard.NotNull(logger, nameof(logger));
@@ -55,13 +59,14 @@ namespace TutoProxy.Server.CommandLine {
                 this.applicationLifetime = applicationLifetime;
             }
 
-            public async Task<int> InvokeAsync(InvocationContext context) {
+            public Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNullOrEmpty(Host, nameof(Host));
                 Guard.NotNull(Tcp ?? Udp, "Tcp ?? Udp");
 
-                logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"Прокси сервер TuTo, хост {Host}, доступные tcp-порты {Tcp}, udp-порты {Udp}{(Clients != null ? ", клиенты " + Clients : "")}");
-
+                var title = $"Connback proxy server TuTo [{Host}], TCP ports: {Tcp}, UDP-ports: {Udp}{(Clients != null ? ", clients: " + Clients : "")}";
+                var version = $"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}";
+                logger.Information(version);
+                logger.Information(title);
 
                 var builder = WebApplication.CreateBuilder();
 
@@ -70,10 +75,13 @@ namespace TutoProxy.Server.CommandLine {
                     return ServiceProviderFactory.Instance;
                 });
 
+                builder.Logging.ClearProviders();
+                builder.Logging.AddSerilog();
+
                 builder.Services.
                     AddSignalR()
                       .AddHubOptions<SignalRHub>(options => {
-                          options.MaximumReceiveMessageSize = 1024 * 1024;
+                          options.MaximumReceiveMessageSize = 512 * 1024;
                           options.MaximumParallelInvocationsPerClient = 256;
                           //options.EnableDetailedErrors = true;
                       })
@@ -89,10 +97,12 @@ namespace TutoProxy.Server.CommandLine {
                 builder.Services.AddSingleton<IIdService, IdService>();
                 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
+                builder.Services.AddSingleton<IProcessMonitor, ProcessMonitor>();
                 builder.Services.AddSingleton<IHubClientsService>((sp) => new HubClientsService(
-                    sp.GetRequiredService<ILogger>(),
+                    sp.GetRequiredService<Serilog.ILogger>(),
                     sp.GetRequiredService<IHostApplicationLifetime>(),
                     sp.GetRequiredService<IServiceProvider>(),
+                    sp.GetRequiredService<IProcessMonitor>(),
                     new IPEndPoint(IpAddressHelpers.ParseUrl(Host!), 0),
                     Tcp?.Ports,
                     Udp?.Ports,
@@ -102,8 +112,21 @@ namespace TutoProxy.Server.CommandLine {
                 var app = builder.Build();
                 app.MapHub<SignalRHub>(SignalRParams.Path);
 
-                await app.RunAsync(Host);
-                return 0;
+                Application.IsMouseDisabled = true;
+                Application.Init();
+
+                var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
+                mainWindow.Ready += () => {
+                    _ = Task.Run(async () => {
+                        await app.RunAsync(Host);
+                    });
+                };
+
+                Application.Top.Add(new MainMenu(version), mainWindow);
+                Application.Run();
+                Application.Shutdown();
+
+                return Task.FromResult(0);
             }
         }
     }

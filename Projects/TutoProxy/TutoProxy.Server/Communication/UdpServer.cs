@@ -51,8 +51,8 @@ namespace TutoProxy.Server.Communication {
 
         protected readonly ConcurrentDictionary<int, RemoteEndPoint> remoteEndPoints = new();
 
-        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, TimeSpan receiveTimeout)
-            : base(port, localEndPoint, dataTransferService, logger) {
+        public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IProcessMonitor processMonitor, TimeSpan receiveTimeout)
+            : base(port, localEndPoint, dataTransferService, logger, processMonitor) {
             udpServer = new UdpClient(new IPEndPoint(localEndPoint.Address, port));
             udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             cts = new CancellationTokenSource();
@@ -68,7 +68,7 @@ namespace TutoProxy.Server.Communication {
                             var result = await udpServer.ReceiveAsync(cancellationToken);
                             AddRemoteEndPoint(result.RemoteEndPoint);
                             await dataTransferService.SendUdpRequest(new UdpDataRequestModel() {
-                                Port = port, OriginPort = result.RemoteEndPoint.Port,
+                                Port = Port, OriginPort = result.RemoteEndPoint.Port,
                                 Data = result.Buffer
                             });
                             if(requestLogTimer <= DateTime.Now) {
@@ -85,13 +85,13 @@ namespace TutoProxy.Server.Communication {
 
         public async Task SendResponse(UdpDataResponseModel response) {
             if(cancellationToken.IsCancellationRequested) {
-                await dataTransferService.DisconnectUdp(new SocketAddressModel() { Port = port, OriginPort = response.OriginPort }, Int64.MinValue);
-                logger.Error($"udp({port}) response to canceled {response.OriginPort}");
+                await dataTransferService.DisconnectUdp(new SocketAddressModel() { Port = Port, OriginPort = response.OriginPort }, Int64.MinValue);
+                logger.Error($"udp({Port}) response to canceled {response.OriginPort}");
                 return;
             }
             if(!remoteEndPoints.TryGetValue(response.OriginPort, out RemoteEndPoint? remoteEndPoint)) {
-                await dataTransferService.DisconnectUdp(new SocketAddressModel() { Port = port, OriginPort = response.OriginPort }, Int64.MinValue);
-                logger.Error($"udp({port}) response to missed {response.OriginPort}");
+                await dataTransferService.DisconnectUdp(new SocketAddressModel() { Port = Port, OriginPort = response.OriginPort }, Int64.MinValue);
+                logger.Error($"udp({Port}) response to missed {response.OriginPort}");
                 return;
             }
             await udpServer.SendAsync(response.Data, remoteEndPoint.EndPoint, cancellationToken);

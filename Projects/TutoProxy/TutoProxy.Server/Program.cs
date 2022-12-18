@@ -12,8 +12,9 @@ class Program {
             .UseHost(_ => new HostBuilder(), builder => builder
                 .UseCommandHandler<AppRootCommand, AppRootCommand.Handler>()
                 .UseSerilog((_, config) => config
-                    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u1}]{Message:lj}{NewLine}{Exception}")
-                    .WriteTo.File("log-.txt", rollingInterval: RollingInterval.Day)
+                    //.WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u1}]{Message:lj}{NewLine}{Exception}")
+                    .WriteTo.File("log-.txt", rollingInterval: RollingInterval.Day,
+                             restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning)
                 )
                 .UseServiceProviderFactory(context => {
                     var factory = ServiceProviderFactory.Instance;
