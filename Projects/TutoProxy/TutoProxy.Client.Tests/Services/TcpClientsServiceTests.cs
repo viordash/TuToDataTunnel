@@ -53,18 +53,18 @@ namespace TutoProxy.Client.Tests.Services {
         }
 
         [Test]
-        public void ObtainTcpClient_With_Banned_TcpPort_Are_Throws_Test() {
+        public void AddTcpClient_With_Banned_TcpPort_Are_Throws_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
-            Assert.Throws<ClientNotFoundException>(() => testable.ObtainTcpClient(999, 50999, out _));
-            Assert.Throws<ClientNotFoundException>(() => testable.ObtainTcpClient(1005, 51005, out _));
+            Assert.Throws<ClientNotFoundException>(() => testable.AddTcpClient(999, 50999, signalRClientMock.Object));
+            Assert.Throws<ClientNotFoundException>(() => testable.AddTcpClient(1005, 51005, signalRClientMock.Object));
         }
 
         [Test]
-        public void ObtainTcpClient_Only_Once_Creating_List_With_Same_Port_Clients_Test() {
+        public void AddTcpClient_Only_Once_Creating_List_With_Same_Port_Clients_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
-            Assert.IsTrue(testable.ObtainTcpClient(1000, 51000, out TcpClient? client0));
+            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
             Assert.IsNotNull(client0);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
@@ -73,7 +73,7 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
             Assert.That(testable.PublicMorozovTcpClients[1000][51000], Is.SameAs(client0));
 
-            Assert.IsTrue(testable.ObtainTcpClient(1000, 51001, out TcpClient? client1));
+            var client1 = testable.AddTcpClient(1000, 51001, signalRClientMock.Object);
             Assert.IsNotNull(client1);
             Assert.That(client1.Port, Is.EqualTo(1000));
             Assert.That(client1.OriginPort, Is.EqualTo(51001));
@@ -84,15 +84,15 @@ namespace TutoProxy.Client.Tests.Services {
         }
 
         [Test]
-        public void ObtainTcpClient_Only_Once_Creating_Same_Port_Client_Test() {
+        public void AddTcpClient_Only_Once_Creating_Same_Port_Client_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
-            Assert.IsTrue(testable.ObtainTcpClient(1000, 51000, out TcpClient? client0));
+            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
             Assert.IsNotNull(client0);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
-            Assert.IsTrue(testable.ObtainTcpClient(1000, 51000, out TcpClient? client1));
+            var client1 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
             Assert.That(client1, Is.SameAs(client0));
 
             Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
