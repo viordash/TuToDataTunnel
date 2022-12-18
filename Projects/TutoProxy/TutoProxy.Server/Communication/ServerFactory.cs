@@ -3,6 +3,7 @@ using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
     public interface IServerFactory {
+        ITcpServer CreateTcp(int port, IPEndPoint localEndPoint);
         IUdpServer CreateUdp(int port, IPEndPoint localEndPoint, TimeSpan receiveTimeout);
     }
     public class ServerFactory : IServerFactory {
@@ -20,6 +21,10 @@ namespace TutoProxy.Server.Communication {
             this.logger = logger;
             this.dataTransferService = dataTransferService;
             this.processMonitor = processMonitor;
+        }
+
+        public ITcpServer CreateTcp(int port, IPEndPoint localEndPoint) {
+            return new TcpServer(port, localEndPoint, dataTransferService, logger, processMonitor);
         }
 
         public IUdpServer CreateUdp(int port, IPEndPoint localEndPoint, TimeSpan receiveTimeout) {
