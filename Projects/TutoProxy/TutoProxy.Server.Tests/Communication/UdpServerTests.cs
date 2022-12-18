@@ -21,10 +21,11 @@ namespace TutoProxy.Server.Tests.Communication {
 
         Mock<ILogger> loggerMock;
         Mock<IDataTransferService> dataTransferServiceMock;
+        Mock<IProcessMonitor> processMonitorMock;
 
         class TestableUdpServer : UdpServer {
-            public TestableUdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, TimeSpan receiveTimeout)
-                : base(port, localEndPoint, dataTransferService, logger, receiveTimeout) {
+            public TestableUdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IProcessMonitor processMonitor, TimeSpan receiveTimeout)
+                : base(port, localEndPoint, dataTransferService, logger, processMonitor, receiveTimeout) {
             }
 
             public void PublicMorozovAddRemoteEndPoint(IPEndPoint endPoint) {
@@ -45,14 +46,14 @@ namespace TutoProxy.Server.Tests.Communication {
         public void Setup() {
             loggerMock = new();
             dataTransferServiceMock = new();
-
+            processMonitorMock = new();
         }
 
         [Test]
         [Retry(3)]
         public async Task RemoteEndPoints_Are_AutoDelete_After_Timeout_Test() {
             using var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
-                TimeSpan.FromMilliseconds(500));
+               processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
             Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
@@ -73,7 +74,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Retry(3)]
         public async Task Add_Already_Exists_RemoteEndPoint_Increase_Timeout_Test() {
             using var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
-                TimeSpan.FromMilliseconds(500));
+                processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
             Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
@@ -98,7 +99,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Retry(3)]
         public async Task OnDispose_The_RemoteEndPoint_Timer_Cancelling_Test() {
             var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
-               TimeSpan.FromMilliseconds(500));
+               processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
