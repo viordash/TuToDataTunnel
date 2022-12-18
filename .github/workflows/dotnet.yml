@@ -48,5 +48,5 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: linux-Server
-        path: ./out/linux/TutoProxy.Server/TutoProxy.Server.exe
+        path: ./out/linux/TutoProxy.Server/TutoProxy.Server
         retention-days: 30
