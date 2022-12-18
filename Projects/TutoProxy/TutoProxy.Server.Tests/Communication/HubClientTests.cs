@@ -58,7 +58,6 @@ namespace TutoProxy.Server.Tests.Services {
                 .Returns(() => {
                     return udpServerMock.Object;
                 });
-
         }
 
         [Test]

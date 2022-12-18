@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -42,6 +41,9 @@ namespace TutoProxy.Server.Tests.Services {
         Mock<IDataTransferService> dataTransferServiceMock;
         Mock<IDateTimeService> dateTimeServiceMock;
         Mock<IProcessMonitor> processMonitorMock;
+        Mock<IServerFactory> serverFactoryMock;
+        Mock<ITcpServer> tcpServerMock;
+        Mock<IUdpServer> udpServerMock;
         IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
         DateTime nowDateTime;
@@ -56,6 +58,9 @@ namespace TutoProxy.Server.Tests.Services {
             dataTransferServiceMock = new();
             dateTimeServiceMock = new();
             processMonitorMock = new();
+            serverFactoryMock = new();
+            tcpServerMock = new();
+            udpServerMock = new();
 
             clientsRequest = null;
             clientProxyMock
@@ -72,6 +77,7 @@ namespace TutoProxy.Server.Tests.Services {
                         _ when type == typeof(ILogger) => loggerMock.Object,
                         _ when type == typeof(IDateTimeService) => dateTimeServiceMock.Object,
                         _ when type == typeof(IProcessMonitor) => processMonitorMock.Object,
+                        _ when type == typeof(IServerFactory) => serverFactoryMock.Object,
                         _ => null
                     };
                 });
@@ -80,6 +86,18 @@ namespace TutoProxy.Server.Tests.Services {
             dateTimeServiceMock
                 .SetupGet(x => x.Now)
                 .Returns(() => nowDateTime);
+
+            serverFactoryMock
+                .Setup(x => x.CreateTcp(It.IsAny<int>(), It.IsAny<IPEndPoint>()))
+                .Returns(() => {
+                    return tcpServerMock.Object;
+                });
+
+            serverFactoryMock
+                .Setup(x => x.CreateUdp(It.IsAny<int>(), It.IsAny<IPEndPoint>(), It.IsAny<TimeSpan>()))
+                .Returns(() => {
+                    return udpServerMock.Object;
+                });
         }
 
         [Test]
