@@ -27,7 +27,9 @@ namespace TutoProxy.Client.Communication {
                 this.logger = logger;
             }
             public TimeSpan? NextRetryDelay(RetryContext retryContext) {
-                logger.Warning(retryContext.RetryReason?.Message);
+                if(retryContext.RetryReason?.Message != null) {
+                    logger.Warning(retryContext.RetryReason.Message);
+                }
                 return TimeSpan.FromSeconds(Math.Min(retryContext.PreviousRetryCount + 1, 60));
             }
         }
@@ -133,7 +135,7 @@ namespace TutoProxy.Client.Communication {
 
             await connection.StartAsync(cancellationToken);
             logger.Information("Connection started");
-            return connection.ConnectionId;
+            return connection.ConnectionId ?? "????";
         }
 
         public async Task StopAsync() {

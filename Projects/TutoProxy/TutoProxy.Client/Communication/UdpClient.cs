@@ -21,10 +21,6 @@ namespace TutoProxy.Client.Communication {
 
             timeoutTimer = new(OnTimedEvent, null, ReceiveTimeout, Timeout.InfiniteTimeSpan);
             socket = new System.Net.Sockets.UdpClient(serverEndPoint.AddressFamily);
-            uint IOC_IN = 0x80000000;
-            uint IOC_VENDOR = 0x18000000;
-            uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-            socket.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
             socket.ExclusiveAddressUse = false;
             socket.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             logger.Information($"udp for server: {serverEndPoint}, o-port: {OriginPort}, created");
