@@ -26,46 +26,35 @@ jobs:
     - name: Test
       run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal       
 
-  publish:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:      
-    - name: Win-Server
-      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Server/TutoProxy.Server.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/win/TutoProxy.Server --os win -p:PublishProfile=FolderProfile -p:DebugType=None -p:DebugSymbols=false
-    - name: Linux-Server
-      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Server/TutoProxy.Server.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Server --os linux -p:PublishProfile=FolderProfile -p:DebugType=None 
+    - name: Publish
+      run: |
+        dotnet publish ./Projects/TutoProxy/TutoProxy.Server/TutoProxy.Server.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/win/TutoProxy.Server --os win -p:PublishProfile=FolderProfile -p:DebugType=None -p:DebugSymbols=false
+        dotnet publish ./Projects/TutoProxy/TutoProxy.Server/TutoProxy.Server.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Server --os linux -p:PublishProfile=FolderProfile -p:DebugType=None 
+        dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/win/TutoProxy.Client --os win -p:PublishProfile=FolderProfile -p:DebugType=None -p:DebugSymbols=false
+        dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Client --os linux -p:PublishProfile=FolderProfile -p:DebugType=None   
 
-    - name: Win-Client
-      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease  --no-self-contained --use-current-runtime -o ./out/win/TutoProxy.Client --os win -p:PublishProfile=FolderProfile -p:DebugType=None -p:DebugSymbols=false
-    - name: Linux-Client
-      run: dotnet publish ./Projects/TutoProxy/TutoProxy.Client/TutoProxy.Client.csproj -c PublishRelease --no-self-contained --use-current-runtime -o ./out/linux/TutoProxy.Client --os linux -p:PublishProfile=FolderProfile -p:DebugType=None   
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: publish
-    steps:
-    - name: Win-Server
+    - name: Deploy Win-Server
       uses: actions/upload-artifact@v3
       with:
         name: win-Server
         path: ./out/win/TutoProxy.Server/TutoProxy.Server.exe
         retention-days: 30
 
-    - name: Win-Client
+    - name: Deploy Win-Client
       uses: actions/upload-artifact@v3
       with:
         name: win-Client
         path: ./out/win/TutoProxy.Client/TutoProxy.Client.exe
         retention-days: 30        
         
-    - name: Linux-Server
+    - name: Deploy Linux-Server
       uses: actions/upload-artifact@v3
       with:
         name: linux-Server
         path: ./out/linux/TutoProxy.Server/TutoProxy.Server
         retention-days: 30  
         
-    - name: Linux-Client
+    - name: Deploy Linux-Client
       uses: actions/upload-artifact@v3
       with:
         name: linux-Client
