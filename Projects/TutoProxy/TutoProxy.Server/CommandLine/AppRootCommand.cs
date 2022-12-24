@@ -22,7 +22,7 @@ using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
-        public AppRootCommand() : base("Прокси сервер TuTo") {
+        public AppRootCommand() : base("Connback proxy server TuTo") {
             Add(new Argument<string>("host", "Local host address"));
             var tcpOption = PortsArgument.CreateOption("--tcp", $"Allowed ports, format like '--tcp=80,81,443,8000-8100'");
             var udpOption = PortsArgument.CreateOption("--udp", $"Allowed ports, format like '--udp=700-900,65500'");
