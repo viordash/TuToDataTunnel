@@ -11,7 +11,7 @@ using TuToProxy.Core.CommandLine;
 
 namespace TutoProxy.Server.CommandLine {
     public class AppRootCommand : RootCommand {
-        public AppRootCommand() : base("Прокси клиент TuTo") {
+        public AppRootCommand() : base("Connback proxy client TuTo") {
             Add(new Argument<string>("server", "Remote server address"));
             Add(new Argument<string>("sendto", "Sendto IP address"));
             Add(new Option<string>("--id", "Client ID"));
