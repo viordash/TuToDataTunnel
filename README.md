@@ -1,12 +1,13 @@
 
 # TuToDataTunnel 
+[![.NET](https://github.com/viordash/TuToDataTunnel/actions/workflows/dotnet.yml/badge.svg?branch=main)](https://github.com/viordash/TuToDataTunnel/actions/workflows/dotnet.yml)
 ## Reverse websocket/http data tunnel on .NET + SignalR.
 
 ![Demo preview](./article/tutoproxy.png)
 
 
 
-### Applications   [![.NET](https://github.com/viordash/TuToDataTunnel/actions/workflows/dotnet.yml/badge.svg?branch=main)](https://github.com/viordash/TuToDataTunnel/actions/workflows/dotnet.yml)
+### Applications
 
 The [TutoProxy.Server](https://github.com/viordash/TuToDataTunnel/tree/main/Projects/TutoProxy/TutoProxy.Server) application is an inbound server for tunneling clients and for tcp/udp end-clients. 
 cmd arguments:
