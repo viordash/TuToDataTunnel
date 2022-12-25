@@ -29,7 +29,7 @@ cmd arguments:
 
 For example, start output traffic tunneling on 5 tcp and 3 udp ports: 
 
-    TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 --tcp=8071,10000,20004-20006 --udp=7000-7002 - -id=Client0Linux
+    TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 --tcp=8071,10000,20004-20006 --udp=7000-7002 --id=Client0Linux
 
 
 *Keep in mind that ports of different TutoProxy.Clients should not overlap, i.e. each client serves a unique set of sockets/ports.*
