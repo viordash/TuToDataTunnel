@@ -17,7 +17,7 @@ cmd arguments:
 
 For example, start input traffic tunneling on 50 tcp/udp ports to 3 clients: 
 
-    TutoProxy.Server http://200.100.10.1:8088 --tcp=3389,8071-8073,10000-10010,20000-20010 -- udp=5000-5010,7000-7010 --clients=Client0Linux,ClientSecLinux,Client3Win
+    TutoProxy.Server http://200.100.10.1:8088 --tcp=3389,8071-8073,10000-10010,20000-20010 --udp=5000-5010,7000-7010 --clients=Client0Linux,ClientSecLinux,Client3Win
 
 The [TutoProxy.Client](https://github.com/viordash/TuToDataTunnel/tree/main/Projects/TutoProxy/TutoProxy.Client) is an output tunneling client. 
 cmd arguments:
