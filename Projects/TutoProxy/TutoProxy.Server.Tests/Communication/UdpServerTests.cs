@@ -1,16 +1,11 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
-using TuToProxy.Core.Services;
 
 
 namespace TutoProxy.Server.Tests.Communication {

@@ -5,7 +5,6 @@ using System.Reflection;
 using MessagePack;
 using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -18,7 +17,6 @@ using TuToProxy.Core;
 using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Helpers;
 using TuToProxy.Core.ServiceProvider;
-using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
@@ -95,8 +93,6 @@ namespace TutoProxy.Server.CommandLine {
                             .WithSecurity(MessagePackSecurity.UntrustedData);
                     });
 
-                builder.Services.AddSingleton<IIdService, IdService>();
-                builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
                 builder.Services.AddSingleton<IProcessMonitor, ProcessMonitor>();
                 builder.Services.AddSingleton<IServerFactory, ServerFactory>();

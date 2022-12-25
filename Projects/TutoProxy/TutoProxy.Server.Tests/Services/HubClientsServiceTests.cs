@@ -10,7 +10,6 @@ using Serilog;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
 using TuToProxy.Core.Exceptions;
-using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Tests.Services {
     public class HubClientsServiceTests {
@@ -39,15 +38,11 @@ namespace TutoProxy.Server.Tests.Services {
         Mock<IServiceProvider> serviceProviderMock;
         Mock<IClientProxy> clientProxyMock;
         Mock<IDataTransferService> dataTransferServiceMock;
-        Mock<IDateTimeService> dateTimeServiceMock;
         Mock<IProcessMonitor> processMonitorMock;
         Mock<IServerFactory> serverFactoryMock;
         Mock<ITcpServer> tcpServerMock;
         Mock<IUdpServer> udpServerMock;
         IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
-
-        DateTime nowDateTime;
-        string? clientsRequest;
 
         [SetUp]
         public void Setup() {
@@ -56,18 +51,10 @@ namespace TutoProxy.Server.Tests.Services {
             serviceProviderMock = new();
             clientProxyMock = new();
             dataTransferServiceMock = new();
-            dateTimeServiceMock = new();
             processMonitorMock = new();
             serverFactoryMock = new();
             tcpServerMock = new();
             udpServerMock = new();
-
-            clientsRequest = null;
-            clientProxyMock
-                .Setup(x => x.SendCoreAsync(It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
-                .Callback<string, object?[], CancellationToken>((method, args, cancellationToken) => {
-                    clientsRequest = args[0] as string;
-                });
 
             serviceProviderMock
                 .Setup(x => x.GetService(It.IsAny<Type>()))
@@ -75,17 +62,11 @@ namespace TutoProxy.Server.Tests.Services {
                     return type switch {
                         _ when type == typeof(IDataTransferService) => dataTransferServiceMock.Object,
                         _ when type == typeof(ILogger) => loggerMock.Object,
-                        _ when type == typeof(IDateTimeService) => dateTimeServiceMock.Object,
                         _ when type == typeof(IProcessMonitor) => processMonitorMock.Object,
                         _ when type == typeof(IServerFactory) => serverFactoryMock.Object,
                         _ => null
                     };
                 });
-
-            nowDateTime = DateTime.Now;
-            dateTimeServiceMock
-                .SetupGet(x => x.Now)
-                .Returns(() => nowDateTime);
 
             serverFactoryMock
                 .Setup(x => x.CreateTcp(It.IsAny<int>(), It.IsAny<IPEndPoint>()))

@@ -139,8 +139,18 @@ namespace TutoProxy.Client.Tests.Services {
 
             await Task.Delay(600);
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Once);
+        }
 
+        [Test]
+        public void Stop_Test() {
+            testable.Start(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
+            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            Assert.IsNotNull(testable.ObtainUdpClient(1001, 51001, signalRClientMock.Object));
+
+            testable.Stop();
+
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.Empty);
         }
     }
 }

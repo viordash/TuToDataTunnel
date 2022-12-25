@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
-using Terminal.Gui;
+﻿using Terminal.Gui;
 using Terminal.Gui.Trees;
 using TutoProxy.Client.Communication;
 using TuToProxy.Core.Exceptions;
@@ -109,6 +103,42 @@ namespace TutoProxy.Client.Windows {
         public void TcpClientData(BaseClient client, Int64 transmitted, Int64 received) {
             Application.MainLoop.Invoke(() => {
                 var selectedPortNode = tcpPortsNodes[client.Port];
+                var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
+                if(node != null) {
+                    node.Text = $"{client}, tx:{transmitted,10}, rx:{received,10}";
+                    treeViewClients.RefreshObject(node);
+                }
+            });
+        }
+
+        public void AddUdpClient(BaseClient client) {
+            Application.MainLoop.Invoke(() => {
+                var selectedPortNode = udpPortsNodes[client.Port];
+
+                if(selectedPortNode.Children.Any(x => x.Tag == client)) {
+                    throw new TuToException($"{client}, already connected");
+                }
+
+                selectedPortNode.Children.Add(new TreeNode(client.ToString()) { Tag = client });
+                treeViewClients.Expand(selectedPortNode);
+                RefreshUdpClientsTitle();
+                treeViewClients.RefreshObject(selectedPortNode);
+            });
+        }
+
+        public void RemoveUdpClient(BaseClient client) {
+            Application.MainLoop.Invoke(() => {
+                var selectedPortNode = udpPortsNodes[client.Port];
+                var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
+                selectedPortNode.Children.Remove(node);
+                RefreshUdpClientsTitle();
+                treeViewClients.RefreshObject(selectedPortNode);
+            });
+        }
+
+        public void UdpClientData(BaseClient client, Int64 transmitted, Int64 received) {
+            Application.MainLoop.Invoke(() => {
+                var selectedPortNode = udpPortsNodes[client.Port];
                 var node = selectedPortNode.Children.FirstOrDefault(x => x.Tag == client);
                 if(node != null) {
                     node.Text = $"{client}, tx:{transmitted,10}, rx:{received,10}";

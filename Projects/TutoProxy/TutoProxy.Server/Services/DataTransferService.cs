@@ -1,7 +1,6 @@
 ﻿using System.Net.Sockets;
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
-using TuToProxy.Core.Services;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
@@ -19,26 +18,18 @@ namespace TutoProxy.Server.Services {
 
     public class DataTransferService : IDataTransferService {
         readonly ILogger logger;
-        readonly IDateTimeService dateTimeService;
-        readonly IIdService idService;
         readonly IHubContext<SignalRHub> signalHub;
         readonly IHubClientsService clientsService;
 
         public DataTransferService(
                 ILogger logger,
-                IIdService idService,
-                IDateTimeService dateTimeService,
                 IHubContext<SignalRHub> hubContext,
                 IHubClientsService clientsService
             ) {
             Guard.NotNull(logger, nameof(logger));
-            Guard.NotNull(idService, nameof(idService));
-            Guard.NotNull(dateTimeService, nameof(dateTimeService));
             Guard.NotNull(hubContext, nameof(hubContext));
             Guard.NotNull(clientsService, nameof(clientsService));
             this.logger = logger;
-            this.idService = idService;
-            this.dateTimeService = dateTimeService;
             this.signalHub = hubContext;
             this.clientsService = clientsService;
         }
