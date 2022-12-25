@@ -16,6 +16,9 @@ namespace TutoProxy.Client.Communication {
         protected readonly Timer timeoutTimer;
         readonly System.Net.Sockets.UdpClient socket;
 
+        Int64 totalTransmitted;
+        Int64 totalReceived;
+
         public UdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, IProcessMonitor processMonitor)
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
 
@@ -41,10 +44,12 @@ namespace TutoProxy.Client.Communication {
         }
 
         public async Task SendRequest(byte[] payload, CancellationToken cancellationToken) {
-            var txCount = await socket!.SendAsync(payload, serverEndPoint, cancellationToken);
+            var transmitted = await socket!.SendAsync(payload, serverEndPoint, cancellationToken);
+            totalTransmitted += transmitted;
             if(requestLogTimer <= DateTime.Now) {
                 requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
                 logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
+                processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
             }
         }
 
@@ -56,17 +61,20 @@ namespace TutoProxy.Client.Communication {
             _ = Task.Run(async () => {
                 try {
                     connected = true;
+                    processMonitor.ConnectUdpClient(this);
                     while(connected && !cancellationToken.IsCancellationRequested) {
                         var result = await socket.ReceiveAsync(cancellationToken);
                         if(result.Buffer.Length == 0) {
                             break;
                         }
+                        totalReceived += result.Buffer.Length;
                         var response = new UdpDataResponseModel() { Port = request.Port, OriginPort = request.OriginPort, Data = result.Buffer };
                         await dataTunnelClient.SendUdpResponse(response, cancellationToken);
 
                         if(responseLogTimer <= DateTime.Now) {
                             responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
                             logger.Information($"{this} response, bytes:{result.Buffer.ToShortDescriptions()}.");
+                            processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
                         }
                     };
                     Listening = false;
@@ -92,7 +100,8 @@ namespace TutoProxy.Client.Communication {
             await base.DisposeAsync();
             connected = false;
             socket.Close();
-            logger.Information($"{this}, destroyed");
+            processMonitor.DisconnectUdpClient(this);
+            logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
             GC.SuppressFinalize(this);
         }
 
