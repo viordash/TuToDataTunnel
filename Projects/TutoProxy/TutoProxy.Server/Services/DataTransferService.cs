@@ -4,7 +4,7 @@ using TutoProxy.Server.Hubs;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
-        Task SendUdpRequest(UdpDataRequestModel request);
+        Task SendUdpRequest(UdpDataRequestModel request, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered);
         Task HandleUdpResponse(string connectionId, UdpDataResponseModel response);
         void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
@@ -34,10 +34,10 @@ namespace TutoProxy.Server.Services {
             this.clientsService = clientsService;
         }
 
-        public async Task SendUdpRequest(UdpDataRequestModel request) {
+        public async Task SendUdpRequest(UdpDataRequestModel request, CancellationToken cancellationToken) {
             logger.Debug($"UdpRequest :{request}");
             var connectionId = clientsService.GetConnectionIdForUdp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", request);
+            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", request, cancellationToken);
         }
 
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {

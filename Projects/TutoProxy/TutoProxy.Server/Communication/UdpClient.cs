@@ -1,6 +1,9 @@
 ﻿using System.Net;
 using System.Timers;
+using Terminal.Gui;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
+using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Communication {
 
@@ -53,6 +56,29 @@ namespace TutoProxy.Server.Communication {
         public void StartTimeoutTimer() {
             timeoutTimer.Enabled = false;
             timeoutTimer.Enabled = true;
+        }
+
+        public async Task SendRequestAsync(byte[] payload, CancellationToken cancellationToken) {
+            await dataTransferService.SendUdpRequest(new UdpDataRequestModel() {
+                Port = Port, OriginPort = OriginPort,
+                Data = payload
+            }, cancellationToken);
+            totalReceived += payload.Length;
+            if(requestLogTimer <= DateTime.Now) {
+                requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                logger.Information($"{this} request, bytes:{payload.ToArray().ToShortDescriptions()}");
+                processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
+            }
+        }
+
+        public async Task SendResponseAsync(System.Net.Sockets.UdpClient socket, byte[] response, CancellationToken cancellationToken) {
+            var transmitted = await socket.SendAsync(response, EndPoint, cancellationToken);
+            totalTransmitted += transmitted;
+            if(responseLogTimer <= DateTime.Now) {
+                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+                logger.Information($"{this} response, bytes:{response.ToShortDescriptions()}");
+                processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
+            }
         }
     }
 }

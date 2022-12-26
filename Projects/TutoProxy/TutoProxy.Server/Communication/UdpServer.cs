@@ -2,8 +2,6 @@
 using System.Diagnostics;
 using System.Net;
 using TutoProxy.Server.Services;
-using TuToProxy.Core;
-using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.Communication {
     public interface IUdpServer : IDisposable {
@@ -13,21 +11,17 @@ namespace TutoProxy.Server.Communication {
     }
 
     public class UdpServer : BaseServer, IUdpServer {
-        readonly System.Net.Sockets.UdpClient udpServer;
+        readonly System.Net.Sockets.UdpClient socket;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
         readonly TimeSpan receiveTimeout;
-        DateTime requestLogTimer = DateTime.Now;
-        DateTime responseLogTimer = DateTime.Now;
-        Int64 totalTransmitted;
-        Int64 totalReceived;
 
         protected readonly ConcurrentDictionary<int, UdpClient> udpClients = new();
 
         public UdpServer(int port, IPEndPoint localEndPoint, IDataTransferService dataTransferService, ILogger logger, IProcessMonitor processMonitor, TimeSpan receiveTimeout)
             : base(port, localEndPoint, dataTransferService, logger, processMonitor) {
-            udpServer = new System.Net.Sockets.UdpClient(new IPEndPoint(localEndPoint.Address, port));
-            udpServer.Client.SetSocketOption(System.Net.Sockets.SocketOptionLevel.Socket, System.Net.Sockets.SocketOptionName.ReuseAddress, true);
+            socket = new System.Net.Sockets.UdpClient(new IPEndPoint(localEndPoint.Address, port));
+            socket.Client.SetSocketOption(System.Net.Sockets.SocketOptionLevel.Socket, System.Net.Sockets.SocketOptionName.ReuseAddress, true);
             cts = new CancellationTokenSource();
             cancellationToken = cts.Token;
             this.receiveTimeout = receiveTimeout;
@@ -38,18 +32,9 @@ namespace TutoProxy.Server.Communication {
                 while(!cancellationToken.IsCancellationRequested) {
                     try {
                         while(!cancellationToken.IsCancellationRequested) {
-                            var result = await udpServer.ReceiveAsync(cancellationToken);
+                            var result = await socket.ReceiveAsync(cancellationToken);
                             var client = AddRemoteEndPoint(result.RemoteEndPoint);
-                            await dataTransferService.SendUdpRequest(new UdpDataRequestModel() {
-                                Port = Port, OriginPort = result.RemoteEndPoint.Port,
-                                Data = result.Buffer
-                            });
-                            totalReceived += result.Buffer.Length;
-                            if(requestLogTimer <= DateTime.Now) {
-                                requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                                logger.Information($"udp request from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}");
-                                processMonitor.UdpClientData(client, totalTransmitted, totalReceived);
-                            }
+                            await client.SendRequestAsync(result.Buffer, cancellationToken);
                         }
                     } catch(System.Net.Sockets.SocketException ex) {
                         logger.Error($"udp: {ex.Message}");
@@ -69,13 +54,7 @@ namespace TutoProxy.Server.Communication {
                 logger.Error($"udp({Port}) response to missed {response.OriginPort}");
                 return;
             }
-            var transmitted = await udpServer.SendAsync(response.Data, client.EndPoint, cancellationToken);
-            totalTransmitted += transmitted;
-            if(responseLogTimer <= DateTime.Now) {
-                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
-                logger.Information($"udp response to {client.EndPoint}, bytes:{response.Data?.ToShortDescriptions()}");
-                processMonitor.UdpClientData(client, totalTransmitted, totalReceived);
-            }
+            await client.SendResponseAsync(socket, response.Data, cancellationToken);
         }
 
         public async void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered) {
@@ -91,7 +70,7 @@ namespace TutoProxy.Server.Communication {
 
         public override async void Dispose() {
             cts.Cancel();
-            udpServer.Close();
+            socket.Close();
 
             foreach(var item in udpClients.Values.ToList()) {
                 if(udpClients.TryGetValue(item.EndPoint.Port, out UdpClient? client)) {

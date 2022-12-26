@@ -28,8 +28,8 @@ namespace TutoProxy.Server.Tests.Communication {
             }
 
 
-            public ConcurrentDictionary<int, RemoteEndPoint> PublicMorozovRemoteEndPoints {
-                get { return remoteEndPoints; }
+            public ConcurrentDictionary<int, UdpClient> PublicMorozovUdpClients {
+                get { return udpClients; }
             }
 
             public override void Dispose() {
@@ -51,18 +51,18 @@ namespace TutoProxy.Server.Tests.Communication {
                processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(200);
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 101));
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100, 101 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100, 101 }));
 
             await Task.Delay(310);
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 101 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 101 }));
 
             await Task.Delay(200);
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.Empty);
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.Empty);
         }
 
         [Test]
@@ -72,22 +72,22 @@ namespace TutoProxy.Server.Tests.Communication {
                 processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(200);
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(410);
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
 
             await Task.Delay(410);
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(100);
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.Empty);
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.Empty);
         }
 
         [Test]
@@ -99,11 +99,11 @@ namespace TutoProxy.Server.Tests.Communication {
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
             await Task.Delay(100);
             testable.Dispose();
             await Task.Delay(500);
-            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
             stopWatch.Stop();
 
             Assert.That(stopWatch.Elapsed, Is.LessThanOrEqualTo(TimeSpan.FromMilliseconds(1000)));
