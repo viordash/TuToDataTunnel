@@ -1,5 +1,4 @@
-﻿using System.Net;
-using Terminal.Gui;
+﻿using Terminal.Gui;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Windows;
 
@@ -11,10 +10,6 @@ namespace TutoProxy.Server.Services {
         void ConnectTcpClient(BaseClient client);
         void DisconnectTcpClient(BaseClient client);
         void TcpClientData(BaseClient client, Int64 transmitted, Int64 received);
-
-        void ConnectUdpClient(BaseClient client);
-        void DisconnectUdpClient(BaseClient client);
-        void UdpClientData(BaseClient client, Int64 transmitted, Int64 received);
     }
 
 
@@ -41,21 +36,6 @@ namespace TutoProxy.Server.Services {
         public void TcpClientData(BaseClient client, Int64 transmitted, Int64 received) {
             var mainWindow = Application.Top.Focused as MainWindow;
             mainWindow?.TcpClientData(client, transmitted, received);
-        }
-
-        public void ConnectUdpClient(BaseClient client) {
-            var mainWindow = Application.Top.Focused as MainWindow;
-            mainWindow?.AddUdpClient(client);
-        }
-
-        public void DisconnectUdpClient(BaseClient client) {
-            var mainWindow = Application.Top.Focused as MainWindow;
-            mainWindow?.RemoveUdpClient(client);
-        }
-
-        public void UdpClientData(BaseClient client, long transmitted, long received) {
-            var mainWindow = Application.Top.Focused as MainWindow;
-            mainWindow?.UdpClientData(client, transmitted, received);
         }
     }
 }

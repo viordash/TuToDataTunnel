@@ -28,8 +28,8 @@ namespace TutoProxy.Server.Tests.Communication {
             }
 
 
-            public ConcurrentDictionary<int, UdpClient> PublicMorozovUdpClients {
-                get { return udpClients; }
+            public ConcurrentDictionary<int, RemoteEndPoint> PublicMorozovRemoteEndPoints {
+                get { return remoteEndPoints; }
             }
 
             public override void Dispose() {
@@ -47,47 +47,47 @@ namespace TutoProxy.Server.Tests.Communication {
         [Test]
         [Retry(3)]
         public async Task RemoteEndPoints_Are_AutoDelete_After_Timeout_Test() {
-            using var testable = new TestableUdpServer(100, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
+            using var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
                processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(200);
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 101));
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100, 101 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100, 101 }));
 
             await Task.Delay(310);
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 101 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 101 }));
 
             await Task.Delay(200);
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.Empty);
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.Empty);
         }
 
         [Test]
         [Retry(3)]
         public async Task Add_Already_Exists_RemoteEndPoint_Increase_Timeout_Test() {
-            using var testable = new TestableUdpServer(100, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
+            using var testable = new TestableUdpServer(0, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
                 processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(200);
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(410);
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
 
             await Task.Delay(410);
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
 
             await Task.Delay(100);
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.Empty);
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.Empty);
         }
 
         [Test]
@@ -99,11 +99,11 @@ namespace TutoProxy.Server.Tests.Communication {
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
             await Task.Delay(100);
             testable.Dispose();
             await Task.Delay(500);
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            Assert.That(testable.PublicMorozovRemoteEndPoints.Keys, Is.EquivalentTo(new[] { 100 }));
             stopWatch.Stop();
 
             Assert.That(stopWatch.Elapsed, Is.LessThanOrEqualTo(TimeSpan.FromMilliseconds(1000)));
