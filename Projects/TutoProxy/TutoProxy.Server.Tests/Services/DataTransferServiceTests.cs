@@ -55,7 +55,7 @@ namespace TutoProxy.Server.Tests.Services {
         [Test]
         public async Task SendUdpRequest_Test() {
             var requestModel = new UdpDataRequestModel() { Port = 700, OriginPort = 800, Data = Array.Empty<byte>() };
-            await testable.SendUdpRequest(requestModel);
+            await testable.SendUdpRequest(requestModel, new CancellationTokenSource().Token);
             clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "UdpRequest"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
         }
     }
