@@ -50,7 +50,7 @@ namespace TutoProxy.Server.Communication {
 
 
         void OnTimedEvent(object? source, ElapsedEventArgs e) {
-            timeoutAction(Port);
+            timeoutAction(OriginPort);
         }
 
         public void StartTimeoutTimer() {
