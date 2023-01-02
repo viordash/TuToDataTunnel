@@ -57,9 +57,11 @@ namespace TutoProxy.Server.Communication {
                     }
 
                     totalReceived += receivedBytes;
-                    var data = receiveBuffer[..receivedBytes].ToArray();
+                    var data = receiveBuffer[..receivedBytes];
 
-                    var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = server.Port, OriginPort = OriginPort, Data = data }, cancellationToken);
+                    var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() {
+                        Port = server.Port, OriginPort = OriginPort, Data = data
+                    }, cancellationToken);
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} request transmit error ({transmitted})");
                     }
@@ -97,7 +99,7 @@ namespace TutoProxy.Server.Communication {
                 totalTransmitted += transmitted;
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"{this} response, bytes:{payload.ToArray().ToShortDescriptions()}");
+                    logger.Information($"{this} response, bytes:{payload.ToShortDescriptions()}");
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
                 return transmitted;

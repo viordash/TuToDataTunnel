@@ -1,15 +1,14 @@
-﻿
-using MessagePack;
+﻿using MessagePack;
 
 namespace TuToProxy.Core.Models {
-    [MessagePackObject]
+    [MessagePackFormatter(typeof(DataBaseModelFormatter<UdpDataResponseModel>))]
     public class UdpDataResponseModel : DataBaseModel {
         public override string ToString() {
             return $"udp response: {base.ToString()}";
         }
     }
 
-    [MessagePackObject]
+    [MessagePackFormatter(typeof(DataBaseModelFormatter<TcpDataResponseModel>))]
     public class TcpDataResponseModel : DataBaseModel {
         public override string ToString() {
             return $"tcp response: {base.ToString()}";

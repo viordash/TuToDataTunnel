@@ -85,11 +85,8 @@ namespace TutoProxy.Server.CommandLine {
                           //options.EnableDetailedErrors = true;
                       })
                     .AddMessagePackProtocol(options => {
-                        StaticCompositeResolver.Instance.Register(
-                            MessagePack.Resolvers.StandardResolver.Instance
-                        );
                         options.SerializerOptions = MessagePackSerializerOptions.Standard
-                            .WithResolver(StaticCompositeResolver.Instance)
+                            .WithResolver(StandardResolver.Instance)
                             .WithSecurity(MessagePackSecurity.UntrustedData);
                     });
 
