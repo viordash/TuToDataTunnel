@@ -70,7 +70,7 @@ namespace TutoProxy.Client.Communication {
         async Task ReceivingStream(CancellationToken cancellationToken) {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
 
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
 
             try {
                 while(socket.Connected && !cts.IsCancellationRequested) {
@@ -111,7 +111,7 @@ namespace TutoProxy.Client.Communication {
         }
 
         public async ValueTask<int> SendRequest(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken) {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
             try {
                 var transmitted = await socket.SendAsync(payload, SocketFlags.None, cts.Token);
                 if(transmitted != payload.Length) {

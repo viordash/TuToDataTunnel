@@ -70,6 +70,7 @@ namespace TutoProxy.Server.Communication {
 
         public override async void Dispose() {
             cts.Cancel();
+            cts.Dispose();
             socket.Close();
 
             foreach(var item in udpClients.Values.ToList()) {

@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using TuToProxy.Core;
@@ -40,6 +41,7 @@ namespace TutoProxy.Server.Communication {
 
         public void Dispose() {
             cts.Cancel();
+            cts.Dispose();
 
             foreach(var item in tcpServers.Values) {
                 item.Dispose();

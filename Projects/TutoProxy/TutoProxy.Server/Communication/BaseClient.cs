@@ -1,4 +1,5 @@
-﻿using TutoProxy.Server.Services;
+﻿using System.Threading;
+using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
 
@@ -23,6 +24,7 @@ namespace TutoProxy.Server.Communication {
 
         public virtual ValueTask DisposeAsync() {
             cancellationTokenSource.Cancel();
+            cancellationTokenSource.Dispose();
             GC.SuppressFinalize(this);
             return ValueTask.CompletedTask;
         }
