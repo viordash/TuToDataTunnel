@@ -2,17 +2,15 @@
 
 namespace TuToProxy.Core.Models {
 
-    [MessagePackObject]
+    [MessagePackFormatter(typeof(DataBaseModelFormatter<UdpDataRequestModel>))]
     public class UdpDataRequestModel : DataBaseModel {
-
         public override string ToString() {
             return $"udp request {base.ToString()}";
         }
     }
 
-    [MessagePackObject]
+    [MessagePackFormatter(typeof(DataBaseModelFormatter<TcpDataRequestModel>))]
     public class TcpDataRequestModel : DataBaseModel {
-
         public override string ToString() {
             return $"tcp request {base.ToString()}";
         }

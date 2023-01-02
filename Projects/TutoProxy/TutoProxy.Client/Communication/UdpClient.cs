@@ -43,7 +43,7 @@ namespace TutoProxy.Client.Communication {
             }
         }
 
-        public async Task SendRequest(byte[] payload, CancellationToken cancellationToken) {
+        public async Task SendRequest(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken) {
             var transmitted = await socket!.SendAsync(payload, serverEndPoint, cancellationToken);
             totalTransmitted += transmitted;
             if(requestLogTimer <= DateTime.Now) {

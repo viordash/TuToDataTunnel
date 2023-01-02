@@ -71,18 +71,15 @@ namespace TutoProxy.Client.Communication {
                  .WithUrl(ub.Uri)
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .AddMessagePackProtocol(config => {
-                     StaticCompositeResolver.Instance.Register(
-                        MessagePack.Resolvers.StandardResolver.Instance
-                    );
                      config.SerializerOptions = MessagePackSerializerOptions.Standard
-                            .WithResolver(StaticCompositeResolver.Instance)
+                            .WithResolver(StandardResolver.Instance)
                             .WithSecurity(MessagePackSecurity.UntrustedData);
                  })
                  .Build();
 
             connection.On<UdpDataRequestModel>("UdpRequest", async (request) => {
                 var client = clientsService.ObtainUdpClient(request.Port, request.OriginPort, this);
-                await client.SendRequest(request.Data!, cancellationToken);
+                await client.SendRequest(request.Data, cancellationToken);
                 if(!client.Listening) {
                     client.Listen(request, this, cancellationToken);
                 }

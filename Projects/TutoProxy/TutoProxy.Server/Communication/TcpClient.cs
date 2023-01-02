@@ -46,7 +46,7 @@ namespace TutoProxy.Server.Communication {
             Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
 
             processMonitor.ConnectTcpClient(this);
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
 
             try {
                 while(socket.Connected && !cts.IsCancellationRequested) {
@@ -57,9 +57,11 @@ namespace TutoProxy.Server.Communication {
                     }
 
                     totalReceived += receivedBytes;
-                    var data = receiveBuffer[..receivedBytes].ToArray();
+                    var data = receiveBuffer[..receivedBytes];
 
-                    var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() { Port = server.Port, OriginPort = OriginPort, Data = data }, cancellationToken);
+                    var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() {
+                        Port = server.Port, OriginPort = OriginPort, Data = data
+                    }, cancellationToken);
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} request transmit error ({transmitted})");
                     }
@@ -88,7 +90,7 @@ namespace TutoProxy.Server.Communication {
         }
 
         public async ValueTask<int> SendDataAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken) {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
             try {
                 var transmitted = await socket.SendAsync(payload, SocketFlags.None, cts.Token);
                 if(transmitted != payload.Length) {
@@ -97,7 +99,7 @@ namespace TutoProxy.Server.Communication {
                 totalTransmitted += transmitted;
                 if(requestLogTimer <= DateTime.Now) {
                     requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
-                    logger.Information($"{this} response, bytes:{payload.ToArray().ToShortDescriptions()}");
+                    logger.Information($"{this} response, bytes:{payload.ToShortDescriptions()}");
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
                 return transmitted;

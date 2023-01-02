@@ -85,6 +85,7 @@ namespace TutoProxy.Server.Communication {
 
         public override async void Dispose() {
             CancellationToken.Cancel();
+            CancellationToken.Dispose();
             foreach(var item in remoteSockets.Values.ToList()) {
                 if(remoteSockets.TryRemove(item.OriginPort, out TcpClient? client)) {
                     await client.DisposeAsync();
