@@ -28,8 +28,7 @@ namespace TutoProxy.Server.Communication {
         }
 
         public override async ValueTask DisposeAsync() {
-            await base.DisposeAsync();
-
+            cancellationTokenSource.Cancel();
             try {
                 socket.Shutdown(SocketShutdown.Both);
             } catch(SocketException) { }
@@ -39,6 +38,8 @@ namespace TutoProxy.Server.Communication {
             socket.Close(100);
             processMonitor.DisconnectTcpClient(this);
             logger.Information($"{this}, disconnected, tx:{totalTransmitted}, rx:{totalReceived}");
+            cancellationTokenSource.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

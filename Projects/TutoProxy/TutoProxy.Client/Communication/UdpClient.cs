@@ -96,13 +96,15 @@ namespace TutoProxy.Client.Communication {
             });
         }
 
-        public override async ValueTask DisposeAsync() {
-            await base.DisposeAsync();
+        public override ValueTask DisposeAsync() {
+            cancellationTokenSource.Cancel();
             connected = false;
             socket.Close();
             processMonitor.DisconnectUdpClient(this);
             logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
+            cancellationTokenSource.Dispose();
             GC.SuppressFinalize(this);
+            return ValueTask.CompletedTask;
         }
 
         public void Disconnect(Int64 transferLimit) {

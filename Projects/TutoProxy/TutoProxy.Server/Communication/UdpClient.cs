@@ -37,14 +37,15 @@ namespace TutoProxy.Server.Communication {
             return $"udp({base.ToString()})";
         }
 
-        public override async ValueTask DisposeAsync() {
-            await base.DisposeAsync();
-
+        public override ValueTask DisposeAsync() {
+            cancellationTokenSource.Cancel();
             timeoutTimer.Enabled = false;
             timeoutTimer.Elapsed -= OnTimedEvent;
-
             processMonitor.DisconnectUdpClient(this);
             logger.Information($"{this}, disconnected, tx:{totalTransmitted}, rx:{totalReceived}");
+            cancellationTokenSource.Dispose();
+            GC.SuppressFinalize(this);
+            return ValueTask.CompletedTask;
         }
 
 

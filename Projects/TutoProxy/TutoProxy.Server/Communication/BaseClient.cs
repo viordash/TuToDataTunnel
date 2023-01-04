@@ -22,12 +22,7 @@ namespace TutoProxy.Server.Communication {
             this.processMonitor = processMonitor;
         }
 
-        public virtual ValueTask DisposeAsync() {
-            cancellationTokenSource.Cancel();
-            cancellationTokenSource.Dispose();
-            GC.SuppressFinalize(this);
-            return ValueTask.CompletedTask;
-        }
+        public abstract ValueTask DisposeAsync();
 
         public override string ToString() {
             return $"{OriginPort,5}";
