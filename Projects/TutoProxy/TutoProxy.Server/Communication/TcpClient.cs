@@ -38,8 +38,7 @@ namespace TutoProxy.Server.Communication {
             socket.Close(100);
             processMonitor.DisconnectTcpClient(this);
             logger.Information($"{this}, disconnected, tx:{totalTransmitted}, rx:{totalReceived}");
-            cancellationTokenSource.Dispose();
-            GC.SuppressFinalize(this);
+            await base.DisposeAsync();
         }
 
 

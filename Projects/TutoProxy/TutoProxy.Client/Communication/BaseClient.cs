@@ -25,7 +25,11 @@ namespace TutoProxy.Client.Communication {
             this.processMonitor = processMonitor;
         }
 
-        public abstract ValueTask DisposeAsync();
+        public virtual ValueTask DisposeAsync() {
+            cancellationTokenSource.Dispose();
+            GC.SuppressFinalize(this);
+            return ValueTask.CompletedTask;
+        }
 
         public override string ToString() {
             return $"<< srv: {OriginPort,5}";

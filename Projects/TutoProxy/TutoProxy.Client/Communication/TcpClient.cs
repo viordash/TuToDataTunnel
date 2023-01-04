@@ -39,8 +39,7 @@ namespace TutoProxy.Client.Communication {
             socket.Close(100);
             processMonitor.DisconnectTcpClient(this);
             logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
-            cancellationTokenSource.Dispose();
-            GC.SuppressFinalize(this);
+            await base.DisposeAsync();
         }
 
         async ValueTask<SocketError> ConnectInternal(CancellationToken cancellationToken, int nestedLevel) {
