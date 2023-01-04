@@ -87,6 +87,7 @@ namespace TutoProxy.Client.Communication {
                     var transmitted = await dataTunnelClient.SendTcpResponse(response, cancellationToken);
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} response transmit error ({transmitted})");
+                        throw new SocketException((int)SocketError.ConnectionAborted);
                     }
                     if(responseLogTimer <= DateTime.Now) {
                         responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);

@@ -64,6 +64,7 @@ namespace TutoProxy.Server.Communication {
                     }, cancellationToken);
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} request transmit error ({transmitted})");
+                        throw new SocketException((int)SocketError.ConnectionAborted);
                     }
                     if(responseLogTimer <= DateTime.Now) {
                         responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
