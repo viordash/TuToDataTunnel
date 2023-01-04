@@ -28,8 +28,7 @@ namespace TutoProxy.Server.Communication {
         }
 
         public override async ValueTask DisposeAsync() {
-            await base.DisposeAsync();
-
+            cancellationTokenSource.Cancel();
             try {
                 socket.Shutdown(SocketShutdown.Both);
             } catch(SocketException) { }
@@ -39,6 +38,7 @@ namespace TutoProxy.Server.Communication {
             socket.Close(100);
             processMonitor.DisconnectTcpClient(this);
             logger.Information($"{this}, disconnected, tx:{totalTransmitted}, rx:{totalReceived}");
+            await base.DisposeAsync();
         }
 
 
@@ -64,6 +64,7 @@ namespace TutoProxy.Server.Communication {
                     }, cancellationToken);
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} request transmit error ({transmitted})");
+                        throw new SocketException((int)SocketError.ConnectionAborted);
                     }
                     if(responseLogTimer <= DateTime.Now) {
                         responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);

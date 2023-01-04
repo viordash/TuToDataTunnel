@@ -29,7 +29,7 @@ namespace TutoProxy.Client.Communication {
         }
 
         public override async ValueTask DisposeAsync() {
-            await base.DisposeAsync();
+            cancellationTokenSource.Cancel();
             try {
                 socket.Shutdown(SocketShutdown.Both);
             } catch(SocketException) { }
@@ -39,7 +39,7 @@ namespace TutoProxy.Client.Communication {
             socket.Close(100);
             processMonitor.DisconnectTcpClient(this);
             logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
-            GC.SuppressFinalize(this);
+            await base.DisposeAsync();
         }
 
         async ValueTask<SocketError> ConnectInternal(CancellationToken cancellationToken, int nestedLevel) {
@@ -87,6 +87,7 @@ namespace TutoProxy.Client.Communication {
                     var transmitted = await dataTunnelClient.SendTcpResponse(response, cancellationToken);
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} response transmit error ({transmitted})");
+                        throw new SocketException((int)SocketError.ConnectionAborted);
                     }
                     if(responseLogTimer <= DateTime.Now) {
                         responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);

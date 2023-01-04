@@ -40,7 +40,7 @@ namespace TutoProxy.Server.Communication {
                         logger.Error($"udp: {ex.Message}");
                     }
                 }
-            }, cts.Token);
+            }, cancellationToken);
         }
 
         public async Task SendResponse(UdpDataResponseModel response) {

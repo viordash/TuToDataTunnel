@@ -97,12 +97,12 @@ namespace TutoProxy.Client.Communication {
         }
 
         public override async ValueTask DisposeAsync() {
-            await base.DisposeAsync();
+            cancellationTokenSource.Cancel();
             connected = false;
             socket.Close();
             processMonitor.DisconnectUdpClient(this);
             logger.Information($"{this}, destroyed, tx:{totalTransmitted}, rx:{totalReceived}");
-            GC.SuppressFinalize(this);
+            await base.DisposeAsync();
         }
 
         public void Disconnect(Int64 transferLimit) {

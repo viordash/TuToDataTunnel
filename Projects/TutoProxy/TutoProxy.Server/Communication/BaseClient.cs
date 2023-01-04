@@ -23,7 +23,6 @@ namespace TutoProxy.Server.Communication {
         }
 
         public virtual ValueTask DisposeAsync() {
-            cancellationTokenSource.Cancel();
             cancellationTokenSource.Dispose();
             GC.SuppressFinalize(this);
             return ValueTask.CompletedTask;

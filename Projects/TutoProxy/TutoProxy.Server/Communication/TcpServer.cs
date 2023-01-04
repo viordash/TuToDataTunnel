@@ -12,7 +12,8 @@ namespace TutoProxy.Server.Communication {
 
     public class TcpServer : BaseServer, ITcpServer {
         readonly TcpListener tcpServer;
-        readonly CancellationTokenSource CancellationToken;
+        readonly CancellationTokenSource cts;
+        readonly CancellationToken cancellationToken;
 
         protected readonly ConcurrentDictionary<int, TcpClient> remoteSockets = new();
 
@@ -20,34 +21,35 @@ namespace TutoProxy.Server.Communication {
             : base(port, localEndPoint, dataTransferService, logger, processMonitor) {
             tcpServer = new TcpListener(localEndPoint.Address, port);
 
-            CancellationToken = new CancellationTokenSource();
+            cts = new CancellationTokenSource();
+            cancellationToken = cts.Token;
         }
 
         public Task Listen() {
             return Task.Run(async () => {
-                while(!CancellationToken.IsCancellationRequested) {
+                while(!cancellationToken.IsCancellationRequested) {
                     try {
                         tcpServer.Start();
 
-                        while(!CancellationToken.IsCancellationRequested) {
-                            var socket = await tcpServer.AcceptSocketAsync(CancellationToken.Token);
+                        while(!cancellationToken.IsCancellationRequested) {
+                            var socket = await tcpServer.AcceptSocketAsync(cancellationToken);
 
                             logger.Information($"tcp({Port}) accept  {socket.RemoteEndPoint}");
                             var socketAddress = new SocketAddressModel { Port = Port, OriginPort = ((IPEndPoint)socket.RemoteEndPoint!).Port };
 
-                            var socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                            var socketError = await dataTransferService.ConnectTcp(socketAddress, cancellationToken);
                             if(socketError == SocketError.ConnectionRefused) {
                                 logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #1");
-                                socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                socketError = await dataTransferService.ConnectTcp(socketAddress, cancellationToken);
                                 if(socketError == SocketError.ConnectionRefused) {
                                     logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #2");
-                                    socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                    socketError = await dataTransferService.ConnectTcp(socketAddress, cancellationToken);
                                     if(socketError == SocketError.ConnectionRefused) {
                                         logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #3");
-                                        socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                        socketError = await dataTransferService.ConnectTcp(socketAddress, cancellationToken);
                                         if(socketError == SocketError.ConnectionRefused) {
                                             logger.Warning($"tcp({Port}) {socket.RemoteEndPoint}, socket attempt to reconnect #4");
-                                            socketError = await dataTransferService.ConnectTcp(socketAddress, CancellationToken.Token);
+                                            socketError = await dataTransferService.ConnectTcp(socketAddress, cancellationToken);
                                         }
                                     }
                                 }
@@ -58,8 +60,8 @@ namespace TutoProxy.Server.Communication {
                                     logger.Error($"{client} already exists");
                                     await client.DisposeAsync();
                                 } else {
-                                    var receivingAction = async () => await client.ReceivingStream(CancellationToken.Token);
-                                    _ = Task.Run(receivingAction, CancellationToken.Token);
+                                    var receivingAction = async () => await client.ReceivingStream(cancellationToken);
+                                    _ = Task.Run(receivingAction, cancellationToken);
                                 }
                             } else {
                                 logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
@@ -72,7 +74,7 @@ namespace TutoProxy.Server.Communication {
                     tcpServer.Stop();
                     logger.Information($"tcp({Port}) close");
                 }
-            }, CancellationToken.Token);
+            }, cancellationToken);
         }
 
         public async ValueTask<bool> DisconnectAsync(SocketAddressModel socketAddress) {
@@ -84,8 +86,8 @@ namespace TutoProxy.Server.Communication {
         }
 
         public override async void Dispose() {
-            CancellationToken.Cancel();
-            CancellationToken.Dispose();
+            cts.Cancel();
+            cts.Dispose();
             foreach(var item in remoteSockets.Values.ToList()) {
                 if(remoteSockets.TryRemove(item.OriginPort, out TcpClient? client)) {
                     await client.DisposeAsync();

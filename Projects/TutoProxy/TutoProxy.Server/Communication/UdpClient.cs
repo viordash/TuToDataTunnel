@@ -38,15 +38,13 @@ namespace TutoProxy.Server.Communication {
         }
 
         public override async ValueTask DisposeAsync() {
-            await base.DisposeAsync();
-
+            cancellationTokenSource.Cancel();
             timeoutTimer.Enabled = false;
             timeoutTimer.Elapsed -= OnTimedEvent;
-
             processMonitor.DisconnectUdpClient(this);
             logger.Information($"{this}, disconnected, tx:{totalTransmitted}, rx:{totalReceived}");
+            await base.DisposeAsync();
         }
-
 
         void OnTimedEvent(object? source, ElapsedEventArgs e) {
             timeoutAction(OriginPort);
