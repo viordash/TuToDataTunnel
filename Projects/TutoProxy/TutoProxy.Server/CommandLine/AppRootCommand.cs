@@ -27,6 +27,7 @@ namespace TutoProxy.Server.CommandLine {
             Add(tcpOption);
             Add(udpOption);
             Add(AllowedClientsOption.Create("--clients", $"Allowed Clients IDs, format like '--clients=Client1,Client2'"));
+            Add(new Option<bool>("--daemon", () => false, "Run as a daemon"));
 
             AddValidator((result) => {
                 try {
@@ -47,6 +48,7 @@ namespace TutoProxy.Server.CommandLine {
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
             public AllowedClientsOption? Clients { get; set; }
+            public bool? Daemon { get; set; }
 
             public Handler(
                 Serilog.ILogger logger,
@@ -58,7 +60,7 @@ namespace TutoProxy.Server.CommandLine {
                 this.applicationLifetime = applicationLifetime;
             }
 
-            public Task<int> InvokeAsync(InvocationContext context) {
+            public async Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNullOrEmpty(Host, nameof(Host));
                 Guard.NotNull(Tcp ?? Udp, "Tcp ?? Udp");
 
@@ -107,21 +109,25 @@ namespace TutoProxy.Server.CommandLine {
                 var app = builder.Build();
                 app.MapHub<SignalRHub>(SignalRParams.Path);
 
-                Application.IsMouseDisabled = true;
-                Application.Init();
+                if(Daemon != null && Daemon.Value) {
+                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
+                    await app.RunAsync(Host);
+                } else {
+                    Application.IsMouseDisabled = true;
+                    Application.Init();
+                    var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
+                    mainWindow.Ready += () => {
+                        _ = Task.Run(async () => {
+                            await app.RunAsync(Host);
+                        });
+                    };
 
-                var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
-                mainWindow.Ready += () => {
-                    _ = Task.Run(async () => {
-                        await app.RunAsync(Host);
-                    });
-                };
+                    Application.Top.Add(new MainMenu(version), mainWindow);
+                    Application.Run();
+                    Application.Shutdown();
+                }
 
-                Application.Top.Add(new MainMenu(version), mainWindow);
-                Application.Run();
-                Application.Shutdown();
-
-                return Task.FromResult(0);
+                return 0;
             }
         }
     }
