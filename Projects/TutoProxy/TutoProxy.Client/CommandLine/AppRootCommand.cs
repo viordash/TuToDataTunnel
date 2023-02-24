@@ -19,6 +19,7 @@ namespace TutoProxy.Server.CommandLine {
             var udpOption = PortsArgument.CreateOption("--udp", $"Tunneling ports, format like '--udp=700-900,65500'");
             Add(tcpOption);
             Add(udpOption);
+            Add(new Option<bool>("--daemon", () => false, "Run as a daemon"));
             AddValidator((result) => {
                 try {
                     if(!result.Children.Any(x => x.GetValueForOption(tcpOption) != null || x.GetValueForOption(udpOption) != null)) {
@@ -42,6 +43,7 @@ namespace TutoProxy.Server.CommandLine {
             public string? Id { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
+            public bool? Daemon { get; set; }
 
             public Handler(
                 ILogger logger,
@@ -77,43 +79,46 @@ namespace TutoProxy.Server.CommandLine {
                     clientsService.Stop();
                 });
 
-                Application.IsMouseDisabled = true;
-                Application.Init();
+                if(Daemon != null && Daemon.Value) {
+                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
+                    StartServices(appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
+                    _ = appStoppingReg.Token.WaitHandle.WaitOne();
+                } else {
+                    Application.IsMouseDisabled = true;
+                    Application.Init();
+                    var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
+                    mainWindow.Ready += () => {
+                        StartServices(appStoppingReg.Token, (status) => Application.MainLoop.Invoke(() => { mainWindow.Title = $"{title} - {status}"; }));
+                    };
 
-                var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
-                mainWindow.Ready += () => {
-                    clientsService.Start(IPAddress.Parse(Sendto!), Tcp?.Ports, Udp?.Ports);
-                    _ = Task.Run(async () => {
-                        while(!appStoppingReg.Token.IsCancellationRequested) {
-                            try {
-                                Application.MainLoop.Invoke(() => {
-                                    mainWindow.Title = $"{title} - connection to server...";
-                                });
-                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, appStoppingReg.Token);
-
-                                Application.MainLoop.Invoke(() => {
-                                    mainWindow.Title = $"{title} - {connectionId}";
-                                });
-                                break;
-                            } catch(HttpRequestException) {
-                                logger.Error("Connection failed");
-                                Application.MainLoop.Invoke(() => {
-                                    mainWindow.Title = $"{title} - connection failed. Retry...";
-                                });
-                                await Task.Delay(5000, appStoppingReg.Token);
-                                logger.Information("Retry connect");
-                                continue;
-                            }
-                        }
-                    }, appStoppingReg.Token);
-                };
-
-                Application.Top.Add(new MainMenu(version), mainWindow);
-                Application.Run();
-                Application.Shutdown();
-                applicationLifetime.StopApplication();
+                    Application.Top.Add(new MainMenu(version), mainWindow);
+                    Application.Run();
+                    Application.Shutdown();
+                    applicationLifetime.StopApplication();
+                }
 
                 return Task.FromResult(0);
+            }
+
+            void StartServices(CancellationToken cancellationToken, Action<string> logStatus) {
+                clientsService.Start(IPAddress.Parse(Sendto!), Tcp?.Ports, Udp?.Ports);
+                _ = Task.Run(async () => {
+                    while(!cancellationToken.IsCancellationRequested) {
+                        try {
+                            logStatus("connection to server...");
+                            var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, cancellationToken);
+
+                            logStatus($"{connectionId}");
+                            break;
+                        } catch(HttpRequestException) {
+                            logger.Error("Connection failed");
+                            logStatus("connection failed. Retry...");
+                            await Task.Delay(5000, cancellationToken);
+                            logger.Information("Retry connect");
+                            continue;
+                        }
+                    }
+                }, cancellationToken);
             }
         }
     }
