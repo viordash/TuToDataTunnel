@@ -15,6 +15,7 @@ cmd arguments:
 - **--tcp** \<tcp\>, list of tcp ports to listen to, for example --tcp=80,81,443,8000-8100. Optional, if --udp option is present.
 - **--udp** \<udp\>, list of udp ports to listen to, for example --udp=700-900,65500. Optional, if --tcp option is present.
 - **--clients** \<clients\> optional list of allowed clients, e.g. --clients=Client1,Client2 if this parameter is omitted, then there is no check for connecting client ID
+- **--daemon** optional, disable the terminal GUI
 
 For example, start input traffic tunneling on 50 tcp/udp ports to 3 clients: 
 
@@ -29,6 +30,7 @@ cmd arguments:
 - **--id** \<id\>, client ID, for example --id=Client1
 - **--tcp** \<tcp\>, list of tcp ports, for example --tcp=80,81,443,8000-8100. Optional, if --udp option is present.
 - **--udp** \<udp\>, list of udp ports, for example --udp=700-900,65500. Optional, if --tcp option is present.
+- **--daemon** optional, disable the terminal GUI
 
 For example, start output traffic tunneling on 5 tcp and 3 udp ports: 
 
