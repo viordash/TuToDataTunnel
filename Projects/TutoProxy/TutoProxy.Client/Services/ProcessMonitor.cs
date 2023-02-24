@@ -16,31 +16,31 @@ namespace TutoProxy.Client.Services {
 
     public class ProcessMonitor : IProcessMonitor {
         public void ConnectTcpClient(BaseClient client) {
-            var mainWindow = Application.Top.Focused as MainWindow;
+            var mainWindow = Application.Top?.Focused as MainWindow;
             mainWindow?.AddTcpClient(client);
         }
 
         public void DisconnectTcpClient(BaseClient client) {
-            var mainWindow = Application.Top.Focused as MainWindow;
+            var mainWindow = Application.Top?.Focused as MainWindow;
             mainWindow?.RemoveTcpClient(client);
         }
 
         public void TcpClientData(BaseClient client, Int64 transmitted, Int64 received) {
-            var mainWindow = Application.Top.Focused as MainWindow;
+            var mainWindow = Application.Top?.Focused as MainWindow;
             mainWindow?.TcpClientData(client, transmitted, received);
         }
 
         public void ConnectUdpClient(BaseClient client) {
-            var mainWindow = Application.Top.Focused as MainWindow;
+            var mainWindow = Application.Top?.Focused as MainWindow;
             mainWindow?.AddUdpClient(client);
         }
 
         public void DisconnectUdpClient(BaseClient client) {
-            var mainWindow = Application.Top.Focused as MainWindow;
+            var mainWindow = Application.Top?.Focused as MainWindow;
             mainWindow?.RemoveUdpClient(client);
         }
         public void UdpClientData(BaseClient client, long transmitted, long received) {
-            var mainWindow = Application.Top.Focused as MainWindow;
+            var mainWindow = Application.Top?.Focused as MainWindow;
             mainWindow?.UdpClientData(client, transmitted, received);
         }
     }
