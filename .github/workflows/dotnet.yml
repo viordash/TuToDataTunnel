@@ -38,25 +38,25 @@ jobs:
       with:
         name: win-Server
         path: ./out/win/TutoProxy.Server/TutoProxy.Server.exe
-        retention-days: 30
+        retention-days: 300
 
     - name: Deploy Win-Client
       uses: actions/upload-artifact@v3
       with:
         name: win-Client
         path: ./out/win/TutoProxy.Client/TutoProxy.Client.exe
-        retention-days: 30        
+        retention-days: 300   
         
     - name: Deploy Linux-Server
       uses: actions/upload-artifact@v3
       with:
         name: linux-Server
         path: ./out/linux/TutoProxy.Server/TutoProxy.Server
-        retention-days: 30  
+        retention-days: 300  
         
     - name: Deploy Linux-Client
       uses: actions/upload-artifact@v3
       with:
         name: linux-Client
         path: ./out/linux/TutoProxy.Client/TutoProxy.Client
-        retention-days: 30    
+        retention-days: 300    
