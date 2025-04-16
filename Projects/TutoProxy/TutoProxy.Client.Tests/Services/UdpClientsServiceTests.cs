@@ -66,7 +66,7 @@ namespace TutoProxy.Client.Tests.Services {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             var client0 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
-            Assert.IsNotNull(client0);
+            Assert.That(client0, Is.Not.Null);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
@@ -75,7 +75,7 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(testable.PublicMorozovUdpClients[1000][51000], Is.SameAs(client0));
 
             var client1 = testable.ObtainUdpClient(1000, 51001, signalRClientMock.Object);
-            Assert.IsNotNull(client1);
+            Assert.That(client1, Is.Not.Null);
             Assert.That(client1.Port, Is.EqualTo(1000));
             Assert.That(client1.OriginPort, Is.EqualTo(51001));
 
@@ -89,7 +89,7 @@ namespace TutoProxy.Client.Tests.Services {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             var client0 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
-            Assert.IsNotNull(client0);
+            Assert.That(client0, Is.Not.Null);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
@@ -107,7 +107,7 @@ namespace TutoProxy.Client.Tests.Services {
 
             for(int port = 0; port < 50; port++) {
                 for(int origPort = 0; origPort < 10; origPort++) {
-                    Assert.IsNotNull(testable.ObtainUdpClient(1000 + port, 51000 + origPort, signalRClientMock.Object));
+                    Assert.That(testable.ObtainUdpClient(1000 + port, 51000 + origPort, signalRClientMock.Object), Is.Not.Null);
                 }
             }
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
@@ -121,18 +121,18 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task UdpClient_Timeout_Timer_Is_Refreshed_During_Obtaining_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 1).ToList());
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
 
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
             await Task.Delay(500);
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
             await Task.Delay(500);
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
             await Task.Delay(500);
 
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
@@ -145,8 +145,8 @@ namespace TutoProxy.Client.Tests.Services {
         public void Stop_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
-            Assert.IsNotNull(testable.ObtainUdpClient(1001, 51001, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
+            Assert.That(testable.ObtainUdpClient(1001, 51001, signalRClientMock.Object), Is.Not.Null);
 
             testable.Stop();
 
