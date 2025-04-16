@@ -3,16 +3,11 @@ using System.Net;
 using Serilog;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
-using TuToProxy.Core.Models;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Tests.Services {
     public class TcpClientsServiceTests {
-        class TestableClientsService : ClientsService {
-            public TestableClientsService(ILogger logger, IClientFactory clientFactory, IProcessMonitor processMonitor)
-                : base(logger, clientFactory, processMonitor) {
-            }
-
+        class TestableClientsService(ILogger logger, IClientFactory clientFactory, IProcessMonitor processMonitor) : ClientsService(logger, clientFactory, processMonitor) {
             public ConcurrentDictionary<int, ConcurrentDictionary<int, TcpClient>> PublicMorozovTcpClients {
                 get { return tcpClients; }
             }
@@ -61,8 +56,8 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
-            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo([51000]));
             Assert.That(testable.PublicMorozovTcpClients[1000][51000], Is.SameAs(client0));
 
             var client1 = testable.AddTcpClient(1000, 51001, signalRClientMock.Object);
@@ -70,8 +65,8 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(client1.Port, Is.EqualTo(1000));
             Assert.That(client1.OriginPort, Is.EqualTo(51001));
 
-            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000, 51001 }));
+            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo([51000, 51001]));
             Assert.That(testable.PublicMorozovTcpClients[1000][51001], Is.SameAs(client1));
         }
 
@@ -87,8 +82,8 @@ namespace TutoProxy.Client.Tests.Services {
             var client1 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
             Assert.That(client1, Is.SameAs(client0));
 
-            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo([51000]));
             Assert.That(testable.PublicMorozovTcpClients[1000][51000], Is.SameAs(client0));
         }
 
@@ -126,10 +121,10 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(testable.AddTcpClient(1000, 51001, signalRClientMock.Object), Is.Not.Null);
 
             Assert.That(await testable.RemoveTcpClient(1000, 50999), Is.False);
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000, 51001 }));
+            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo([51000, 51001]));
 
             Assert.That(await testable.RemoveTcpClient(1000, 51001), Is.True);
-            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo([51000]));
 
             Assert.That(await testable.RemoveTcpClient(1000, 51000), Is.True);
             Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.Empty);

@@ -8,20 +8,12 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Tests.Services {
     public class UdpClientsServiceTests {
 
-        public class TestableUdpClient : UdpClient {
-            public TestableUdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient,
-                    IProcessMonitor processMonitor)
-                : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
-            }
-
+        public class TestableUdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient,
+                IProcessMonitor processMonitor) : UdpClient(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
             protected override TimeSpan ReceiveTimeout { get { return TimeSpan.FromMilliseconds(1000); } }
         }
 
-        class TestableClientsService : ClientsService {
-            public TestableClientsService(ILogger logger, IClientFactory clientFactory, IProcessMonitor processMonitor)
-                : base(logger, clientFactory, processMonitor) {
-            }
-
+        class TestableClientsService(ILogger logger, IClientFactory clientFactory, IProcessMonitor processMonitor) : ClientsService(logger, clientFactory, processMonitor) {
             public ConcurrentDictionary<int, ConcurrentDictionary<int, UdpClient>> PublicMorozovUdpClients {
                 get { return udpClients; }
             }
@@ -70,8 +62,8 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo([51000]));
             Assert.That(testable.PublicMorozovUdpClients[1000][51000], Is.SameAs(client0));
 
             var client1 = testable.ObtainUdpClient(1000, 51001, signalRClientMock.Object);
@@ -79,8 +71,8 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(client1.Port, Is.EqualTo(1000));
             Assert.That(client1.OriginPort, Is.EqualTo(51001));
 
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000, 51001 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo([51000, 51001]));
             Assert.That(testable.PublicMorozovUdpClients[1000][51001], Is.SameAs(client1));
         }
 
@@ -96,8 +88,8 @@ namespace TutoProxy.Client.Tests.Services {
             var client1 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
             Assert.That(client1, Is.SameAs(client0));
 
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo([51000]));
             Assert.That(testable.PublicMorozovUdpClients[1000][51000], Is.SameAs(client0));
         }
 
