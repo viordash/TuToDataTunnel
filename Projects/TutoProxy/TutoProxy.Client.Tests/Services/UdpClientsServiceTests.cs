@@ -8,20 +8,12 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Tests.Services {
     public class UdpClientsServiceTests {
 
-        public class TestableUdpClient : UdpClient {
-            public TestableUdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient,
-                    IProcessMonitor processMonitor)
-                : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
-            }
-
+        public class TestableUdpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient,
+                IProcessMonitor processMonitor) : UdpClient(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
             protected override TimeSpan ReceiveTimeout { get { return TimeSpan.FromMilliseconds(1000); } }
         }
 
-        class TestableClientsService : ClientsService {
-            public TestableClientsService(ILogger logger, IClientFactory clientFactory, IProcessMonitor processMonitor)
-                : base(logger, clientFactory, processMonitor) {
-            }
-
+        class TestableClientsService(ILogger logger, IClientFactory clientFactory, IProcessMonitor processMonitor) : ClientsService(logger, clientFactory, processMonitor) {
             public ConcurrentDictionary<int, ConcurrentDictionary<int, UdpClient>> PublicMorozovUdpClients {
                 get { return udpClients; }
             }
@@ -66,21 +58,21 @@ namespace TutoProxy.Client.Tests.Services {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             var client0 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
-            Assert.IsNotNull(client0);
+            Assert.That(client0, Is.Not.Null);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo([51000]));
             Assert.That(testable.PublicMorozovUdpClients[1000][51000], Is.SameAs(client0));
 
             var client1 = testable.ObtainUdpClient(1000, 51001, signalRClientMock.Object);
-            Assert.IsNotNull(client1);
+            Assert.That(client1, Is.Not.Null);
             Assert.That(client1.Port, Is.EqualTo(1000));
             Assert.That(client1.OriginPort, Is.EqualTo(51001));
 
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000, 51001 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo([51000, 51001]));
             Assert.That(testable.PublicMorozovUdpClients[1000][51001], Is.SameAs(client1));
         }
 
@@ -89,15 +81,15 @@ namespace TutoProxy.Client.Tests.Services {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             var client0 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
-            Assert.IsNotNull(client0);
+            Assert.That(client0, Is.Not.Null);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
             var client1 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
             Assert.That(client1, Is.SameAs(client0));
 
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 1000 }));
-            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo(new[] { 51000 }));
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo([1000]));
+            Assert.That(testable.PublicMorozovUdpClients[1000].Keys, Is.EquivalentTo([51000]));
             Assert.That(testable.PublicMorozovUdpClients[1000][51000], Is.SameAs(client0));
         }
 
@@ -107,7 +99,7 @@ namespace TutoProxy.Client.Tests.Services {
 
             for(int port = 0; port < 50; port++) {
                 for(int origPort = 0; origPort < 10; origPort++) {
-                    Assert.IsNotNull(testable.ObtainUdpClient(1000 + port, 51000 + origPort, signalRClientMock.Object));
+                    Assert.That(testable.ObtainUdpClient(1000 + port, 51000 + origPort, signalRClientMock.Object), Is.Not.Null);
                 }
             }
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
@@ -121,18 +113,18 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task UdpClient_Timeout_Timer_Is_Refreshed_During_Obtaining_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 1).ToList());
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
 
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
             await Task.Delay(500);
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
             await Task.Delay(500);
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
             await Task.Delay(500);
 
             clientsServiceMock.Verify(x => x.RemoveUdpClient(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
@@ -145,8 +137,8 @@ namespace TutoProxy.Client.Tests.Services {
         public void Stop_Test() {
             testable.Start(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
-            Assert.IsNotNull(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object));
-            Assert.IsNotNull(testable.ObtainUdpClient(1001, 51001, signalRClientMock.Object));
+            Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
+            Assert.That(testable.ObtainUdpClient(1001, 51001, signalRClientMock.Object), Is.Not.Null);
 
             testable.Stop();
 
