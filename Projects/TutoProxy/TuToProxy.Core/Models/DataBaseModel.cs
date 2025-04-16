@@ -6,8 +6,8 @@ namespace TuToProxy.Core.Models {
     public class SocketAddressModel {
         #region inner classes
         public class SocketAddressModelFormatter : IMessagePackFormatter<SocketAddressModel?> {
-            static IFormatterResolver resolver = MessagePack.Resolvers.BuiltinResolver.Instance;
-            static IMessagePackFormatter<int>? intFormatter = resolver.GetFormatter<int>();
+            static readonly MessagePack.Resolvers.BuiltinResolver resolver = MessagePack.Resolvers.BuiltinResolver.Instance;
+            static readonly IMessagePackFormatter<int>? intFormatter = resolver.GetFormatter<int>();
 
             public void Serialize(ref MessagePackWriter writer, SocketAddressModel? value, MessagePackSerializerOptions options) {
                 if(intFormatter is null || value is null) {
@@ -41,9 +41,9 @@ namespace TuToProxy.Core.Models {
     public abstract class DataBaseModel : SocketAddressModel {
         #region inner classes
         public class DataBaseModelFormatter<T> : IMessagePackFormatter<T?> where T : DataBaseModel, new() {
-            static IFormatterResolver resolver = MessagePack.Resolvers.BuiltinResolver.Instance;
-            static IMessagePackFormatter<int>? intFormatter = resolver.GetFormatter<int>();
-            static IMessagePackFormatter<ReadOnlyMemory<byte>>? dataFormatter = resolver.GetFormatter<ReadOnlyMemory<byte>>();
+            static readonly MessagePack.Resolvers.BuiltinResolver resolver = MessagePack.Resolvers.BuiltinResolver.Instance;
+            static readonly IMessagePackFormatter<int>? intFormatter = resolver.GetFormatter<int>();
+            static readonly IMessagePackFormatter<ReadOnlyMemory<byte>>? dataFormatter = resolver.GetFormatter<ReadOnlyMemory<byte>>();
 
             public void Serialize(ref MessagePackWriter writer, T? value, MessagePackSerializerOptions options) {
                 if(intFormatter is null || dataFormatter is null || value is null) {
@@ -67,7 +67,7 @@ namespace TuToProxy.Core.Models {
         #endregion
 
         [Key(2)]
-        public ReadOnlyMemory<byte> Data { get; set; } = new byte[0];
+        public ReadOnlyMemory<byte> Data { get; set; } = Array.Empty<byte>();
 
         public override string ToString() {
             return $"{base.ToString()}, {Data.Length} b";
