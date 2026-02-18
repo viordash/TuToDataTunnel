@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -62,10 +63,17 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task Listen_Test() {
+            tcpServerMock
+                .Setup(x => x.Listen())
+                .Returns(Task.CompletedTask);
+            udpServerMock
+                .Setup(x => x.Listen())
+                .Returns(Task.CompletedTask);
+
             await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
-            testable.Listen();
+            await testable.Listen();
             tcpServerMock.Verify(x => x.Listen(), Times.Exactly(10));
             udpServerMock.Verify(x => x.Listen(), Times.Exactly(4));
         }
@@ -141,6 +149,40 @@ namespace TutoProxy.Server.Tests.Services {
 
             Assert.Throws<SocketPortNotBoundException>(() => testable.DisconnectTcp(new SocketAddressModel() { Port = 110, OriginPort = 10000 }),
                     "Tcp socket port(110) not bound");
+        }
+
+        [Test]
+        public async Task Listen_ShouldPropagateException_WhenTcpServerListenFails() {
+            var expectedException = new InvalidOperationException("Port 8080 already in use");
+            tcpServerMock
+                .Setup(x => x.Listen())
+                .Returns(Task.FromException(expectedException));
+            udpServerMock
+                .Setup(x => x.Listen())
+                .Returns(Task.CompletedTask);
+
+            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object,
+                new List<int> { 8080 }, new List<int> { 9000 }, serviceProviderMock.Object);
+
+            var ex = Assert.ThrowsAsync<InvalidOperationException>(testable.Listen);
+            Assert.That(ex!.Message, Is.EqualTo("Port 8080 already in use"));
+        }
+
+        [Test]
+        public async Task Listen_ShouldPropagateException_WhenUdpServerListenFails() {
+            var expectedException = new InvalidOperationException("UDP port 9000 already in use");
+            tcpServerMock
+                .Setup(x => x.Listen())
+                .Returns(Task.CompletedTask);
+            udpServerMock
+                .Setup(x => x.Listen())
+                .Returns(Task.FromException(expectedException));
+
+            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object,
+                new List<int> { 8080 }, new List<int> { 9000 }, serviceProviderMock.Object);
+
+            var ex = Assert.ThrowsAsync<InvalidOperationException>(testable.Listen);
+            Assert.That(ex!.Message, Is.EqualTo("UDP port 9000 already in use"));
         }
     }
 }

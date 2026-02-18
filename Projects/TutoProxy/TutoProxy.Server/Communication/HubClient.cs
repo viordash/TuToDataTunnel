@@ -51,13 +51,15 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
-        public void Listen() {
+        public Task Listen() {
+            var tasks = new List<Task>();
             if(tcpServers != null) {
-                Task.WhenAll(tcpServers.Values.Select(x => x.Listen()));
+                tasks.AddRange(tcpServers.Values.Select(x => x.Listen()));
             }
             if(udpServers != null) {
-                Task.WhenAll(udpServers.Values.Select(x => x.Listen()));
+                tasks.AddRange(udpServers.Values.Select(x => x.Listen()));
             }
+            return Task.WhenAll(tasks);
         }
 
         public ValueTask<int> SendTcpResponse(TcpDataResponseModel response) {

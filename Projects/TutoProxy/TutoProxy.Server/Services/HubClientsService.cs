@@ -127,7 +127,7 @@ namespace TutoProxy.Server.Services {
                 }
 
                 logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
-                hubClient.Listen();
+                _ = hubClient.Listen();
                 processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
             }
         }
