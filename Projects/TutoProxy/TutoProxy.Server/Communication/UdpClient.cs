@@ -7,7 +7,7 @@ using TuToProxy.Core.Extensions;
 namespace TutoProxy.Server.Communication {
 
     public class UdpClient : BaseClient {
-        readonly Action<int> timeoutAction;
+        readonly Func<int, Task> timeoutAction;
         readonly System.Timers.Timer timeoutTimer;
         DateTime requestLogTimer = DateTime.Now;
         DateTime responseLogTimer = DateTime.Now;
@@ -18,7 +18,7 @@ namespace TutoProxy.Server.Communication {
         public IPEndPoint EndPoint { get; private set; }
 
         public UdpClient(BaseServer udpServer, IDataTransferService dataTransferService, ILogger logger, IProcessMonitor processMonitor,
-           IPEndPoint endPoint, TimeSpan receiveTimeout, Action<int> timeoutAction)
+           IPEndPoint endPoint, TimeSpan receiveTimeout, Func<int, Task> timeoutAction)
             : base(udpServer, endPoint.Port, dataTransferService, logger, processMonitor) {
 
             EndPoint = endPoint;
@@ -46,8 +46,12 @@ namespace TutoProxy.Server.Communication {
             await base.DisposeAsync();
         }
 
-        void OnTimedEvent(object? source, ElapsedEventArgs e) {
-            timeoutAction(OriginPort);
+        async void OnTimedEvent(object? source, ElapsedEventArgs e) {
+            try {
+                await timeoutAction(OriginPort);
+            } catch(Exception ex) {
+                logger.Error($"OnTimedEvent({OriginPort}) error: {ex.Message}");
+            }
         }
 
         public void StartTimeoutTimer() {

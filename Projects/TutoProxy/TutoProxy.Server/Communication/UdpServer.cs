@@ -97,14 +97,10 @@ namespace TutoProxy.Server.Communication {
              );
         }
 
-        async void RemoveExpiredRemoteEndPoint(int port) {
-            try {
-                Debug.WriteLine($"RemoveExpiredRemoteEndPoint: {port}");
-                if(udpClients.TryRemove(port, out UdpClient? client)) {
-                    await client.DisposeAsync();
-                }
-            } catch(Exception ex) {
-                logger.Error($"RemoveExpiredRemoteEndPoint({port}) error: {ex.Message}");
+        async Task RemoveExpiredRemoteEndPoint(int port) {
+            Debug.WriteLine($"RemoveExpiredRemoteEndPoint: {port}");
+            if(udpClients.TryRemove(port, out UdpClient? client)) {
+                await client.DisposeAsync();
             }
         }
     }

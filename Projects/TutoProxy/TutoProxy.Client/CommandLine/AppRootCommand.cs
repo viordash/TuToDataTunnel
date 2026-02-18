@@ -81,14 +81,14 @@ namespace TutoProxy.Server.CommandLine {
 
                 if(Daemon != null && Daemon.Value) {
                     Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
-                    StartServices(appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
+                    _ = StartServices(appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
                     _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 } else {
                     Application.IsMouseDisabled = true;
                     Application.Init();
                     var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
                     mainWindow.Ready += () => {
-                        StartServices(appStoppingReg.Token, (status) => Application.MainLoop.Invoke(() => { mainWindow.Title = $"{title} - {status}"; }));
+                        _ = StartServices(appStoppingReg.Token, (status) => Application.MainLoop.Invoke(() => { mainWindow.Title = $"{title} - {status}"; }));
                     };
 
                     Application.Top.Add(new MainMenu(version), mainWindow);
@@ -100,7 +100,7 @@ namespace TutoProxy.Server.CommandLine {
                 return Task.FromResult(0);
             }
 
-            async void StartServices(CancellationToken cancellationToken, Action<string> logStatus) {
+            async Task StartServices(CancellationToken cancellationToken, Action<string> logStatus) {
                 try {
                     await clientsService.StartAsync(IPAddress.Parse(Sendto!), Tcp?.Ports, Udp?.Ports);
                     _ = Task.Run(async () => {
