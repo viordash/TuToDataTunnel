@@ -11,7 +11,7 @@ using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Services {
     public interface IHubClientsService : IAsyncDisposable {
-        void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
+        Task Connect(string connectionId, IClientProxy clientProxy, string? queryString);
         Task DisconnectAsync(string connectionId);
         HubClient GetClient(string connectionId);
         string GetConnectionIdForTcp(int port);
@@ -55,7 +55,7 @@ namespace TutoProxy.Server.Services {
             this.alowedClients = alowedClients;
         }
 
-        public void Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
+        public async Task Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
             if(queryString == null) {
                 throw new ClientConnectionException(connectionId, "QueryString empty");
             }
@@ -105,6 +105,8 @@ namespace TutoProxy.Server.Services {
                 throw new ClientConnectionException(clientId, connectionId, message);
             }
 
+            HubClient? hubClientToDispose = null;
+
             lock(connectLock) {
                 var hubClients = connectedClients.Values.ToList();
 
@@ -122,13 +124,17 @@ namespace TutoProxy.Server.Services {
 
                 var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
                 if(!connectedClients.TryAdd(connectionId, hubClient)) {
-                    hubClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                    throw new ClientConnectionException(clientId, connectionId, "Client already connected");
+                    hubClientToDispose = hubClient;
+                } else {
+                    logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
+                    _ = hubClient.Listen();
+                    processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
                 }
+            }
 
-                logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
-                _ = hubClient.Listen();
-                processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
+            if(hubClientToDispose != null) {
+                await hubClientToDispose.DisposeAsync();
+                throw new ClientConnectionException(clientId, connectionId, "Client already connected");
             }
         }
 

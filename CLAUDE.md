@@ -16,6 +16,10 @@ dotnet build Projects/TutoProxy/TutoProxy.sln
 dotnet test Projects/TutoProxy/TutoProxy.sln
 ```
 
+## Code Style
+
+- Do NOT add `Async` suffix to async method names
+
 ## Commit Messages
 
 - Keep commit messages short and concise

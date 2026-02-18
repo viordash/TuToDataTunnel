@@ -87,24 +87,24 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), null);
 
-            testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80,81,443");
-            testable.Connect("connectionId1", clientProxyMock.Object, "tcpquery=180,181,1443");
+            await testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80,81,443");
+            await testable.Connect("connectionId1", clientProxyMock.Object, "tcpquery=180,181,1443");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
 
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "tcpquery=80"), "tcp ports already in use");
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "tcpquery=180,181,1443"), "tcp ports already in use");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "tcpquery=80"), "tcp ports already in use");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "tcpquery=180,181,1443"), "tcp ports already in use");
         }
 
         [Test]
         public async Task Clients_WithAlready_Used_UdpPort_Are_Rejected_Test() {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), null);
-            testable.Connect("connectionId0", clientProxyMock.Object, "udpquery=1080,1081,10443");
-            testable.Connect("connectionId1", clientProxyMock.Object, "udpquery=10180,10181,11443");
+            await testable.Connect("connectionId0", clientProxyMock.Object, "udpquery=1080,1081,10443");
+            await testable.Connect("connectionId1", clientProxyMock.Object, "udpquery=10180,10181,11443");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
 
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "udpquery=1080"), "udp ports already in use");
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "udpquery=10180,10181,11443"), "udp ports already in use");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "udpquery=1080"), "udp ports already in use");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "udpquery=10180,10181,11443"), "udp ports already in use");
         }
 
         [Test]
@@ -112,12 +112,12 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1000, 4), Enumerable.Range(1, 65535), null);
 
-            testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=1000,1001");
-            testable.Connect("connectionId1", clientProxyMock.Object, "tcpquery=1002,1003");
+            await testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=1000,1001");
+            await testable.Connect("connectionId1", clientProxyMock.Object, "tcpquery=1002,1003");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
 
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "tcpquery=1004"), "banned tcp ports");
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "tcpquery=180,181,1443"), "banned tcp ports");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "tcpquery=1004"), "banned tcp ports");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "tcpquery=180,181,1443"), "banned tcp ports");
         }
 
         [Test]
@@ -125,12 +125,12 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535), Enumerable.Range(1000, 4), null);
 
-            testable.Connect("connectionId0", clientProxyMock.Object, "udpquery=1000,1001");
-            testable.Connect("connectionId1", clientProxyMock.Object, "udpquery=1002,1003");
+            await testable.Connect("connectionId0", clientProxyMock.Object, "udpquery=1000,1001");
+            await testable.Connect("connectionId1", clientProxyMock.Object, "udpquery=1002,1003");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1" }));
 
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "udpquery=1004"), "banned udp ports");
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "udpquery=180,181,1443"), "banned udp ports");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "udpquery=1004"), "banned udp ports");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId3", clientProxyMock.Object, "udpquery=180,181,1443"), "banned udp ports");
         }
 
         [Test]
@@ -210,10 +210,10 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), new string[] { "client1", "client2" });
 
-            testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80&clientid=client1");
+            await testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80&clientid=client1");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0" }));
 
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "tcpquery=80&clientid=clientOther"), "client denied");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId2", clientProxyMock.Object, "tcpquery=80&clientid=clientOther"), "client denied");
         }
 
         [Test]
@@ -221,9 +221,9 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), null);
 
-            testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80&clientid=client1");
-            testable.Connect("connectionId1", clientProxyMock.Object, "tcpquery=81&clientid=client2");
-            testable.Connect("connectionId99", clientProxyMock.Object, "tcpquery=899&clientid=client99");
+            await testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80&clientid=client1");
+            await testable.Connect("connectionId1", clientProxyMock.Object, "tcpquery=81&clientid=client2");
+            await testable.Connect("connectionId99", clientProxyMock.Object, "tcpquery=899&clientid=client99");
             Assert.That(testable.PublicMorozovConnectedClients.Keys, Is.EquivalentTo(new[] { "connectionId0", "connectionId1", "connectionId99" }));
         }
 
@@ -232,7 +232,7 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), new string[] { "client1", "client2" });
 
-            Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80"), "clientId param requried");
+            Assert.ThrowsAsync<ClientConnectionException>(() => testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80"), "clientId param requried");
         }
 
         [Test]
@@ -261,7 +261,7 @@ namespace TutoProxy.Server.Tests.Services {
                 threads[i] = new Thread(() => {
                     barrier.SignalAndWait(); // Синхронизируем старт всех потоков
                     try {
-                        testable.Connect(connectionId, clientProxyMock.Object, $"tcpquery={targetPort}");
+                        testable.Connect(connectionId, clientProxyMock.Object, $"tcpquery={targetPort}").GetAwaiter().GetResult();
                         Interlocked.Increment(ref successCount);
                     } catch(ClientConnectionException) {
                         Interlocked.Increment(ref exceptionCount);
