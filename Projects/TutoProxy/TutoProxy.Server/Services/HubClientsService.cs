@@ -121,11 +121,14 @@ namespace TutoProxy.Server.Services {
                 }
 
                 var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
-                if(connectedClients.TryAdd(connectionId, hubClient)) {
-                    logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
-                    hubClient.Listen();
-                    processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
+                if(!connectedClients.TryAdd(connectionId, hubClient)) {
+                    hubClient.Dispose();
+                    throw new ClientConnectionException(clientId, connectionId, "Client already connected");
                 }
+
+                logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
+                hubClient.Listen();
+                processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
             }
         }
 
