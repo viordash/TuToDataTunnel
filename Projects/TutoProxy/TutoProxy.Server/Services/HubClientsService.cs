@@ -21,6 +21,7 @@ namespace TutoProxy.Server.Services {
     public class HubClientsService : IHubClientsService {
         readonly ILogger logger;
         protected readonly ConcurrentDictionary<string, HubClient> connectedClients = new();
+        readonly Lock connectLock = new();
         readonly IHostApplicationLifetime applicationLifetime;
         readonly IServiceProvider serviceProvider;
         readonly IProcessMonitor processMonitor;
@@ -104,25 +105,27 @@ namespace TutoProxy.Server.Services {
                 throw new ClientConnectionException(clientId, connectionId, message);
             }
 
-            var hubClients = connectedClients.Values.ToList();
+            lock(connectLock) {
+                var hubClients = connectedClients.Values.ToList();
 
-            var alreadyUsedTcpPorts = GetAlreadyUsedTcpPorts(hubClients, tcpPorts);
-            if(alreadyUsedTcpPorts.Any()) {
-                var message = $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]";
-                throw new ClientConnectionException(clientId, connectionId, message);
-            }
+                var alreadyUsedTcpPorts = GetAlreadyUsedTcpPorts(hubClients, tcpPorts);
+                if(alreadyUsedTcpPorts.Any()) {
+                    var message = $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]";
+                    throw new ClientConnectionException(clientId, connectionId, message);
+                }
 
-            var alreadyUsedUdpPorts = GetAlreadyUsedUdpPorts(hubClients, udpPorts);
-            if(alreadyUsedUdpPorts.Any()) {
-                var message = $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]";
-                throw new ClientConnectionException(clientId, connectionId, message);
-            }
+                var alreadyUsedUdpPorts = GetAlreadyUsedUdpPorts(hubClients, udpPorts);
+                if(alreadyUsedUdpPorts.Any()) {
+                    var message = $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]";
+                    throw new ClientConnectionException(clientId, connectionId, message);
+                }
 
-            var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
-            if(connectedClients.TryAdd(connectionId, hubClient)) {
-                logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
-                hubClient.Listen();
-                processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
+                var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
+                if(connectedClients.TryAdd(connectionId, hubClient)) {
+                    logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
+                    hubClient.Listen();
+                    processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
+                }
             }
         }
 

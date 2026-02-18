@@ -233,5 +233,62 @@ namespace TutoProxy.Server.Tests.Services {
 
             Assert.Throws<ClientConnectionException>(() => testable.Connect("connectionId0", clientProxyMock.Object, "tcpquery=80"), "clientId param requried");
         }
+
+        [Test]
+        [Repeat(10)] // Повторяем для увеличения вероятности race condition
+        public void Concurrent_Connect_With_Same_Ports_Should_Allow_Only_One_Client() {
+            const int threadCount = 20;
+            const int targetPort = 5000;
+
+            using var testable = new TestableClientsService(
+                loggerMock.Object,
+                applicationLifetimeMock.Object,
+                serviceProviderMock.Object,
+                processMonitorMock.Object,
+                localEndPoint,
+                Enumerable.Range(1, 65535),
+                Enumerable.Range(1, 65535),
+                null);
+
+            var barrier = new Barrier(threadCount);
+            var successCount = 0;
+            var exceptionCount = 0;
+            var threads = new Thread[threadCount];
+
+            for(int i = 0; i < threadCount; i++) {
+                var connectionId = $"connectionId_{i}";
+                threads[i] = new Thread(() => {
+                    barrier.SignalAndWait(); // Синхронизируем старт всех потоков
+                    try {
+                        testable.Connect(connectionId, clientProxyMock.Object, $"tcpquery={targetPort}");
+                        Interlocked.Increment(ref successCount);
+                    } catch(ClientConnectionException) {
+                        Interlocked.Increment(ref exceptionCount);
+                    }
+                });
+            }
+
+            foreach(var thread in threads) {
+                thread.Start();
+            }
+
+            foreach(var thread in threads) {
+                thread.Join();
+            }
+
+            // Проверяем: только ОДИН клиент должен успешно подключиться с портом 5000
+            // Если race condition происходит, successCount > 1
+            Assert.That(successCount, Is.EqualTo(1),
+                $"Race condition detected! {successCount} clients connected with same port {targetPort}");
+            Assert.That(exceptionCount, Is.EqualTo(threadCount - 1),
+                $"Expected {threadCount - 1} rejections, got {exceptionCount}");
+
+            // Дополнительная проверка: только один клиент в словаре имеет этот порт
+            var clientsWithPort = testable.PublicMorozovConnectedClients.Values
+                .Where(c => c.TcpPorts?.Contains(targetPort) == true)
+                .Count();
+            Assert.That(clientsWithPort, Is.EqualTo(1),
+                $"Race condition: {clientsWithPort} clients registered with port {targetPort}");
+        }
     }
 }
