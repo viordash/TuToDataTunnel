@@ -7,14 +7,14 @@ using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
-        void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
+        Task StartAsync(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
         TcpClient AddTcpClient(int port, int originPort, ISignalRClient dataTunnelClient);
         bool ObtainTcpClient(int port, int originPort, out TcpClient? client);
         ValueTask<bool> RemoveTcpClient(int port, int originPort);
 
         UdpClient ObtainUdpClient(int port, int originPort, ISignalRClient dataTunnelClient);
         ValueTask<bool> RemoveUdpClient(int port, int originPort);
-        void Stop();
+        Task StopAsync();
     }
 
     public class ClientsService : IClientsService {
@@ -43,8 +43,8 @@ namespace TutoProxy.Client.Services {
             localIpAddress = IPAddress.None;
         }
 
-        public void Start(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts) {
-            Stop();
+        public async Task StartAsync(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts) {
+            await StopAsync();
             this.localIpAddress = localIpAddress;
             this.tcpPorts = tcpPorts;
             this.udpPorts = udpPorts;
@@ -126,7 +126,7 @@ namespace TutoProxy.Client.Services {
             return false;
         }
 
-        public async void Stop() {
+        public async Task StopAsync() {
             foreach(var client in tcpClients.Values.SelectMany(x => x.Values)) {
                 await client.DisposeAsync();
             }

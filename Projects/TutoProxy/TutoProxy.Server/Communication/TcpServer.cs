@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
-    public interface ITcpServer : IDisposable {
+    public interface ITcpServer : IAsyncDisposable {
         Task Listen();
         ValueTask<int> SendResponse(TcpDataResponseModel response, CancellationToken cancellationToken);
         ValueTask<bool> DisconnectAsync(SocketAddressModel socketAddress);
@@ -85,7 +85,7 @@ namespace TutoProxy.Server.Communication {
             return false;
         }
 
-        public override async void Dispose() {
+        public override async ValueTask DisposeAsync() {
             cts.Cancel();
             cts.Dispose();
             foreach(var item in remoteSockets.Values.ToList()) {

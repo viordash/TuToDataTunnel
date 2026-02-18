@@ -33,7 +33,7 @@ namespace TutoProxy.Server.Hubs {
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             logger.Debug($"DisconnectUdp: {socketAddress}, {totalTransfered}");
             try {
-                dataTransferService.HandleDisconnectUdp(Context.ConnectionId, socketAddress, totalTransfered);
+                await dataTransferService.HandleDisconnectUdpAsync(Context.ConnectionId, socketAddress, totalTransfered);
             } catch(TuToException ex) {
                 await Clients.Caller.SendAsync("Errors", ex.Message);
             }
@@ -70,9 +70,9 @@ namespace TutoProxy.Server.Hubs {
             await base.OnConnectedAsync();
         }
 
-        public override Task OnDisconnectedAsync(Exception? exception) {
-            clientsService.Disconnect(Context.ConnectionId);
-            return base.OnDisconnectedAsync(exception);
+        public override async Task OnDisconnectedAsync(Exception? exception) {
+            await clientsService.DisconnectAsync(Context.ConnectionId);
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }

@@ -32,8 +32,8 @@ namespace TutoProxy.Server.Tests.Communication {
                 get { return udpClients; }
             }
 
-            public override void Dispose() {
-                base.Dispose();
+            public override ValueTask DisposeAsync() {
+                return base.DisposeAsync();
             }
         }
 
@@ -47,7 +47,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Test]
         [Retry(3)]
         public async Task RemoteEndPoints_Are_AutoDelete_After_Timeout_Test() {
-            using var testable = new TestableUdpServer(10000, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
+            await using var testable = new TestableUdpServer(10000, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
                processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
@@ -68,7 +68,7 @@ namespace TutoProxy.Server.Tests.Communication {
         [Test]
         [Retry(3)]
         public async Task Add_Already_Exists_RemoteEndPoint_Increase_Timeout_Test() {
-            using var testable = new TestableUdpServer(10000, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
+            await using var testable = new TestableUdpServer(10000, new IPEndPoint(IPAddress.Loopback, 0), dataTransferServiceMock.Object, loggerMock.Object,
                 processMonitorMock.Object, TimeSpan.FromMilliseconds(500));
 
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
@@ -101,12 +101,13 @@ namespace TutoProxy.Server.Tests.Communication {
             testable.PublicMorozovAddRemoteEndPoint(new IPEndPoint(IPAddress.Loopback, 100));
             Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
             await Task.Delay(100);
-            testable.Dispose();
-            await Task.Delay(500);
-            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.EquivalentTo(new[] { 100 }));
+            await testable.DisposeAsync();
+            // After dispose, all clients should be cleaned up
+            Assert.That(testable.PublicMorozovUdpClients.Keys, Is.Empty);
             stopWatch.Stop();
 
-            Assert.That(stopWatch.Elapsed, Is.LessThanOrEqualTo(TimeSpan.FromMilliseconds(1000)));
+            // Dispose should complete quickly without waiting for timers
+            Assert.That(stopWatch.Elapsed, Is.LessThanOrEqualTo(TimeSpan.FromMilliseconds(500)));
         }
 
     }

@@ -46,16 +46,16 @@ namespace TutoProxy.Client.Tests.Services {
         }
 
         [Test]
-        public void ObtainUdpClient_With_Banned_UdpPort_Are_Throws_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
+        public async Task ObtainUdpClient_With_Banned_UdpPort_Are_Throws_Test() {
+            await testable.StartAsync(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             Assert.Throws<ClientNotFoundException>(() => testable.ObtainUdpClient(999, 50999, signalRClientMock.Object));
             Assert.Throws<ClientNotFoundException>(() => testable.ObtainUdpClient(1005, 51005, signalRClientMock.Object));
         }
 
         [Test]
-        public void ObtainUdpClient_Only_Once_Creating_List_With_Same_Port_Clients_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
+        public async Task ObtainUdpClient_Only_Once_Creating_List_With_Same_Port_Clients_Test() {
+            await testable.StartAsync(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             var client0 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
             Assert.That(client0, Is.Not.Null);
@@ -77,8 +77,8 @@ namespace TutoProxy.Client.Tests.Services {
         }
 
         [Test]
-        public void ObtainUdpClient_Only_Once_Creating_Same_Port_Client_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
+        public async Task ObtainUdpClient_Only_Once_Creating_Same_Port_Client_Test() {
+            await testable.StartAsync(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
             var client0 = testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object);
             Assert.That(client0, Is.Not.Null);
@@ -95,7 +95,7 @@ namespace TutoProxy.Client.Tests.Services {
 
         [Test]
         public async Task UdpClients_Is_Auto_Removed_After_Timeout_Test() {
-            testable.Start(IPAddress.Any, null, Enumerable.Range(1000, 50).ToList());
+            await testable.StartAsync(IPAddress.Any, null, Enumerable.Range(1000, 50).ToList());
 
             for(int port = 0; port < 50; port++) {
                 for(int origPort = 0; origPort < 10; origPort++) {
@@ -111,7 +111,7 @@ namespace TutoProxy.Client.Tests.Services {
 
         [Test]
         public async Task UdpClient_Timeout_Timer_Is_Refreshed_During_Obtaining_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 1).ToList());
+            await testable.StartAsync(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 1).ToList());
 
             Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
 
@@ -134,13 +134,13 @@ namespace TutoProxy.Client.Tests.Services {
         }
 
         [Test]
-        public void Stop_Test() {
-            testable.Start(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
+        public async Task Stop_Test() {
+            await testable.StartAsync(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
             Assert.That(testable.ObtainUdpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
             Assert.That(testable.ObtainUdpClient(1001, 51001, signalRClientMock.Object), Is.Not.Null);
 
-            testable.Stop();
+            await testable.StopAsync();
 
             Assert.That(testable.PublicMorozovUdpClients.Keys, Is.Empty);
         }

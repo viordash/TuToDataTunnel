@@ -6,7 +6,7 @@ using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Communication {
-    public class HubClient : IDisposable {
+    public class HubClient : IAsyncDisposable {
         public IClientProxy ClientProxy { get; private set; }
         public IEnumerable<int>? TcpPorts { get; private set; }
         public IEnumerable<int>? UdpPorts { get; private set; }
@@ -39,15 +39,15 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
-        public void Dispose() {
+        public async ValueTask DisposeAsync() {
             cts.Cancel();
             cts.Dispose();
 
             foreach(var item in tcpServers.Values) {
-                item.Dispose();
+                await item.DisposeAsync();
             }
             foreach(var item in udpServers.Values) {
-                item.Dispose();
+                await item.DisposeAsync();
             }
         }
 
@@ -81,11 +81,11 @@ namespace TutoProxy.Server.Communication {
             await server.SendResponse(response);
         }
 
-        public void DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
+        public async Task DisconnectUdpAsync(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(!udpServers.TryGetValue(socketAddress.Port, out IUdpServer? server)) {
                 throw new SocketPortNotBoundException(DataProtocol.Udp, socketAddress.Port);
             }
-            server.Disconnect(socketAddress, totalTransfered);
+            await server.DisconnectAsync(socketAddress, totalTransfered);
         }
     }
 }

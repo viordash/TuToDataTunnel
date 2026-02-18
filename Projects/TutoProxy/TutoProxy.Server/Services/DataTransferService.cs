@@ -7,7 +7,7 @@ namespace TutoProxy.Server.Services {
         Task SendUdpRequest(UdpDataRequestModel request, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered);
         Task HandleUdpResponse(string connectionId, UdpDataResponseModel response);
-        void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
+        Task HandleDisconnectUdpAsync(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered);
 
         Task<SocketError> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken);
         Task<int> SendTcpRequest(TcpDataRequestModel request, CancellationToken cancellationToken);
@@ -51,9 +51,9 @@ namespace TutoProxy.Server.Services {
             await client.SendUdpResponse(response);
         }
 
-        public void HandleDisconnectUdp(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
+        public async Task HandleDisconnectUdpAsync(string connectionId, SocketAddressModel socketAddress, Int64 totalTransfered) {
             var client = clientsService.GetClient(connectionId);
-            client.DisconnectUdp(socketAddress, totalTransfered);
+            await client.DisconnectUdpAsync(socketAddress, totalTransfered);
         }
 
         public Task<SocketError> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {

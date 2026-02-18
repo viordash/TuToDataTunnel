@@ -10,9 +10,9 @@ using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Services {
-    public interface IHubClientsService : IDisposable {
+    public interface IHubClientsService : IAsyncDisposable {
         void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
-        void Disconnect(string connectionId);
+        Task DisconnectAsync(string connectionId);
         HubClient GetClient(string connectionId);
         string GetConnectionIdForTcp(int port);
         string GetConnectionIdForUdp(int port);
@@ -122,7 +122,7 @@ namespace TutoProxy.Server.Services {
 
                 var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
                 if(!connectedClients.TryAdd(connectionId, hubClient)) {
-                    hubClient.Dispose();
+                    hubClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
                     throw new ClientConnectionException(clientId, connectionId, "Client already connected");
                 }
 
@@ -132,11 +132,11 @@ namespace TutoProxy.Server.Services {
             }
         }
 
-        public void Disconnect(string connectionId) {
+        public async Task DisconnectAsync(string connectionId) {
             logger.Information($"Disconnect hubClient :{connectionId}");
             if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {
                 processMonitor.DisconnectHubClient(connectionId, hubClient.TcpPorts, hubClient.UdpPorts);
-                hubClient.Dispose();
+                await hubClient.DisposeAsync();
             }
         }
 
@@ -171,10 +171,10 @@ namespace TutoProxy.Server.Services {
             return Enumerable.Empty<int>();
         }
 
-        public void Dispose() {
+        public async ValueTask DisposeAsync() {
             var hubClients = connectedClients.Values.ToList();
             foreach(var hubClient in hubClients) {
-                hubClient.Dispose();
+                await hubClient.DisposeAsync();
             }
         }
 
