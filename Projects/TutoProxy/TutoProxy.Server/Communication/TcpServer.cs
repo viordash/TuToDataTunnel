@@ -14,6 +14,7 @@ namespace TutoProxy.Server.Communication {
         readonly TcpListener tcpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
+        readonly ConcurrentBag<Task> receivingTasks = new();
 
         protected readonly ConcurrentDictionary<int, TcpClient> remoteSockets = new();
 
@@ -60,8 +61,8 @@ namespace TutoProxy.Server.Communication {
                                     logger.Error($"{client} already exists");
                                     await client.DisposeAsync();
                                 } else {
-                                    var receivingAction = async () => await client.ReceivingStream(cancellationToken);
-                                    _ = Task.Run(receivingAction, cancellationToken);
+                                    var receivingTask = Task.Run(() => client.ReceivingStream(cancellationToken), cancellationToken);
+                                    receivingTasks.Add(receivingTask);
                                 }
                             } else {
                                 logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
@@ -87,6 +88,12 @@ namespace TutoProxy.Server.Communication {
 
         public override async ValueTask DisposeAsync() {
             cts.Cancel();
+
+            try {
+                await Task.WhenAll(receivingTasks);
+            } catch(OperationCanceledException) {
+            }
+
             cts.Dispose();
             foreach(var item in remoteSockets.Values.ToList()) {
                 if(remoteSockets.TryRemove(item.OriginPort, out TcpClient? client)) {
