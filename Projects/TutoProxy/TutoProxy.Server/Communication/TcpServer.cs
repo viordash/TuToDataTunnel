@@ -95,11 +95,10 @@ namespace TutoProxy.Server.Communication {
             }
 
             cts.Dispose();
-            foreach(var item in remoteSockets.Values.ToList()) {
-                if(remoteSockets.TryRemove(item.OriginPort, out TcpClient? client)) {
-                    await client.DisposeAsync();
-                }
+            foreach(var client in remoteSockets.Values) {
+                await client.DisposeAsync();
             }
+            remoteSockets.Clear();
             GC.SuppressFinalize(this);
         }
 

@@ -73,11 +73,10 @@ namespace TutoProxy.Server.Communication {
             cts.Dispose();
             socket.Close();
 
-            foreach(var item in udpClients.Values.ToList()) {
-                if(udpClients.TryRemove(item.OriginPort, out UdpClient? client)) {
-                    await client.DisposeAsync();
-                }
+            foreach(var client in udpClients.Values) {
+                await client.DisposeAsync();
             }
+            udpClients.Clear();
             GC.SuppressFinalize(this);
         }
 

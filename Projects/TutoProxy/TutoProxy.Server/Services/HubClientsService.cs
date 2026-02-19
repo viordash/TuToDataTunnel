@@ -169,8 +169,7 @@ namespace TutoProxy.Server.Services {
         }
 
         public async ValueTask DisposeAsync() {
-            var hubClients = connectedClients.Values.ToList();
-            foreach(var hubClient in hubClients) {
+            foreach(var hubClient in connectedClients.Values) {
                 await hubClient.DisposeAsync();
             }
         }
