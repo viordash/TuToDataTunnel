@@ -27,9 +27,9 @@ namespace TutoProxy.Server.Services {
         readonly IServiceProvider serviceProvider;
         readonly IProcessMonitor processMonitor;
         readonly IPEndPoint localEndPoint;
-        readonly IEnumerable<int>? alowedTcpPorts;
-        readonly IEnumerable<int>? alowedUdpPorts;
-        readonly IEnumerable<string>? alowedClients;
+        readonly HashSet<int>? alowedTcpPorts;
+        readonly HashSet<int>? alowedUdpPorts;
+        readonly HashSet<string>? alowedClients;
 
         public HubClientsService(
             ILogger logger,
@@ -51,9 +51,9 @@ namespace TutoProxy.Server.Services {
             this.serviceProvider = serviceProvider;
             this.processMonitor = processMonitor;
             this.localEndPoint = localEndPoint;
-            this.alowedTcpPorts = alowedTcpPorts;
-            this.alowedUdpPorts = alowedUdpPorts;
-            this.alowedClients = alowedClients;
+            this.alowedTcpPorts = alowedTcpPorts?.ToHashSet();
+            this.alowedUdpPorts = alowedUdpPorts?.ToHashSet();
+            this.alowedClients = alowedClients?.ToHashSet();
         }
 
         public async Task Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
@@ -70,7 +70,7 @@ namespace TutoProxy.Server.Services {
                     throw new ClientConnectionException(connectionId, "clientId param requried");
                 }
 
-                if(!alowedClients.Contains(clientId.FirstOrDefault())) {
+                if(!alowedClients.Contains(clientId.FirstOrDefault()!)) {
                     throw new ClientConnectionException(clientId, connectionId, "Access denied");
                 }
             }
@@ -161,33 +161,9 @@ namespace TutoProxy.Server.Services {
             }
         }
 
-        IEnumerable<int> GetBannedPorts(IEnumerable<int>? allowedPorts, IEnumerable<int>? ports) {
+        IEnumerable<int> GetBannedPorts(HashSet<int>? allowedPorts, IEnumerable<int>? ports) {
             if(allowedPorts != null && ports != null) {
-                var bannedPorts = ports
-                .Where(x => !allowedPorts.Contains(x));
-                return bannedPorts;
-            }
-            return Enumerable.Empty<int>();
-        }
-
-        IEnumerable<int> GetAlreadyUsedTcpPorts(List<HubClient> hubClients, IEnumerable<int>? tcpPorts) {
-            if(tcpPorts != null) {
-                var alreadyUsedPorts = hubClients
-                .Where(x => x.TcpPorts != null)
-                .SelectMany(x => x.TcpPorts!)
-                .Intersect(tcpPorts);
-                return alreadyUsedPorts;
-            }
-            return Enumerable.Empty<int>();
-        }
-
-        IEnumerable<int> GetAlreadyUsedUdpPorts(List<HubClient> hubClients, IEnumerable<int>? udpPorts) {
-            if(udpPorts != null) {
-                var alreadyUsedPorts = hubClients
-                .Where(x => x.UdpPorts != null)
-                .SelectMany(x => x.UdpPorts!)
-                .Intersect(udpPorts);
-                return alreadyUsedPorts;
+                return ports.Where(x => !allowedPorts.Contains(x));
             }
             return Enumerable.Empty<int>();
         }
