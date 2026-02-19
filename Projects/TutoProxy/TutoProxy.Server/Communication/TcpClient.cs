@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Buffers;
+using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
@@ -43,7 +44,8 @@ namespace TutoProxy.Server.Communication {
 
 
         public async Task ReceivingStream(CancellationToken cancellationToken) {
-            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+            var rentedBuffer = ArrayPool<byte>.Shared.Rent(TcpSocketParams.ReceiveBufferSize);
+            Memory<byte> receiveBuffer = rentedBuffer.AsMemory(0, TcpSocketParams.ReceiveBufferSize);
 
             processMonitor.ConnectTcpClient(this);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
@@ -77,6 +79,8 @@ namespace TutoProxy.Server.Communication {
                 logger.Error($"{this} rx socket ex:{ex.GetBaseException().Message}");
             } catch(Exception ex) {
                 logger.Error($"{this} rx ex:{ex.GetBaseException().Message}");
+            } finally {
+                ArrayPool<byte>.Shared.Return(rentedBuffer);
             }
 
             if(!cancellationTokenSource.IsCancellationRequested) {
