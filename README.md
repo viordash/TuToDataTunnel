@@ -1,7 +1,7 @@
 
 # TuToDataTunnel 
 [![.NET](https://github.com/viordash/TuToDataTunnel/actions/workflows/dotnet.yml/badge.svg?branch=main)](https://github.com/viordash/TuToDataTunnel/actions/workflows/dotnet.yml)
-## Reverse websocket/http data tunnel on .NET7 + SignalR.
+## Reverse websocket/http data tunnel on .NET10 + SignalR.
 
 ![Demo preview](./article/tutoproxy.png)
 
