@@ -9,8 +9,8 @@ namespace TutoProxy.Server.Communication {
     public class UdpClient : BaseClient {
         readonly Func<int, Task> timeoutAction;
         readonly System.Timers.Timer timeoutTimer;
-        DateTime requestLogTimer = DateTime.Now;
-        DateTime responseLogTimer = DateTime.Now;
+        long requestLogTicks = Environment.TickCount64;
+        long responseLogTicks = Environment.TickCount64;
 
         Int64 totalTransmitted;
         Int64 totalReceived;
@@ -65,8 +65,8 @@ namespace TutoProxy.Server.Communication {
                 Data = payload
             }, cancellationToken);
             totalReceived += payload.Length;
-            if(requestLogTimer <= DateTime.Now) {
-                requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+            if(Environment.TickCount64 - requestLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
+                requestLogTicks = Environment.TickCount64;
                 logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
                 processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
             }
@@ -75,8 +75,8 @@ namespace TutoProxy.Server.Communication {
         public async Task SendResponseAsync(System.Net.Sockets.UdpClient socket, ReadOnlyMemory<byte> response, CancellationToken cancellationToken) {
             var transmitted = await socket.SendAsync(response, EndPoint, cancellationToken);
             totalTransmitted += transmitted;
-            if(responseLogTimer <= DateTime.Now) {
-                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+            if(Environment.TickCount64 - responseLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
+                responseLogTicks = Environment.TickCount64;
                 logger.Information($"{this} response, bytes:{response.ToShortDescriptions()}");
                 processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
             }

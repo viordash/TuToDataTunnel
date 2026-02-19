@@ -9,8 +9,8 @@ namespace TutoProxy.Client.Communication {
 
     public class TcpClient : BaseClient {
         int? localPort = null;
-        DateTime requestLogTimer = DateTime.Now;
-        DateTime responseLogTimer = DateTime.Now;
+        long requestLogTicks = Environment.TickCount64;
+        long responseLogTicks = Environment.TickCount64;
         readonly Socket socket;
 
         Int64 totalTransmitted;
@@ -92,8 +92,8 @@ namespace TutoProxy.Client.Communication {
                         logger.Error($"{this} response transmit error ({transmitted})");
                         throw new SocketException((int)SocketError.ConnectionAborted);
                     }
-                    if(responseLogTimer <= DateTime.Now) {
-                        responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    if(Environment.TickCount64 - responseLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                        responseLogTicks = Environment.TickCount64;
                         logger.Information($"{this} response, bytes:{data.ToShortDescriptions()}.");
                         processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                     }
@@ -124,8 +124,8 @@ namespace TutoProxy.Client.Communication {
                     logger.Error($"{this} request transmit error ({transmitted} != {payload.Length})");
                 }
                 totalTransmitted += transmitted;
-                if(requestLogTimer <= DateTime.Now) {
-                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                if(Environment.TickCount64 - requestLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                    requestLogTicks = Environment.TickCount64;
                     logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }
