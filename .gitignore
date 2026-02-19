@@ -16,3 +16,4 @@ Projects/TutoProxy/TestClients/UdpClient/log*.txt
 **/TcpServer/log*.txt
 out/*
 **/3proxy/*
+**/BenchmarkDotNet.Artifacts/*
