@@ -27,10 +27,10 @@ jobs:
       
     - name: Build
       run: dotnet build ./Projects/TutoProxy/TutoProxy.sln --no-restore
-    - name: Test
-      run: |
-        dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
-        ./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 20
+    - name: Unit Tests
+      run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
+    - name: Perfomance Tests
+      run: ./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 20
 
     - name: Publish
       run: |
