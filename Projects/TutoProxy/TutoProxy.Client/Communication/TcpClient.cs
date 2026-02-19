@@ -20,6 +20,7 @@ namespace TutoProxy.Client.Communication {
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
 
             socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            socket.NoDelay = true;
             socket.ReceiveBufferSize = TcpSocketParams.ReceiveBufferSize;
             socket.SendBufferSize = TcpSocketParams.ReceiveBufferSize;
             logger.Information($"{this}, created");
