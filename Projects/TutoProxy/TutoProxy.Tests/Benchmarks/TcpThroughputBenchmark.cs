@@ -9,7 +9,7 @@ using TuToProxy.Core.Models;
 
 namespace TutoProxy.Tests.Benchmarks;
 
-[SimpleJob(RuntimeMoniker.Net90)]
+[SimpleJob(RuntimeMoniker.HostProcess)]
 [MemoryDiagnoser]
 public class TcpThroughputBenchmark {
     TestServerFixture fixture = null!;
