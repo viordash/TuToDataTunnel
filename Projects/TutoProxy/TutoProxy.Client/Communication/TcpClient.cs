@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Buffers;
+using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Client.Services;
 using TuToProxy.Core;
@@ -8,8 +9,8 @@ namespace TutoProxy.Client.Communication {
 
     public class TcpClient : BaseClient {
         int? localPort = null;
-        DateTime requestLogTimer = DateTime.Now;
-        DateTime responseLogTimer = DateTime.Now;
+        long requestLogTicks = Environment.TickCount64;
+        long responseLogTicks = Environment.TickCount64;
         readonly Socket socket;
 
         Int64 totalTransmitted;
@@ -19,6 +20,7 @@ namespace TutoProxy.Client.Communication {
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
 
             socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            socket.NoDelay = true;
             socket.ReceiveBufferSize = TcpSocketParams.ReceiveBufferSize;
             socket.SendBufferSize = TcpSocketParams.ReceiveBufferSize;
             logger.Information($"{this}, created");
@@ -68,7 +70,8 @@ namespace TutoProxy.Client.Communication {
         }
 
         async Task ReceivingStream(CancellationToken cancellationToken) {
-            Memory<byte> receiveBuffer = new byte[TcpSocketParams.ReceiveBufferSize];
+            var rentedBuffer = ArrayPool<byte>.Shared.Rent(TcpSocketParams.ReceiveBufferSize);
+            Memory<byte> receiveBuffer = rentedBuffer.AsMemory(0, TcpSocketParams.ReceiveBufferSize);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
 
@@ -89,8 +92,8 @@ namespace TutoProxy.Client.Communication {
                         logger.Error($"{this} response transmit error ({transmitted})");
                         throw new SocketException((int)SocketError.ConnectionAborted);
                     }
-                    if(responseLogTimer <= DateTime.Now) {
-                        responseLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                    if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - responseLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                        responseLogTicks = Environment.TickCount64;
                         logger.Information($"{this} response, bytes:{data.ToShortDescriptions()}.");
                         processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                     }
@@ -100,6 +103,8 @@ namespace TutoProxy.Client.Communication {
                 logger.Error($"{this} rx socket ex:{ex.GetBaseException().Message}");
             } catch(Exception ex) {
                 logger.Error($"{this} rx ex:{ex.GetBaseException().Message}");
+            } finally {
+                ArrayPool<byte>.Shared.Return(rentedBuffer);
             }
             if(!cancellationTokenSource.IsCancellationRequested) {
                 try {
@@ -119,8 +124,8 @@ namespace TutoProxy.Client.Communication {
                     logger.Error($"{this} request transmit error ({transmitted} != {payload.Length})");
                 }
                 totalTransmitted += transmitted;
-                if(requestLogTimer <= DateTime.Now) {
-                    requestLogTimer = DateTime.Now.AddSeconds(TcpSocketParams.LogUpdatePeriod);
+                if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - requestLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                    requestLogTicks = Environment.TickCount64;
                     logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
                 }

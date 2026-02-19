@@ -24,7 +24,7 @@ namespace TutoProxy.Server.Tests.Communication {
                 : base(port, localEndPoint, dataTransferService, logger, processMonitor) {
             }
 
-            public override void Dispose() {
+            public override ValueTask DisposeAsync() {
                 throw new NotImplementedException();
             }
         }

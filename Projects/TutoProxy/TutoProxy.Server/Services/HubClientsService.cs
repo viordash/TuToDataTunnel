@@ -10,9 +10,9 @@ using TuToProxy.Core.CommandLine;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Services {
-    public interface IHubClientsService : IDisposable {
-        void Connect(string connectionId, IClientProxy clientProxy, string? queryString);
-        void Disconnect(string connectionId);
+    public interface IHubClientsService : IAsyncDisposable {
+        Task Connect(string connectionId, IClientProxy clientProxy, string? queryString);
+        Task DisconnectAsync(string connectionId);
         HubClient GetClient(string connectionId);
         string GetConnectionIdForTcp(int port);
         string GetConnectionIdForUdp(int port);
@@ -21,13 +21,15 @@ namespace TutoProxy.Server.Services {
     public class HubClientsService : IHubClientsService {
         readonly ILogger logger;
         protected readonly ConcurrentDictionary<string, HubClient> connectedClients = new();
+        protected readonly ConcurrentDictionary<int, string> tcpPortToConnectionId = new();
+        protected readonly ConcurrentDictionary<int, string> udpPortToConnectionId = new();
         readonly IHostApplicationLifetime applicationLifetime;
         readonly IServiceProvider serviceProvider;
         readonly IProcessMonitor processMonitor;
         readonly IPEndPoint localEndPoint;
-        readonly IEnumerable<int>? alowedTcpPorts;
-        readonly IEnumerable<int>? alowedUdpPorts;
-        readonly IEnumerable<string>? alowedClients;
+        readonly HashSet<int>? alowedTcpPorts;
+        readonly HashSet<int>? alowedUdpPorts;
+        readonly HashSet<string>? alowedClients;
 
         public HubClientsService(
             ILogger logger,
@@ -49,12 +51,12 @@ namespace TutoProxy.Server.Services {
             this.serviceProvider = serviceProvider;
             this.processMonitor = processMonitor;
             this.localEndPoint = localEndPoint;
-            this.alowedTcpPorts = alowedTcpPorts;
-            this.alowedUdpPorts = alowedUdpPorts;
-            this.alowedClients = alowedClients;
+            this.alowedTcpPorts = alowedTcpPorts?.ToHashSet();
+            this.alowedUdpPorts = alowedUdpPorts?.ToHashSet();
+            this.alowedClients = alowedClients?.ToHashSet();
         }
 
-        public void Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
+        public async Task Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
             if(queryString == null) {
                 throw new ClientConnectionException(connectionId, "QueryString empty");
             }
@@ -68,7 +70,7 @@ namespace TutoProxy.Server.Services {
                     throw new ClientConnectionException(connectionId, "clientId param requried");
                 }
 
-                if(!alowedClients.Contains(clientId.FirstOrDefault())) {
+                if(!alowedClients.Contains(clientId.FirstOrDefault()!)) {
                     throw new ClientConnectionException(clientId, connectionId, "Access denied");
                 }
             }
@@ -91,7 +93,6 @@ namespace TutoProxy.Server.Services {
                 throw new ClientConnectionException(clientId, connectionId, "tcp or udp options error");
             }
 
-
             var bannedTcpPorts = GetBannedPorts(alowedTcpPorts, tcpPorts);
             if(bannedTcpPorts.Any()) {
                 var message = $"banned tcp ports [{string.Join(",", bannedTcpPorts)}]";
@@ -104,71 +105,72 @@ namespace TutoProxy.Server.Services {
                 throw new ClientConnectionException(clientId, connectionId, message);
             }
 
-            var hubClients = connectedClients.Values.ToList();
-
-            var alreadyUsedTcpPorts = GetAlreadyUsedTcpPorts(hubClients, tcpPorts);
-            if(alreadyUsedTcpPorts.Any()) {
-                var message = $"tcp ports already in use [{string.Join(",", alreadyUsedTcpPorts)}]";
-                throw new ClientConnectionException(clientId, connectionId, message);
+            if(tcpPorts != null) {
+                foreach(var port in tcpPorts) {
+                    if (!tcpPortToConnectionId.TryAdd(port, connectionId)) {
+                        throw new ClientConnectionException(clientId, connectionId, $"tcp port '{port}' already used");
+                    }
+                }
             }
-
-            var alreadyUsedUdpPorts = GetAlreadyUsedUdpPorts(hubClients, udpPorts);
-            if(alreadyUsedUdpPorts.Any()) {
-                var message = $"udp ports already in use [{string.Join(",", alreadyUsedUdpPorts)}]";
-                throw new ClientConnectionException(clientId, connectionId, message);
+            if(udpPorts != null) {
+                foreach(var port in udpPorts) {
+                    if (!udpPortToConnectionId.TryAdd(port, connectionId)) {
+                        throw new ClientConnectionException(clientId, connectionId, $"udp port '{port}' already used");
+                    }
+                }
             }
 
             var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
-            if(connectedClients.TryAdd(connectionId, hubClient)) {
+            if(!connectedClients.TryAdd(connectionId, hubClient)) {
+                await hubClient.DisposeAsync();
+
+                if(tcpPorts != null) {
+                    foreach(var port in tcpPorts) {
+                        tcpPortToConnectionId.TryRemove(port, out _);
+                    }
+                }
+                if(udpPorts != null) {
+                    foreach(var port in udpPorts) {
+                        udpPortToConnectionId.TryRemove(port, out _);
+                    }
+                }
+                throw new ClientConnectionException(clientId, connectionId, "Client already connected");
+            } else {
                 logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
-                hubClient.Listen();
+                _ = hubClient.Listen();
                 processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
             }
         }
 
-        public void Disconnect(string connectionId) {
+        public async Task DisconnectAsync(string connectionId) {
             logger.Information($"Disconnect hubClient :{connectionId}");
-            if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {
+            if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {                
+                if(hubClient.TcpPorts != null) {
+                    foreach(var port in hubClient.TcpPorts) {
+                        tcpPortToConnectionId.TryRemove(port, out _);
+                    }
+                }
+                if(hubClient.UdpPorts != null) {
+                    foreach(var port in hubClient.UdpPorts) {
+                        udpPortToConnectionId.TryRemove(port, out _);
+                    }
+                }
+
                 processMonitor.DisconnectHubClient(connectionId, hubClient.TcpPorts, hubClient.UdpPorts);
-                hubClient.Dispose();
+                await hubClient.DisposeAsync();
             }
         }
 
-        IEnumerable<int> GetBannedPorts(IEnumerable<int>? allowedPorts, IEnumerable<int>? ports) {
+        IEnumerable<int> GetBannedPorts(HashSet<int>? allowedPorts, IEnumerable<int>? ports) {
             if(allowedPorts != null && ports != null) {
-                var bannedPorts = ports
-                .Where(x => !allowedPorts.Contains(x));
-                return bannedPorts;
+                return ports.Where(x => !allowedPorts.Contains(x));
             }
             return Enumerable.Empty<int>();
         }
 
-        IEnumerable<int> GetAlreadyUsedTcpPorts(List<HubClient> hubClients, IEnumerable<int>? tcpPorts) {
-            if(tcpPorts != null) {
-                var alreadyUsedPorts = hubClients
-                .Where(x => x.TcpPorts != null)
-                .SelectMany(x => x.TcpPorts!)
-                .Intersect(tcpPorts);
-                return alreadyUsedPorts;
-            }
-            return Enumerable.Empty<int>();
-        }
-
-        IEnumerable<int> GetAlreadyUsedUdpPorts(List<HubClient> hubClients, IEnumerable<int>? udpPorts) {
-            if(udpPorts != null) {
-                var alreadyUsedPorts = hubClients
-                .Where(x => x.UdpPorts != null)
-                .SelectMany(x => x.UdpPorts!)
-                .Intersect(udpPorts);
-                return alreadyUsedPorts;
-            }
-            return Enumerable.Empty<int>();
-        }
-
-        public void Dispose() {
-            var hubClients = connectedClients.Values.ToList();
-            foreach(var hubClient in hubClients) {
-                hubClient.Dispose();
+        public async ValueTask DisposeAsync() {
+            foreach(var hubClient in connectedClients.Values) {
+                await hubClient.DisposeAsync();
             }
         }
 
@@ -180,24 +182,14 @@ namespace TutoProxy.Server.Services {
         }
 
         public string GetConnectionIdForTcp(int port) {
-            var hubClients = connectedClients.ToList();
-            var connectionId = hubClients
-                .Where(x => x.Value.TcpPorts?.Contains(port) == true)
-                .Select(x => x.Key)
-                .FirstOrDefault();
-            if(connectionId == null) {
+            if(!tcpPortToConnectionId.TryGetValue(port, out var connectionId)) {
                 throw new HubClientNotFoundException(DataProtocol.Tcp, port);
             }
             return connectionId;
         }
 
         public string GetConnectionIdForUdp(int port) {
-            var hubClients = connectedClients.ToList();
-            var connectionId = hubClients
-                .Where(x => x.Value.UdpPorts?.Contains(port) == true)
-                .Select(x => x.Key)
-                .FirstOrDefault();
-            if(connectionId == null) {
+            if(!udpPortToConnectionId.TryGetValue(port, out var connectionId)) {
                 throw new HubClientNotFoundException(DataProtocol.Udp, port);
             }
             return connectionId;

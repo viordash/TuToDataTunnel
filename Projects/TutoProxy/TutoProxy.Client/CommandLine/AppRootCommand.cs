@@ -7,6 +7,7 @@ using Terminal.Gui;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
 using TutoProxy.Client.Windows;
+using TuToProxy.Core;
 using TuToProxy.Core.CommandLine;
 
 namespace TutoProxy.Server.CommandLine {
@@ -76,19 +77,21 @@ namespace TutoProxy.Server.CommandLine {
 
                 using var appStoppingReg = applicationLifetime.ApplicationStopping.Register(async () => {
                     await signalrClient.StopAsync();
-                    clientsService.Stop();
+                    await clientsService.StopAsync();
                 });
 
                 if(Daemon != null && Daemon.Value) {
-                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
-                    StartServices(appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
+                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Warning;
+                    TcpSocketParams.TrafficMonitoring = false;
+                    UdpSocketParams.TrafficMonitoring = false;
+                    _ = StartServices(appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
                     _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 } else {
                     Application.IsMouseDisabled = true;
                     Application.Init();
                     var mainWindow = new MainWindow(title, Tcp?.Ports, Udp?.Ports);
                     mainWindow.Ready += () => {
-                        StartServices(appStoppingReg.Token, (status) => Application.MainLoop.Invoke(() => { mainWindow.Title = $"{title} - {status}"; }));
+                        _ = StartServices(appStoppingReg.Token, (status) => Application.MainLoop.Invoke(() => { mainWindow.Title = $"{title} - {status}"; }));
                     };
 
                     Application.Top.Add(new MainMenu(version), mainWindow);
@@ -100,25 +103,29 @@ namespace TutoProxy.Server.CommandLine {
                 return Task.FromResult(0);
             }
 
-            void StartServices(CancellationToken cancellationToken, Action<string> logStatus) {
-                clientsService.Start(IPAddress.Parse(Sendto!), Tcp?.Ports, Udp?.Ports);
-                _ = Task.Run(async () => {
-                    while(!cancellationToken.IsCancellationRequested) {
-                        try {
-                            logStatus("connection to server...");
-                            var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, cancellationToken);
+            async Task StartServices(CancellationToken cancellationToken, Action<string> logStatus) {
+                try {
+                    await clientsService.StartAsync(IPAddress.Parse(Sendto!), Tcp?.Ports, Udp?.Ports);
+                    _ = Task.Run(async () => {
+                        while(!cancellationToken.IsCancellationRequested) {
+                            try {
+                                logStatus("connection to server...");
+                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, cancellationToken);
 
-                            logStatus($"{connectionId}");
-                            break;
-                        } catch(HttpRequestException) {
-                            logger.Error("Connection failed");
-                            logStatus("connection failed. Retry...");
-                            await Task.Delay(5000, cancellationToken);
-                            logger.Information("Retry connect");
-                            continue;
+                                logStatus($"{connectionId}");
+                                break;
+                            } catch(HttpRequestException) {
+                                logger.Error("Connection failed");
+                                logStatus("connection failed. Retry...");
+                                await Task.Delay(5000, cancellationToken);
+                                logger.Information("Retry connect");
+                                continue;
+                            }
                         }
-                    }
-                }, cancellationToken);
+                    }, cancellationToken);
+                } catch(Exception ex) {
+                    logger.Error($"StartServices error: {ex.Message}");
+                }
             }
         }
     }

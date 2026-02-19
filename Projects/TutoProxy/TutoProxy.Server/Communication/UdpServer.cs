@@ -4,10 +4,10 @@ using System.Net;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
-    public interface IUdpServer : IDisposable {
+    public interface IUdpServer : IAsyncDisposable {
         Task Listen();
         Task SendResponse(UdpDataResponseModel response);
-        void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered);
+        Task DisconnectAsync(SocketAddressModel socketAddress, Int64 totalTransfered);
     }
 
     public class UdpServer : BaseServer, IUdpServer {
@@ -57,7 +57,7 @@ namespace TutoProxy.Server.Communication {
             await client.SendResponseAsync(socket, response.Data, cancellationToken);
         }
 
-        public async void Disconnect(SocketAddressModel socketAddress, Int64 totalTransfered) {
+        public async Task DisconnectAsync(SocketAddressModel socketAddress, Int64 totalTransfered) {
             if(cancellationToken.IsCancellationRequested) {
                 return;
             }
@@ -68,16 +68,15 @@ namespace TutoProxy.Server.Communication {
             await client.DisposeAsync();
         }
 
-        public override async void Dispose() {
+        public override async ValueTask DisposeAsync() {
             cts.Cancel();
             cts.Dispose();
             socket.Close();
 
-            foreach(var item in udpClients.Values.ToList()) {
-                if(udpClients.TryGetValue(item.EndPoint.Port, out UdpClient? client)) {
-                    await client.DisposeAsync();
-                }
+            foreach(var client in udpClients.Values) {
+                await client.DisposeAsync();
             }
+            udpClients.Clear();
             GC.SuppressFinalize(this);
         }
 
@@ -97,7 +96,7 @@ namespace TutoProxy.Server.Communication {
              );
         }
 
-        async void RemoveExpiredRemoteEndPoint(int port) {
+        async Task RemoveExpiredRemoteEndPoint(int port) {
             Debug.WriteLine($"RemoveExpiredRemoteEndPoint: {port}");
             if(udpClients.TryRemove(port, out UdpClient? client)) {
                 await client.DisposeAsync();

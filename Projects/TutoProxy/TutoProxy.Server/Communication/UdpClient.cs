@@ -7,10 +7,10 @@ using TuToProxy.Core.Extensions;
 namespace TutoProxy.Server.Communication {
 
     public class UdpClient : BaseClient {
-        readonly Action<int> timeoutAction;
+        readonly Func<int, Task> timeoutAction;
         readonly System.Timers.Timer timeoutTimer;
-        DateTime requestLogTimer = DateTime.Now;
-        DateTime responseLogTimer = DateTime.Now;
+        long requestLogTicks = Environment.TickCount64;
+        long responseLogTicks = Environment.TickCount64;
 
         Int64 totalTransmitted;
         Int64 totalReceived;
@@ -18,7 +18,7 @@ namespace TutoProxy.Server.Communication {
         public IPEndPoint EndPoint { get; private set; }
 
         public UdpClient(BaseServer udpServer, IDataTransferService dataTransferService, ILogger logger, IProcessMonitor processMonitor,
-           IPEndPoint endPoint, TimeSpan receiveTimeout, Action<int> timeoutAction)
+           IPEndPoint endPoint, TimeSpan receiveTimeout, Func<int, Task> timeoutAction)
             : base(udpServer, endPoint.Port, dataTransferService, logger, processMonitor) {
 
             EndPoint = endPoint;
@@ -47,7 +47,15 @@ namespace TutoProxy.Server.Communication {
         }
 
         void OnTimedEvent(object? source, ElapsedEventArgs e) {
-            timeoutAction(OriginPort);
+            _ = HandleTimeoutAsync();
+        }
+
+        async Task HandleTimeoutAsync() {
+            try {
+                await timeoutAction(OriginPort);
+            } catch(Exception ex) {
+                logger.Error($"HandleTimeoutAsync({OriginPort}) error: {ex.Message}");
+            }
         }
 
         public void StartTimeoutTimer() {
@@ -61,8 +69,8 @@ namespace TutoProxy.Server.Communication {
                 Data = payload
             }, cancellationToken);
             totalReceived += payload.Length;
-            if(requestLogTimer <= DateTime.Now) {
-                requestLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+            if(UdpSocketParams.TrafficMonitoring && Environment.TickCount64 - requestLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
+                requestLogTicks = Environment.TickCount64;
                 logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
                 processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
             }
@@ -71,8 +79,8 @@ namespace TutoProxy.Server.Communication {
         public async Task SendResponseAsync(System.Net.Sockets.UdpClient socket, ReadOnlyMemory<byte> response, CancellationToken cancellationToken) {
             var transmitted = await socket.SendAsync(response, EndPoint, cancellationToken);
             totalTransmitted += transmitted;
-            if(responseLogTimer <= DateTime.Now) {
-                responseLogTimer = DateTime.Now.AddSeconds(UdpSocketParams.LogUpdatePeriod);
+            if(UdpSocketParams.TrafficMonitoring && Environment.TickCount64 - responseLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
+                responseLogTicks = Environment.TickCount64;
                 logger.Information($"{this} response, bytes:{response.ToShortDescriptions()}");
                 processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
             }

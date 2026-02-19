@@ -38,3 +38,58 @@ For example, start output traffic tunneling on 5 tcp and 3 udp ports:
 
 
 *Keep in mind that ports of different TutoProxy.Clients should not overlap, i.e. each client serves a unique set of sockets/ports.*
+
+----------------------------------
+
+### Performance Testing
+
+The project includes a performance testing script that measures tunnel throughput using `iperf3` and Docker.
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        localhost                                │
+│                                                                 │
+│  ┌─────────────┐      ┌──────────────────┐      ┌────────────┐  │
+│  │ iperf3      │      │ TutoProxy.Server │      │ TutoProxy. │  │
+│  │ -c localhost│─────▶│ :5201            │─────▶│ Client     │  │
+│  │ -p 5201     │ TCP  │ (SignalR :5088)  │SignalR            │  │
+│  └─────────────┘      └──────────────────┘      └─────┬──────┘  │
+│                                                       │         │
+└───────────────────────────────────────────────────────┼─────────┘
+                                                        │ TCP
+                                                        ▼
+┌───────────────────────────────────────────────────────────────┐
+│                     Docker Network                            │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │  iperf3-server (172.17.0.X:5201)                        │  │
+│  └─────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────┘
+```
+
+#### Prerequisites
+
+- Docker
+- iperf3 (`sudo apt install iperf3`)
+- .NET SDK
+
+#### Usage
+
+```bash
+# Full test (baseline + tunnel)
+./Projects/TutoProxy/scripts/perf-test.sh full
+
+# Tunnel test only (10 seconds)
+./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 10
+
+# Tunnel test with parallel streams
+./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 30 -p 4
+
+# Baseline test only (direct to iperf3, no tunnel)
+./Projects/TutoProxy/scripts/perf-test.sh baseline -d 10
+```
+
+#### VSCode Tasks
+
+Performance tests can also be run from VSCode: `Ctrl+Shift+P` → "Tasks: Run Task" → select a perf test

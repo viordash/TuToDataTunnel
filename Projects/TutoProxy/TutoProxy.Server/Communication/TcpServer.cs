@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
-    public interface ITcpServer : IDisposable {
+    public interface ITcpServer : IAsyncDisposable {
         Task Listen();
         ValueTask<int> SendResponse(TcpDataResponseModel response, CancellationToken cancellationToken);
         ValueTask<bool> DisconnectAsync(SocketAddressModel socketAddress);
@@ -14,6 +14,7 @@ namespace TutoProxy.Server.Communication {
         readonly TcpListener tcpServer;
         readonly CancellationTokenSource cts;
         readonly CancellationToken cancellationToken;
+        readonly ConcurrentBag<Task> receivingTasks = new();
 
         protected readonly ConcurrentDictionary<int, TcpClient> remoteSockets = new();
 
@@ -60,8 +61,8 @@ namespace TutoProxy.Server.Communication {
                                     logger.Error($"{client} already exists");
                                     await client.DisposeAsync();
                                 } else {
-                                    var receivingAction = async () => await client.ReceivingStream(cancellationToken);
-                                    _ = Task.Run(receivingAction, cancellationToken);
+                                    var receivingTask = Task.Run(() => client.ReceivingStream(cancellationToken), cancellationToken);
+                                    receivingTasks.Add(receivingTask);
                                 }
                             } else {
                                 logger.Error($"tcp({Port}) not connected {socket.RemoteEndPoint}, error {socketError}");
@@ -85,14 +86,19 @@ namespace TutoProxy.Server.Communication {
             return false;
         }
 
-        public override async void Dispose() {
+        public override async ValueTask DisposeAsync() {
             cts.Cancel();
-            cts.Dispose();
-            foreach(var item in remoteSockets.Values.ToList()) {
-                if(remoteSockets.TryRemove(item.OriginPort, out TcpClient? client)) {
-                    await client.DisposeAsync();
-                }
+
+            try {
+                await Task.WhenAll(receivingTasks);
+            } catch(OperationCanceledException) {
             }
+
+            cts.Dispose();
+            foreach(var client in remoteSockets.Values) {
+                await client.DisposeAsync();
+            }
+            remoteSockets.Clear();
             GC.SuppressFinalize(this);
         }
 

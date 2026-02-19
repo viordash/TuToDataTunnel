@@ -2,7 +2,7 @@
 using TutoProxy.Server.Services;
 
 namespace TutoProxy.Server.Communication {
-    public abstract class BaseServer : IDisposable {
+    public abstract class BaseServer : IAsyncDisposable {
 
         public int Port { get; private set; }
         protected readonly IPEndPoint localEndPoint;
@@ -18,8 +18,6 @@ namespace TutoProxy.Server.Communication {
             this.processMonitor = processMonitor;
         }
 
-        public abstract void Dispose();
-
-
+        public abstract ValueTask DisposeAsync();
     }
 }

@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Perf Test: Full (baseline + tunnel)",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["full", "-d", "10"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: Tunnel only",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["tunnel", "-d", "10"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: Baseline only",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["baseline", "-d", "10"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: Tunnel (30s, 4 parallel)",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["tunnel", "-d", "30", "-p", "4"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

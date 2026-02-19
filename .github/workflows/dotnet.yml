@@ -18,13 +18,19 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.0.x
     - name: Restore dependencies
       run: dotnet restore ./Projects/TutoProxy/TutoProxy.sln
+      
+    - name: Install iperf3
+      run: sudo apt-get update && sudo apt-get install -y iperf3
+      
     - name: Build
-      run: dotnet build ./Projects/TutoProxy/TutoProxy.sln --no-restore 
-    - name: Test
-      run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal       
+      run: dotnet build ./Projects/TutoProxy/TutoProxy.sln --no-restore
+    - name: Unit Tests
+      run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
+    - name: Perfomance Tests
+      run: ./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 20
 
     - name: Publish
       run: |
