@@ -46,11 +46,15 @@ namespace TutoProxy.Server.Communication {
             await base.DisposeAsync();
         }
 
-        async void OnTimedEvent(object? source, ElapsedEventArgs e) {
+        void OnTimedEvent(object? source, ElapsedEventArgs e) {
+            _ = HandleTimeoutAsync();
+        }
+
+        async Task HandleTimeoutAsync() {
             try {
                 await timeoutAction(OriginPort);
             } catch(Exception ex) {
-                logger.Error($"OnTimedEvent({OriginPort}) error: {ex.Message}");
+                logger.Error($"HandleTimeoutAsync({OriginPort}) error: {ex.Message}");
             }
         }
 
