@@ -18,13 +18,15 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.0.x
     - name: Restore dependencies
       run: dotnet restore ./Projects/TutoProxy/TutoProxy.sln
     - name: Build
-      run: dotnet build ./Projects/TutoProxy/TutoProxy.sln --no-restore 
+      run: dotnet build ./Projects/TutoProxy/TutoProxy.sln --no-restore
     - name: Test
-      run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal       
+      run: |
+        dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
+        ./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 20
 
     - name: Publish
       run: |

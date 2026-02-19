@@ -49,8 +49,8 @@ The project includes a performance testing script that measures tunnel throughpu
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        localhost                                 │
-│                                                                  │
+│                        localhost                                │
+│                                                                 │
 │  ┌─────────────┐      ┌──────────────────┐      ┌────────────┐  │
 │  │ iperf3      │      │ TutoProxy.Server │      │ TutoProxy. │  │
 │  │ -c localhost│─────▶│ :5201            │─────▶│ Client     │  │
@@ -61,7 +61,7 @@ The project includes a performance testing script that measures tunnel throughpu
                                                         │ TCP
                                                         ▼
 ┌───────────────────────────────────────────────────────────────┐
-│                     Docker Network                             │
+│                     Docker Network                            │
 │  ┌─────────────────────────────────────────────────────────┐  │
 │  │  iperf3-server (172.17.0.X:5201)                        │  │
 │  └─────────────────────────────────────────────────────────┘  │
