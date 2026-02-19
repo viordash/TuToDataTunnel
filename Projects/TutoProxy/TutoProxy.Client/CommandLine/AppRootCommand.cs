@@ -7,6 +7,7 @@ using Terminal.Gui;
 using TutoProxy.Client.Communication;
 using TutoProxy.Client.Services;
 using TutoProxy.Client.Windows;
+using TuToProxy.Core;
 using TuToProxy.Core.CommandLine;
 
 namespace TutoProxy.Server.CommandLine {
@@ -81,6 +82,8 @@ namespace TutoProxy.Server.CommandLine {
 
                 if(Daemon != null && Daemon.Value) {
                     Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Warning;
+                    TcpSocketParams.TrafficMonitoring = false;
+                    UdpSocketParams.TrafficMonitoring = false;
                     _ = StartServices(appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
                     _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 } else {

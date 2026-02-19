@@ -65,7 +65,7 @@ namespace TutoProxy.Server.Communication {
                 Data = payload
             }, cancellationToken);
             totalReceived += payload.Length;
-            if(Environment.TickCount64 - requestLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
+            if(UdpSocketParams.TrafficMonitoring && Environment.TickCount64 - requestLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
                 requestLogTicks = Environment.TickCount64;
                 logger.Information($"{this} request, bytes:{payload.ToShortDescriptions()}");
                 processMonitor.UdpClientData(this, totalTransmitted, totalReceived);
@@ -75,7 +75,7 @@ namespace TutoProxy.Server.Communication {
         public async Task SendResponseAsync(System.Net.Sockets.UdpClient socket, ReadOnlyMemory<byte> response, CancellationToken cancellationToken) {
             var transmitted = await socket.SendAsync(response, EndPoint, cancellationToken);
             totalTransmitted += transmitted;
-            if(Environment.TickCount64 - responseLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
+            if(UdpSocketParams.TrafficMonitoring && Environment.TickCount64 - responseLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
                 responseLogTicks = Environment.TickCount64;
                 logger.Information($"{this} response, bytes:{response.ToShortDescriptions()}");
                 processMonitor.UdpClientData(this, totalTransmitted, totalReceived);

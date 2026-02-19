@@ -111,6 +111,8 @@ namespace TutoProxy.Server.CommandLine {
 
                 if(Daemon != null && Daemon.Value) {
                     Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Warning;
+                    TcpSocketParams.TrafficMonitoring = false;
+                    UdpSocketParams.TrafficMonitoring = false;
                     await app.RunAsync(Host);
                 } else {
                     Application.IsMouseDisabled = true;

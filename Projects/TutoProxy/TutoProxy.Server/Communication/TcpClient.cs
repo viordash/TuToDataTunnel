@@ -69,7 +69,7 @@ namespace TutoProxy.Server.Communication {
                         logger.Error($"{this} request transmit error ({transmitted})");
                         throw new SocketException((int)SocketError.ConnectionAborted);
                     }
-                    if(Environment.TickCount64 - responseLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                    if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - responseLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
                         responseLogTicks = Environment.TickCount64;
                         logger.Information($"{this} request, bytes:{data.ToShortDescriptions()}.");
                         processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
@@ -103,7 +103,7 @@ namespace TutoProxy.Server.Communication {
                     logger.Error($"{this} response transmit error ({transmitted} != {payload.Length})");
                 }
                 totalTransmitted += transmitted;
-                if(Environment.TickCount64 - requestLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - requestLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
                     requestLogTicks = Environment.TickCount64;
                     logger.Information($"{this} response, bytes:{payload.ToShortDescriptions()}");
                     processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
