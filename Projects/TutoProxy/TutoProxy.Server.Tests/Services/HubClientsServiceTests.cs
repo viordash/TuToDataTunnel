@@ -31,6 +31,14 @@ namespace TutoProxy.Server.Tests.Services {
             public ConcurrentDictionary<string, HubClient> PublicMorozovConnectedClients {
                 get { return connectedClients; }
             }
+
+            public ConcurrentDictionary<int, string> PublicTcpPortToConnectionId {
+                get { return tcpPortToConnectionId; }
+            }
+
+            public ConcurrentDictionary<int, string> PublicUdpPortToConnectionId {
+                get { return udpPortToConnectionId; }
+            }
         }
 
 
@@ -168,6 +176,7 @@ namespace TutoProxy.Server.Tests.Services {
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+            testable.PublicTcpPortToConnectionId[1000] = "connectionId0";
 
             Assert.That(testable.GetConnectionIdForTcp(1000), Is.EqualTo("connectionId0"));
         }
@@ -179,6 +188,7 @@ namespace TutoProxy.Server.Tests.Services {
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+            testable.PublicTcpPortToConnectionId[1000] = "connectionId0";
 
             Assert.Throws<HubClientNotFoundException>(() => testable.GetConnectionIdForTcp(1001), "hub-client for Tcp(1001) not found");
         }
@@ -190,6 +200,7 @@ namespace TutoProxy.Server.Tests.Services {
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+            testable.PublicUdpPortToConnectionId[1000] = "connectionId0";
 
             Assert.That(testable.GetConnectionIdForUdp(1000), Is.EqualTo("connectionId0"));
         }
@@ -201,6 +212,7 @@ namespace TutoProxy.Server.Tests.Services {
 
             testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, clientProxyMock.Object,
                             Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+            testable.PublicUdpPortToConnectionId[1000] = "connectionId0";
 
             Assert.Throws<HubClientNotFoundException>(() => testable.GetConnectionIdForUdp(1001), "hub-client for Udp(1001) not found");
         }

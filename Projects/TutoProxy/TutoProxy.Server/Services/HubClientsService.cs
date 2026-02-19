@@ -21,6 +21,8 @@ namespace TutoProxy.Server.Services {
     public class HubClientsService : IHubClientsService {
         readonly ILogger logger;
         protected readonly ConcurrentDictionary<string, HubClient> connectedClients = new();
+        protected readonly ConcurrentDictionary<int, string> tcpPortToConnectionId = new();
+        protected readonly ConcurrentDictionary<int, string> udpPortToConnectionId = new();
         readonly Lock connectLock = new();
         readonly IHostApplicationLifetime applicationLifetime;
         readonly IServiceProvider serviceProvider;
@@ -127,6 +129,18 @@ namespace TutoProxy.Server.Services {
                     hubClientToDispose = hubClient;
                 } else {
                     logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
+
+                    if(tcpPorts != null) {
+                        foreach(var port in tcpPorts) {
+                            tcpPortToConnectionId[port] = connectionId;
+                        }
+                    }
+                    if(udpPorts != null) {
+                        foreach(var port in udpPorts) {
+                            udpPortToConnectionId[port] = connectionId;
+                        }
+                    }
+
                     _ = hubClient.Listen();
                     processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
                 }
@@ -140,7 +154,18 @@ namespace TutoProxy.Server.Services {
 
         public async Task DisconnectAsync(string connectionId) {
             logger.Information($"Disconnect hubClient :{connectionId}");
-            if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {
+            if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {                
+                if(hubClient.TcpPorts != null) {
+                    foreach(var port in hubClient.TcpPorts) {
+                        tcpPortToConnectionId.TryRemove(port, out _);
+                    }
+                }
+                if(hubClient.UdpPorts != null) {
+                    foreach(var port in hubClient.UdpPorts) {
+                        udpPortToConnectionId.TryRemove(port, out _);
+                    }
+                }
+
                 processMonitor.DisconnectHubClient(connectionId, hubClient.TcpPorts, hubClient.UdpPorts);
                 await hubClient.DisposeAsync();
             }
@@ -192,24 +217,14 @@ namespace TutoProxy.Server.Services {
         }
 
         public string GetConnectionIdForTcp(int port) {
-            var hubClients = connectedClients.ToList();
-            var connectionId = hubClients
-                .Where(x => x.Value.TcpPorts?.Contains(port) == true)
-                .Select(x => x.Key)
-                .FirstOrDefault();
-            if(connectionId == null) {
+            if(!tcpPortToConnectionId.TryGetValue(port, out var connectionId)) {
                 throw new HubClientNotFoundException(DataProtocol.Tcp, port);
             }
             return connectionId;
         }
 
         public string GetConnectionIdForUdp(int port) {
-            var hubClients = connectedClients.ToList();
-            var connectionId = hubClients
-                .Where(x => x.Value.UdpPorts?.Contains(port) == true)
-                .Select(x => x.Key)
-                .FirstOrDefault();
-            if(connectionId == null) {
+            if(!udpPortToConnectionId.TryGetValue(port, out var connectionId)) {
                 throw new HubClientNotFoundException(DataProtocol.Udp, port);
             }
             return connectionId;
