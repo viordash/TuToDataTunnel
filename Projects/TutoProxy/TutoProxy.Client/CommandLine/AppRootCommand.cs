@@ -80,7 +80,7 @@ namespace TutoProxy.Server.CommandLine {
                 });
 
                 if(Daemon != null && Daemon.Value) {
-                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
+                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Warning;
                     _ = StartServices(appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
                     _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 } else {

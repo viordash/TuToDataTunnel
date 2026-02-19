@@ -110,7 +110,7 @@ namespace TutoProxy.Server.CommandLine {
                 app.MapHub<SignalRHub>(SignalRParams.Path);
 
                 if(Daemon != null && Daemon.Value) {
-                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
+                    Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Warning;
                     await app.RunAsync(Host);
                 } else {
                     Application.IsMouseDisabled = true;
