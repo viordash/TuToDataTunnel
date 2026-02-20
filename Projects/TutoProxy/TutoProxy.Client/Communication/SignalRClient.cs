@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using MessagePack;
 using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using TutoProxy.Client.Services;
@@ -10,7 +11,7 @@ using TuToProxy.Core;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient : IDisposable {
-        Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken);
+        Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
@@ -51,7 +52,7 @@ namespace TutoProxy.Client.Communication {
         public void Dispose() {
         }
 
-        public async Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, CancellationToken cancellationToken) {
+        public async Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, CancellationToken cancellationToken) {
             Guard.NotNullOrEmpty(server, nameof(server));
             Guard.NotNull(tcpQuery ?? udpQuery, $"Tcp ?? Udp");
 
@@ -68,7 +69,14 @@ namespace TutoProxy.Client.Communication {
             ub.Query = query.ToString();
 
             connection = new HubConnectionBuilder()
-                 .WithUrl(ub.Uri)
+                 .WithUrl(ub.Uri, options => {
+                     if(protocol == TransportProtocol.WebSocket) {
+                         options.Transports = HttpTransportType.WebSockets;
+                         options.SkipNegotiation = true;
+                     } else if(protocol == TransportProtocol.Http) {
+                         options.Transports = HttpTransportType.LongPolling;
+                     }
+                 })
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .AddMessagePackProtocol(config => {
                      config.SerializerOptions = MessagePackSerializerOptions.Standard

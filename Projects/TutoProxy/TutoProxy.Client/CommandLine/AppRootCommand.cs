@@ -20,6 +20,7 @@ namespace TutoProxy.Server.CommandLine {
             var udpOption = PortsArgument.CreateOption("--udp", $"Tunneling ports, format like '--udp=700-900,65500'");
             Add(tcpOption);
             Add(udpOption);
+            Add(new Option<TransportProtocol>("--protocol", () => TransportProtocol.Auto, "Transport protocol: Auto, Http, WebSocket"));
             Add(new Option<bool>("--daemon", () => false, "Run as a daemon"));
             AddValidator((result) => {
                 try {
@@ -44,6 +45,7 @@ namespace TutoProxy.Server.CommandLine {
             public string? Id { get; set; }
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
+            public TransportProtocol Protocol { get; set; }
             public bool? Daemon { get; set; }
 
             public Handler(
@@ -110,7 +112,7 @@ namespace TutoProxy.Server.CommandLine {
                         while(!cancellationToken.IsCancellationRequested) {
                             try {
                                 logStatus("connection to server...");
-                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, cancellationToken);
+                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, Protocol, cancellationToken);
 
                                 logStatus($"{connectionId}");
                                 break;

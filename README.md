@@ -49,6 +49,7 @@ TutoProxy.Server http://200.100.10.1:8088 \
 | `--id <id>` | Yes | Unique client identifier. Must match allowed clients on server if restriction is enabled |
 | `--tcp <ports>` | No* | TCP ports to handle. Must be subset of server's TCP ports. Example: `--tcp=80,443` |
 | `--udp <ports>` | No* | UDP ports to handle. Must be subset of server's UDP ports. Example: `--udp=5000-5005` |
+| `--protocol <mode>` | No | Transport protocol: `Auto` (default), `Http`, `WebSocket`. WebSocket mode skips negotiation for faster connection |
 | `--daemon` | No | Run in daemon mode without terminal GUI, reduces CPU overhead |
 
 *At least one of `--tcp` or `--udp` must be specified.
@@ -173,17 +174,17 @@ The project includes a performance testing script that measures tunnel throughpu
 #### Usage
 
 ```bash
-# Full test (baseline + tunnel)
+# Full test (Auto + Http + WebSocket protocols)
 ./Projects/TutoProxy/scripts/perf-test.sh full
 
-# Tunnel test only (10 seconds)
-./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 10
+# WebSocket protocol test (fastest, skips negotiation)
+./Projects/TutoProxy/scripts/perf-test.sh websocket -d 10
 
-# Tunnel test with parallel streams
-./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 30 -p 4
+# Auto protocol test with parallel streams
+./Projects/TutoProxy/scripts/perf-test.sh auto -d 30 -p 4
 
-# Baseline test only (direct to iperf3, no tunnel)
-./Projects/TutoProxy/scripts/perf-test.sh baseline -d 10
+# Http protocol test (LongPolling)
+./Projects/TutoProxy/scripts/perf-test.sh http -d 10
 ```
 
 #### VSCode Tasks
