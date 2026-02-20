@@ -60,6 +60,18 @@
                 "panel": "new"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: Compression compare (None vs Lz4_1024)",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["compare", "-d", "10"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
         }
     ]
 }

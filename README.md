@@ -21,6 +21,7 @@
 | `--tcp <ports>` | No* | TCP ports to listen on. Supports individual ports and ranges. Example: `--tcp=80,443,8000-8100` |
 | `--udp <ports>` | No* | UDP ports to listen on. Supports individual ports and ranges. Example: `--udp=5000-5010,65500` |
 | `--clients <list>` | No | Comma-separated list of allowed client IDs. If omitted, all clients are allowed |
+| `--compression <mode>` | No | LZ4 compression mode: `None` (default), `Lz4_256`, `Lz4_512`, `Lz4_1024`. Number indicates minimum bytes threshold for compression |
 | `--daemon` | No | Run in daemon mode without terminal GUI, reduces CPU overhead |
 
 *At least one of `--tcp` or `--udp` must be specified.
@@ -50,6 +51,7 @@ TutoProxy.Server http://200.100.10.1:8088 \
 | `--tcp <ports>` | No* | TCP ports to handle. Must be subset of server's TCP ports. Example: `--tcp=80,443` |
 | `--udp <ports>` | No* | UDP ports to handle. Must be subset of server's UDP ports. Example: `--udp=5000-5005` |
 | `--protocol <mode>` | No | Transport protocol: `Auto` (default), `Http`, `WebSocket`. WebSocket mode skips negotiation for faster connection |
+| `--compression <mode>` | No | LZ4 compression mode: `None` (default), `Lz4_256`, `Lz4_512`, `Lz4_1024`. Must match server's compression setting |
 | `--daemon` | No | Run in daemon mode without terminal GUI, reduces CPU overhead |
 
 *At least one of `--tcp` or `--udp` must be specified.

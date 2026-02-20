@@ -120,12 +120,14 @@ setup_docker() {
 }
 
 start_tutoproxy_server() {
-    log_info "Starting TutoProxy.Server on port $SERVER_HTTP_PORT (tunneling TCP:$TUNNEL_PORT)..."
+    local compression="${1:-None}"
+    log_info "Starting TutoProxy.Server on port $SERVER_HTTP_PORT (tunneling TCP:$TUNNEL_PORT, compression: $compression)..."
 
     dotnet run --project "$PROJECT_DIR/TutoProxy.Server/TutoProxy.Server.csproj" \
         -c Release --no-build -- \
         "http://127.0.0.1:$SERVER_HTTP_PORT" \
         --tcp="$TUNNEL_PORT" \
+        --compression "$compression" \
         --daemon &
 
     SERVER_PID=$!
@@ -143,7 +145,8 @@ start_tutoproxy_server() {
 
 start_tutoproxy_client() {
     local protocol="${1:-Auto}"
-    log_info "Starting TutoProxy.Client (protocol: $protocol, forwarding to Docker iperf3 at $IPERF_SERVER_IP)..."
+    local compression="${2:-None}"
+    log_info "Starting TutoProxy.Client (protocol: $protocol, compression: $compression, forwarding to Docker iperf3 at $IPERF_SERVER_IP)..."
 
     # Client connects to our Server and forwards to iperf3 in Docker
     # Using the Docker container's IP address
@@ -154,6 +157,7 @@ start_tutoproxy_client() {
         --tcp="$TUNNEL_PORT" \
         --id="PerfTestClient" \
         --protocol="$protocol" \
+        --compression "$compression" \
         --daemon &
 
     CLIENT_PID=$!
@@ -200,14 +204,15 @@ run_protocol_test() {
     local protocol="$1"
     local duration="$2"
     local parallel="$3"
+    local compression="${4:-None}"
 
     echo ""
     echo "========================================="
-    echo "  TUNNEL TEST ($protocol protocol)"
+    echo "  TUNNEL TEST ($protocol protocol, compression: $compression)"
     echo "========================================="
 
-    start_tutoproxy_server
-    start_tutoproxy_client "$protocol"
+    start_tutoproxy_server "$compression"
+    start_tutoproxy_client "$protocol" "$compression"
 
     run_iperf_test "$duration" "$parallel"
 
@@ -222,6 +227,7 @@ print_usage() {
     echo "  auto       Run tunnel test with Auto protocol"
     echo "  http       Run tunnel test with Http protocol (LongPolling)"
     echo "  websocket  Run tunnel test with WebSocket protocol (fastest)"
+    echo "  compare    Run compression comparison (Auto: None vs Lz4_1024)"
     echo ""
     echo "Options:"
     echo "  -d, --duration    Test duration in seconds (default: 10)"
@@ -231,6 +237,7 @@ print_usage() {
     echo "  $0 full"
     echo "  $0 websocket -d 30 -p 4"
     echo "  $0 auto -d 5"
+    echo "  $0 compare -d 10"
 }
 
 main() {
@@ -280,6 +287,10 @@ main() {
             run_protocol_test "Auto" "$duration" "$parallel"
             run_protocol_test "Http" "$duration" "$parallel"
             run_protocol_test "WebSocket" "$duration" "$parallel"
+            ;;
+        compare)
+            run_protocol_test "Auto" "$duration" "$parallel" "None"
+            run_protocol_test "Auto" "$duration" "$parallel" "Lz4_1024"
             ;;
         *)
             log_error "Unknown command: $command"
