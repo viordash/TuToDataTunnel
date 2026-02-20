@@ -15,7 +15,6 @@ namespace TutoProxy.Server.Tests.Services {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         Mock<IServiceProvider> serviceProviderMock;
-        Mock<IClientHub> clientProxyMock;
         Mock<IServerFactory> serverFactoryMock;
         Mock<ITcpServer> tcpServerMock;
         Mock<IUdpServer> udpServerMock;
@@ -25,7 +24,6 @@ namespace TutoProxy.Server.Tests.Services {
         [SetUp]
         public void Setup() {
             serviceProviderMock = new();
-            clientProxyMock = new();
             serverFactoryMock = new();
             tcpServerMock = new();
             udpServerMock = new();
@@ -61,7 +59,7 @@ namespace TutoProxy.Server.Tests.Services {
                 .Setup(x => x.Listen())
                 .Returns(Task.CompletedTask);
 
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             await testable.Listen();
@@ -71,7 +69,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task SendUdpResponse_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             await testable.SendUdpResponse(new UdpDataResponseModel() { Port = 1000, OriginPort = 1000, Data = new byte[] { 0, 1 } });
@@ -80,7 +78,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task SendUdpResponse_Throws_SocketPortNotBoundException_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             Assert.ThrowsAsync<SocketPortNotBoundException>(async () => await testable.SendUdpResponse(
@@ -90,7 +88,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task DisconnectUdp_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             await testable.DisconnectUdpAsync(new SocketAddressModel() { Port = 1000, OriginPort = 10000 }, 42);
@@ -99,7 +97,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task DisconnectUdp_Throws_SocketPortNotBoundException_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(), Enumerable.Range(1000, 4), serviceProviderMock.Object);
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(), Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             Assert.ThrowsAsync<SocketPortNotBoundException>(async () => await testable.DisconnectUdpAsync(new SocketAddressModel() { Port = 11, OriginPort = 10000 }, 42),
                     "Udp socket port(11) not bound");
@@ -107,7 +105,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task SendTcpResponse_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             await testable.SendTcpResponse(new TcpDataResponseModel() { Port = 10, OriginPort = 1000, Data = new byte[] { 0, 1 } });
@@ -116,7 +114,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task SendTcpResponse_Throws_SocketPortNotBoundException_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             Assert.ThrowsAsync<SocketPortNotBoundException>(async () => await testable.SendTcpResponse(
@@ -126,7 +124,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task DisconnectTcp_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             await testable.DisconnectTcp(new SocketAddressModel() { Port = 10, OriginPort = 10000 });
@@ -135,7 +133,7 @@ namespace TutoProxy.Server.Tests.Services {
 
         [Test]
         public async Task DisconnectTcp_Throws_SocketPortNotBoundException_Test() {
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object, Enumerable.Range(1, 10).ToList(),
+            await using var testable = new HubClient(localEndPoint,  Enumerable.Range(1, 10).ToList(),
                 Enumerable.Range(1000, 4), serviceProviderMock.Object);
 
             Assert.Throws<SocketPortNotBoundException>(() => testable.DisconnectTcp(new SocketAddressModel() { Port = 110, OriginPort = 10000 }),
@@ -152,7 +150,7 @@ namespace TutoProxy.Server.Tests.Services {
                 .Setup(x => x.Listen())
                 .Returns(Task.CompletedTask);
 
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object,
+            await using var testable = new HubClient(localEndPoint, 
                 new List<int> { 8080 }, new List<int> { 9000 }, serviceProviderMock.Object);
 
             var ex = Assert.ThrowsAsync<InvalidOperationException>(testable.Listen);
@@ -169,7 +167,7 @@ namespace TutoProxy.Server.Tests.Services {
                 .Setup(x => x.Listen())
                 .Returns(Task.FromException(expectedException));
 
-            await using var testable = new HubClient(localEndPoint, clientProxyMock.Object,
+            await using var testable = new HubClient(localEndPoint, 
                 new List<int> { 8080 }, new List<int> { 9000 }, serviceProviderMock.Object);
 
             var ex = Assert.ThrowsAsync<InvalidOperationException>(testable.Listen);

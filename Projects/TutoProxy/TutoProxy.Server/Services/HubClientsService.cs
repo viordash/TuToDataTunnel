@@ -10,7 +10,7 @@ using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Services {
     public interface IHubClientsService : IAsyncDisposable {
-        Task Connect(string connectionId, IClientHub clientProxy, string? queryString);
+        Task Connect(string connectionId, string? queryString);
         Task DisconnectAsync(string connectionId);
         HubClient GetClient(string connectionId);
         string GetConnectionIdForTcp(int port);
@@ -55,7 +55,7 @@ namespace TutoProxy.Server.Services {
             this.alowedClients = alowedClients?.ToHashSet();
         }
 
-        public async Task Connect(string connectionId, IClientHub clientProxy, string? queryString) {
+        public async Task Connect(string connectionId, string? queryString) {
             if(queryString == null) {
                 throw new ClientConnectionException(connectionId, "QueryString empty");
             }
@@ -115,7 +115,7 @@ namespace TutoProxy.Server.Services {
                 }
             }
 
-            var hubClient = new HubClient(localEndPoint, clientProxy, tcpPorts, udpPorts, serviceProvider);
+            var hubClient = new HubClient(localEndPoint, tcpPorts, udpPorts, serviceProvider);
             if(!connectedClients.TryAdd(connectionId, hubClient)) {
                 await hubClient.DisposeAsync();
 

@@ -7,7 +7,6 @@ using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Communication {
     public class HubClient : IAsyncDisposable {
-        public IClientHub ClientProxy { get; private set; }
         public IEnumerable<int>? TcpPorts { get; private set; }
         public IEnumerable<int>? UdpPorts { get; private set; }
 
@@ -15,9 +14,8 @@ namespace TutoProxy.Server.Communication {
         readonly FrozenDictionary<int, IUdpServer> udpServers;
         readonly CancellationTokenSource cts;
 
-        public HubClient(IPEndPoint localEndPoint, IClientHub clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
+        public HubClient(IPEndPoint localEndPoint, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
-            ClientProxy = clientProxy;
             TcpPorts = tcpPorts;
             UdpPorts = udpPorts;
 
