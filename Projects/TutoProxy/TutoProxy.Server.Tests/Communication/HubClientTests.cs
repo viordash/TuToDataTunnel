@@ -4,8 +4,8 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Communication;
+using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Models;
 
@@ -15,14 +15,12 @@ namespace TutoProxy.Server.Tests.Services {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         Mock<IServiceProvider> serviceProviderMock;
-        Mock<IClientProxy> clientProxyMock;
+        Mock<IClientHub> clientProxyMock;
         Mock<IServerFactory> serverFactoryMock;
         Mock<ITcpServer> tcpServerMock;
         Mock<IUdpServer> udpServerMock;
 
         IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
-
-        string? clientsRequest;
 
         [SetUp]
         public void Setup() {
@@ -31,13 +29,6 @@ namespace TutoProxy.Server.Tests.Services {
             serverFactoryMock = new();
             tcpServerMock = new();
             udpServerMock = new();
-
-            clientsRequest = null;
-            clientProxyMock
-                .Setup(x => x.SendCoreAsync(It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
-                .Callback<string, object?[], CancellationToken>((method, args, cancellationToken) => {
-                    clientsRequest = args[0] as string;
-                });
 
             serviceProviderMock
                 .Setup(x => x.GetService(It.IsAny<Type>()))

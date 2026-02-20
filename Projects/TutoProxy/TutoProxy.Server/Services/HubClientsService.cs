@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Primitives;
@@ -11,7 +10,7 @@ using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Services {
     public interface IHubClientsService : IAsyncDisposable {
-        Task Connect(string connectionId, IClientProxy clientProxy, string? queryString);
+        Task Connect(string connectionId, IClientHub clientProxy, string? queryString);
         Task DisconnectAsync(string connectionId);
         HubClient GetClient(string connectionId);
         string GetConnectionIdForTcp(int port);
@@ -56,7 +55,7 @@ namespace TutoProxy.Server.Services {
             this.alowedClients = alowedClients?.ToHashSet();
         }
 
-        public async Task Connect(string connectionId, IClientProxy clientProxy, string? queryString) {
+        public async Task Connect(string connectionId, IClientHub clientProxy, string? queryString) {
             if(queryString == null) {
                 throw new ClientConnectionException(connectionId, "QueryString empty");
             }

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Serilog;
 using TutoProxy.Server.Hubs;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 using TuToProxy.Core.Models;
 
 namespace TutoProxy.Server.Tests.Services {
@@ -13,50 +14,38 @@ namespace TutoProxy.Server.Tests.Services {
     public class DataTransferServiceTests {
         DataTransferService testable;
 
-        Mock<ISingleClientProxy> clientProxyMock;
+        Mock<IClientHub> typedClientMock;
         Mock<IHubClientsService> clientsServiceMock;
-
-        UdpDataRequestModel? sendedTransferUdpRequest;
 
         [SetUp]
         public void Setup() {
             var loggerMock = new Mock<ILogger>();
-            var hubContextMock = new Mock<IHubContext<SignalRHub>>();
-            var hubClientsMock = new Mock<IHubClients>();
-            clientProxyMock = new();
+            var typedHubContextMock = new Mock<IHubContext<SignalRHub, IClientHub>>();
+            var rawHubContextMock = new Mock<IHubContext<SignalRHub>>();
+            var typedHubClientsMock = new Mock<IHubClients<IClientHub>>();
+            typedClientMock = new();
             clientsServiceMock = new();
 
-            hubClientsMock
-                .SetupGet(x => x.All)
-                .Returns(() => clientProxyMock.Object);
-
-            hubClientsMock
+            typedHubClientsMock
                 .Setup(x => x.Client(It.IsAny<string>()))
-                .Returns(() => clientProxyMock.Object);
+                .Returns(() => typedClientMock.Object);
 
-            hubContextMock
+            typedHubContextMock
                 .SetupGet(x => x.Clients)
-                .Returns(() => hubClientsMock.Object);
-
-            sendedTransferUdpRequest = null;
-            clientProxyMock
-                .Setup(x => x.SendCoreAsync(It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
-                .Callback<string, object?[], CancellationToken>((method, args, cancellationToken) => {
-                    sendedTransferUdpRequest = args[0] as UdpDataRequestModel;
-                });
+                .Returns(() => typedHubClientsMock.Object);
 
             clientsServiceMock
                 .Setup(x => x.GetConnectionIdForUdp(It.IsAny<int>()))
                 .Returns<int>((port) => $"udp-{port}");
 
-            testable = new DataTransferService(loggerMock.Object, hubContextMock.Object, clientsServiceMock.Object);
+            testable = new DataTransferService(loggerMock.Object, typedHubContextMock.Object, rawHubContextMock.Object, clientsServiceMock.Object);
         }
 
         [Test]
         public async Task SendUdpRequest_Test() {
             var requestModel = new UdpDataRequestModel() { Port = 700, OriginPort = 800, Data = Array.Empty<byte>() };
             await testable.SendUdpRequest(requestModel, new CancellationTokenSource().Token);
-            clientProxyMock.Verify(x => x.SendCoreAsync(It.Is<string>(m => m == "UdpRequest"), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
+            typedClientMock.Verify(x => x.UdpRequest(It.Is<UdpDataRequestModel>(r => r.Port == 700)), Times.Once);
         }
     }
 }

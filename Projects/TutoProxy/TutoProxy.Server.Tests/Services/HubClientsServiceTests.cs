@@ -5,11 +5,11 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using TutoProxy.Server.Communication;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Tests.Services {
@@ -45,7 +45,7 @@ namespace TutoProxy.Server.Tests.Services {
         Mock<ILogger> loggerMock;
         Mock<IHostApplicationLifetime> applicationLifetimeMock;
         Mock<IServiceProvider> serviceProviderMock;
-        Mock<IClientProxy> clientProxyMock;
+        Mock<IClientHub> clientProxyMock;
         Mock<IDataTransferService> dataTransferServiceMock;
         Mock<IProcessMonitor> processMonitorMock;
         Mock<IServerFactory> serverFactoryMock;
