@@ -28,6 +28,7 @@ namespace TutoProxy.Server.CommandLine {
             Add(udpOption);
             Add(AllowedClientsOption.Create("--clients", $"Allowed Clients IDs, format like '--clients=Client1,Client2'"));
             Add(new Option<bool>("--daemon", () => false, "Run as a daemon"));
+            Add(new Option<CompressionMode>("--compression", () => CompressionMode.None, "LZ4 compression: None, Lz4_256, Lz4_512, Lz4_1024"));
 
             AddValidator((result) => {
                 try {
@@ -49,6 +50,7 @@ namespace TutoProxy.Server.CommandLine {
             public PortsArgument? Tcp { get; set; }
             public AllowedClientsOption? Clients { get; set; }
             public bool? Daemon { get; set; }
+            public CompressionMode Compression { get; set; }
 
             public Handler(
                 Serilog.ILogger logger,
@@ -87,9 +89,7 @@ namespace TutoProxy.Server.CommandLine {
                           //options.EnableDetailedErrors = true;
                       })
                     .AddMessagePackProtocol(options => {
-                        options.SerializerOptions = MessagePackSerializerOptions.Standard
-                            .WithResolver(StandardResolver.Instance)
-                            .WithSecurity(MessagePackSecurity.UntrustedData);
+                        options.SerializerOptions = BuildMessagePackOptions(Compression);
                     });
 
                 builder.Services.AddSingleton<IDataTransferService, DataTransferService>();
@@ -130,6 +130,19 @@ namespace TutoProxy.Server.CommandLine {
                 }
 
                 return 0;
+            }
+
+            static MessagePackSerializerOptions BuildMessagePackOptions(CompressionMode compression) {
+                var options = MessagePackSerializerOptions.Standard
+                    .WithResolver(StandardResolver.Instance)
+                    .WithSecurity(MessagePackSecurity.UntrustedData);
+
+                return compression switch {
+                    CompressionMode.Lz4_256 => options.WithCompression(MessagePackCompression.Lz4BlockArray).WithCompressionMinLength(256),
+                    CompressionMode.Lz4_512 => options.WithCompression(MessagePackCompression.Lz4BlockArray).WithCompressionMinLength(512),
+                    CompressionMode.Lz4_1024 => options.WithCompression(MessagePackCompression.Lz4BlockArray).WithCompressionMinLength(1024),
+                    _ => options
+                };
             }
         }
     }

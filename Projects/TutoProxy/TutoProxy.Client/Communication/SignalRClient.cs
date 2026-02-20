@@ -13,7 +13,7 @@ using TypedSignalR.Client;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient : IDisposable {
-        Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, CancellationToken cancellationToken);
+        Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, CompressionMode compression, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
@@ -117,7 +117,7 @@ namespace TutoProxy.Client.Communication {
         public void Dispose() {
         }
 
-        public async Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, CancellationToken cancellationToken) {
+        public async Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, CompressionMode compression, CancellationToken cancellationToken) {
             Guard.NotNullOrEmpty(server, nameof(server));
             Guard.NotNull(tcpQuery ?? udpQuery, $"Tcp ?? Udp");
 
@@ -144,9 +144,7 @@ namespace TutoProxy.Client.Communication {
                  })
                  .WithAutomaticReconnect(new RetryPolicy(logger))
                  .AddMessagePackProtocol(config => {
-                     config.SerializerOptions = MessagePackSerializerOptions.Standard
-                            .WithResolver(StandardResolver.Instance)
-                            .WithSecurity(MessagePackSecurity.UntrustedData);
+                     config.SerializerOptions = BuildMessagePackOptions(compression);
                  })
                  .Build();
 
@@ -204,6 +202,19 @@ namespace TutoProxy.Client.Communication {
                 return hubProxy.DisconnectTcp(socketAddress);
             }
             return Task.FromResult(false);
+        }
+
+        static MessagePackSerializerOptions BuildMessagePackOptions(CompressionMode compression) {
+            var options = MessagePackSerializerOptions.Standard
+                .WithResolver(StandardResolver.Instance)
+                .WithSecurity(MessagePackSecurity.UntrustedData);
+
+            return compression switch {
+                CompressionMode.Lz4_256 => options.WithCompression(MessagePackCompression.Lz4BlockArray).WithCompressionMinLength(256),
+                CompressionMode.Lz4_512 => options.WithCompression(MessagePackCompression.Lz4BlockArray).WithCompressionMinLength(512),
+                CompressionMode.Lz4_1024 => options.WithCompression(MessagePackCompression.Lz4BlockArray).WithCompressionMinLength(1024),
+                _ => options
+            };
         }
     }
 }

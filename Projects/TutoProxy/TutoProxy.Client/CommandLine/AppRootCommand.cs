@@ -22,6 +22,7 @@ namespace TutoProxy.Server.CommandLine {
             Add(udpOption);
             Add(new Option<TransportProtocol>("--protocol", () => TransportProtocol.Auto, "Transport protocol: Auto, Http, WebSocket"));
             Add(new Option<bool>("--daemon", () => false, "Run as a daemon"));
+            Add(new Option<CompressionMode>("--compression", () => CompressionMode.None, "LZ4 compression: None, Lz4_256, Lz4_512, Lz4_1024"));
             AddValidator((result) => {
                 try {
                     if(!result.Children.Any(x => x.GetValueForOption(tcpOption) != null || x.GetValueForOption(udpOption) != null)) {
@@ -47,6 +48,7 @@ namespace TutoProxy.Server.CommandLine {
             public PortsArgument? Tcp { get; set; }
             public TransportProtocol Protocol { get; set; }
             public bool? Daemon { get; set; }
+            public CompressionMode Compression { get; set; }
 
             public Handler(
                 ILogger logger,
@@ -112,7 +114,7 @@ namespace TutoProxy.Server.CommandLine {
                         while(!cancellationToken.IsCancellationRequested) {
                             try {
                                 logStatus("connection to server...");
-                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, Protocol, cancellationToken);
+                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, Protocol, Compression, cancellationToken);
 
                                 logStatus($"{connectionId}");
                                 break;
