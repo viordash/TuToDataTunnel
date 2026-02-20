@@ -30,7 +30,7 @@ jobs:
     - name: Unit Tests
       run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
     - name: Perfomance Tests
-      run: ./Projects/TutoProxy/scripts/perf-test.sh tunnel -d 20
+      run: ./Projects/TutoProxy/scripts/perf-test.sh full -d 10
 
     - name: Publish
       run: |
