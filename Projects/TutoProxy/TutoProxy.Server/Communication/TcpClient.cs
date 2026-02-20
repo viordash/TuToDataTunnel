@@ -1,10 +1,9 @@
-﻿using System.Buffers;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
-using TuToProxy.Core.Pooling;
+using TuToProxy.Core.Pipeline;
 
 namespace TutoProxy.Server.Communication {
 
@@ -46,53 +45,42 @@ namespace TutoProxy.Server.Communication {
 
 
         public async Task ReceivingStream(CancellationToken cancellationToken) {
-            var rentedBuffer = ArrayPool<byte>.Shared.Rent(TcpSocketParams.ReceiveBufferSize);
-            Memory<byte> receiveBuffer = rentedBuffer.AsMemory(0, TcpSocketParams.ReceiveBufferSize);
-
             processMonitor.ConnectTcpClient(this);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
 
+            await using var pipeline = new TcpPipeline<TcpDataRequestModel>(socket);
+            var hasError = false;
+
             try {
-                while(socket.Connected && !cts.IsCancellationRequested) {
-                    int receivedBytes;
-                    receivedBytes = await socket.ReceiveAsync(receiveBuffer, SocketFlags.None, cts.Token);
-                    if(receivedBytes == 0) {
-                        break;
-                    }
+                var readerTask = pipeline.ReadFromSocket(bytes => totalReceived += bytes, cts.Token);
+                var processorTask = pipeline.ProcessPipe(server.Port, OriginPort, cts.Token);
+                var senderTask = pipeline.SendRequests(
+                    async (request, ct) => await dataTransferService.SendTcpRequest(request, ct),
+                    (seq, transmitted) => {
+                        totalTransmitted += transmitted;
+                        if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - responseLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                            responseLogTicks = Environment.TickCount64;
+                            logger.Information($"{this} request seq:{seq}, transmitted:{transmitted}");
+                            processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
+                        }
+                    },
+                    (seq, expected, actual) => {
+                        logger.Error($"{this} request seq:{seq} transmit error ({actual} != {expected})");
+                        hasError = true;
+                        cancellationTokenSource.Cancel();
+                    },
+                    cts.Token
+                );
 
-                    totalReceived += receivedBytes;
-                    var data = receiveBuffer[..receivedBytes];
-
-                    var request = DataModelPool<TcpDataRequestModel>.Rent();
-                    request.Port = server.Port;
-                    request.OriginPort = OriginPort;
-                    request.Data = data;
-                    int transmitted;
-                    try {
-                        transmitted = await dataTransferService.SendTcpRequest(request, cancellationToken);
-                    } finally {
-                        DataModelPool<TcpDataRequestModel>.Return(request);
-                    }
-                    if(receivedBytes != transmitted) {
-                        logger.Error($"{this} request transmit error ({transmitted})");
-                        throw new SocketException((int)SocketError.ConnectionAborted);
-                    }
-                    if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - responseLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
-                        responseLogTicks = Environment.TickCount64;
-                        logger.Information($"{this} request, bytes:{data.ToShortDescriptions()}.");
-                        processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
-                    }
-                }
+                await Task.WhenAll(readerTask, processorTask, senderTask);
             } catch(OperationCanceledException) {
             } catch(SocketException ex) {
                 logger.Error($"{this} rx socket ex:{ex.GetBaseException().Message}");
             } catch(Exception ex) {
                 logger.Error($"{this} rx ex:{ex.GetBaseException().Message}");
-            } finally {
-                ArrayPool<byte>.Shared.Return(rentedBuffer);
             }
 
-            if(!cancellationTokenSource.IsCancellationRequested) {
+            if(!cancellationTokenSource.IsCancellationRequested || hasError) {
                 var socketAddress = new SocketAddressModel() { Port = server.Port, OriginPort = OriginPort };
                 try {
                     if(!await dataTransferService.DisconnectTcp(socketAddress, cancellationToken)) {

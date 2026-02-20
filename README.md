@@ -123,6 +123,38 @@ TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 \
 4. `TcpServer` / `UdpServer` finds `TcpClient` / `UdpClient` by origin port
 5. `TcpClient` / `UdpClient` sends response via socket to External Client
 
+#### TCP Pipeline Architecture
+
+TCP traffic uses a high-performance pipeline architecture with parallel processing for maximum throughput:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              TcpPipeline                                             │
+│                                                                                      │
+│   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────────────────┐  │
+│   │  SocketReader   │───▶│     Channel     │───▶│         RequestSender           │  │
+│   │  (PipeReader)   │    │  (bounded 16)   │    │  (SemaphoreSlim max 4 inflight) │  │
+│   └─────────────────┘    └─────────────────┘    └─────────────────────────────────┘  │
+│          │                                                     │                     │
+│          ▼                                                     ▼                     │
+│   Pipe backpressure                                   Multiple inflight              │
+│   (auto pause read                                    requests to SignalR            │
+│    at 128KB)                                          (parallel processing)          │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Three concurrent tasks:**
+1. `ReadFromSocket` - reads data from socket into `System.IO.Pipelines.Pipe` with backpressure (pauses at 128KB)
+2. `ProcessPipe` - processes data from Pipe, assigns sequence numbers, writes to bounded `Channel<TcpDataChunk>`
+3. `SendRequests` - sends data chunks via SignalR with up to 4 parallel inflight requests
+
+**Key optimizations:**
+- **Object pooling** - `DataModelPool<T>` reuses model objects to reduce GC pressure
+- **Backpressure** - Pipe automatically pauses socket reads when buffer exceeds threshold
+- **Parallel sending** - Multiple inflight SignalR requests maximize throughput
+- **Sequence numbers** - Track request order for proper response handling
+
 #### Component Responsibilities
 
 **TutoProxy.Server:**
@@ -137,6 +169,11 @@ TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 \
 - `SignalRClient` - connection to TutoProxy.Server, receives requests, sends responses
 - `TcpClient` / `UdpClient` - connect to target host, forward data
 - `ClientsService` - manage active connections
+
+**TuToProxy.Core:**
+- `TcpPipeline<T>` - parallel pipeline for TCP data processing
+- `DataModelPool<T>` - object pool for data models (reduces GC pressure)
+- `ResponseTracker` - tracks pending requests and completion status
 
 ---
 

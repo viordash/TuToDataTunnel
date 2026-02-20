@@ -48,25 +48,28 @@ namespace TuToProxy.Core.Models {
         public class DataBaseModelFormatter<T> : IMessagePackFormatter<T?> where T : DataBaseModel, new() {
             static readonly MessagePack.Resolvers.BuiltinResolver resolver = MessagePack.Resolvers.BuiltinResolver.Instance;
             static readonly IMessagePackFormatter<int>? intFormatter = resolver.GetFormatter<int>();
+            static readonly IMessagePackFormatter<long>? longFormatter = resolver.GetFormatter<long>();
             static readonly IMessagePackFormatter<ReadOnlyMemory<byte>>? dataFormatter = resolver.GetFormatter<ReadOnlyMemory<byte>>();
 
             public void Serialize(ref MessagePackWriter writer, T? value, MessagePackSerializerOptions options) {
-                if(intFormatter is null || dataFormatter is null || value is null) {
+                if(intFormatter is null || longFormatter is null || dataFormatter is null || value is null) {
                     return;
                 }
                 intFormatter.Serialize(ref writer, value.Port, options);
                 intFormatter.Serialize(ref writer, value.OriginPort, options);
                 dataFormatter.Serialize(ref writer, value.Data, options);
+                longFormatter.Serialize(ref writer, value.SequenceNumber, options);
             }
 
             public T? Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options) {
-                if(intFormatter is null || dataFormatter is null) {
+                if(intFormatter is null || longFormatter is null || dataFormatter is null) {
                     return null;
                 }
                 var port = intFormatter.Deserialize(ref reader, options);
                 var originPort = intFormatter.Deserialize(ref reader, options);
                 var data = dataFormatter.Deserialize(ref reader, options);
-                return new T() { Port = port, OriginPort = originPort, Data = data };
+                var sequenceNumber = longFormatter.Deserialize(ref reader, options);
+                return new T() { Port = port, OriginPort = originPort, Data = data, SequenceNumber = sequenceNumber };
             }
         }
         #endregion
@@ -74,13 +77,17 @@ namespace TuToProxy.Core.Models {
         [Key(2)]
         public ReadOnlyMemory<byte> Data { get; set; } = Array.Empty<byte>();
 
+        [Key(3)]
+        public long SequenceNumber { get; set; }
+
         public override string ToString() {
-            return $"{base.ToString()}, {Data.Length} b";
+            return $"{base.ToString()}, {Data.Length} b, seq:{SequenceNumber}";
         }
 
         public override void Reset() {
             base.Reset();
             Data = ReadOnlyMemory<byte>.Empty;
+            SequenceNumber = 0;
         }
     }
 }
