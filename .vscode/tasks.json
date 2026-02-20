@@ -72,6 +72,30 @@
                 "panel": "new"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: UDP Auto protocol",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["udp", "-d", "10", "-b", "1000M"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: UDP Full (Auto + Http + WebSocket)",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["udp-full", "-d", "10"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
         }
     ]
 }

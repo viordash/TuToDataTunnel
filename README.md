@@ -176,7 +176,7 @@ The project includes a performance testing script that measures tunnel throughpu
 #### Usage
 
 ```bash
-# Full test (Auto + Http + WebSocket protocols)
+# Full TCP test (Auto + Http + WebSocket protocols)
 ./Projects/TutoProxy/scripts/perf-test.sh full
 
 # WebSocket protocol test (fastest, skips negotiation)
@@ -187,6 +187,12 @@ The project includes a performance testing script that measures tunnel throughpu
 
 # Http protocol test (LongPolling)
 ./Projects/TutoProxy/scripts/perf-test.sh http -d 10
+
+# UDP test with Auto protocol
+./Projects/TutoProxy/scripts/perf-test.sh udp -d 10 -b 100M
+
+# Full UDP test (Auto + Http + WebSocket protocols)
+./Projects/TutoProxy/scripts/perf-test.sh udp-full -d 10
 ```
 
 #### VSCode Tasks

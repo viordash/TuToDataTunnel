@@ -3,7 +3,7 @@
 # Performance test for TutoProxy using iperf3
 #
 # Architecture:
-#   iperf3-client → TutoProxy.Server:5201 → SignalR → TutoProxy.Client → iperf3-server:5201
+#   TCP/UDP: iperf3-client → TutoProxy.Server:5201 → SignalR → TutoProxy.Client → iperf3-server:5201
 #
 # We use Docker for iperf3-server to avoid port conflicts on localhost
 
@@ -13,6 +13,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Configuration
+# TCP and UDP use the same port (they don't conflict as different protocols)
+# This matches iperf3-server which listens on 5201 for both TCP and UDP
 TUNNEL_PORT=5201
 SERVER_HTTP_PORT=5088
 DOCKER_NETWORK="tutoproxy-test"
@@ -113,7 +115,7 @@ setup_docker() {
         exit 1
     fi
 
-    log_info "iperf3 server started at $IPERF_SERVER_IP:5201 (Docker network)"
+    log_info "iperf3 server started at $IPERF_SERVER_IP:5201 (Docker network, TCP+UDP)"
 
     # Wait for server to be ready
     sleep 2
@@ -121,12 +123,13 @@ setup_docker() {
 
 start_tutoproxy_server() {
     local compression="${1:-None}"
-    log_info "Starting TutoProxy.Server on port $SERVER_HTTP_PORT (tunneling TCP:$TUNNEL_PORT, compression: $compression)..."
+    log_info "Starting TutoProxy.Server on port $SERVER_HTTP_PORT (TCP+UDP:$TUNNEL_PORT, compression: $compression)..."
 
     dotnet run --project "$PROJECT_DIR/TutoProxy.Server/TutoProxy.Server.csproj" \
         -c Release --no-build -- \
         "http://127.0.0.1:$SERVER_HTTP_PORT" \
         --tcp="$TUNNEL_PORT" \
+        --udp="$TUNNEL_PORT" \
         --compression "$compression" \
         --daemon &
 
@@ -155,6 +158,7 @@ start_tutoproxy_client() {
         "http://127.0.0.1:$SERVER_HTTP_PORT" \
         "$IPERF_SERVER_IP" \
         --tcp="$TUNNEL_PORT" \
+        --udp="$TUNNEL_PORT" \
         --id="PerfTestClient" \
         --protocol="$protocol" \
         --compression "$compression" \
@@ -187,15 +191,29 @@ stop_tutoproxy() {
     fi
 }
 
-run_iperf_test() {
+run_iperf_tcp_test() {
     local duration=${1:-10}
     local parallel=${2:-1}
 
-    log_info "Running iperf3 test (duration: ${duration}s, parallel: ${parallel})..."
+    log_info "Running iperf3 TCP test (duration: ${duration}s, parallel: ${parallel})..."
     echo ""
 
     # Connect to TutoProxy.Server which tunnels to iperf3 server
     iperf3 -c 127.0.0.1 -p "$TUNNEL_PORT" -t "$duration" -P "$parallel"
+
+    echo ""
+}
+
+run_iperf_udp_test() {
+    local duration=${1:-10}
+    local bandwidth=${2:-100M}
+
+    log_info "Running iperf3 UDP test (duration: ${duration}s, bandwidth: ${bandwidth})..."
+    echo ""
+
+    # Connect to TutoProxy.Server which tunnels to iperf3 server
+    # -u for UDP, -b for bandwidth limit
+    iperf3 -c 127.0.0.1 -p "$TUNNEL_PORT" -u -t "$duration" -b "$bandwidth"
 
     echo ""
 }
@@ -208,13 +226,32 @@ run_protocol_test() {
 
     echo ""
     echo "========================================="
-    echo "  TUNNEL TEST ($protocol protocol, compression: $compression)"
+    echo "  TCP TUNNEL TEST ($protocol protocol, compression: $compression)"
     echo "========================================="
 
     start_tutoproxy_server "$compression"
     start_tutoproxy_client "$protocol" "$compression"
 
-    run_iperf_test "$duration" "$parallel"
+    run_iperf_tcp_test "$duration" "$parallel"
+
+    stop_tutoproxy
+}
+
+run_udp_protocol_test() {
+    local protocol="$1"
+    local duration="$2"
+    local bandwidth="$3"
+    local compression="${4:-None}"
+
+    echo ""
+    echo "========================================="
+    echo "  UDP TUNNEL TEST ($protocol protocol, compression: $compression)"
+    echo "========================================="
+
+    start_tutoproxy_server "$compression"
+    start_tutoproxy_client "$protocol" "$compression"
+
+    run_iperf_udp_test "$duration" "$bandwidth"
 
     stop_tutoproxy
 }
@@ -222,22 +259,29 @@ run_protocol_test() {
 print_usage() {
     echo "Usage: $0 [command] [options]"
     echo ""
-    echo "Commands:"
-    echo "  full       Run full test (Auto + Http + WebSocket)"
-    echo "  auto       Run tunnel test with Auto protocol"
-    echo "  http       Run tunnel test with Http protocol (LongPolling)"
-    echo "  websocket  Run tunnel test with WebSocket protocol (fastest)"
+    echo "Commands (TCP):"
+    echo "  full       Run full TCP test (Auto + Http + WebSocket)"
+    echo "  auto       Run TCP tunnel test with Auto protocol"
+    echo "  http       Run TCP tunnel test with Http protocol (LongPolling)"
+    echo "  websocket  Run TCP tunnel test with WebSocket protocol (fastest)"
     echo "  compare    Run compression comparison (Auto: None vs Lz4_1024)"
+    echo ""
+    echo "Commands (UDP):"
+    echo "  udp        Run UDP tunnel test with Auto protocol"
+    echo "  udp-full   Run full UDP test (Auto + Http + WebSocket)"
     echo ""
     echo "Options:"
     echo "  -d, --duration    Test duration in seconds (default: 10)"
-    echo "  -p, --parallel    Number of parallel streams (default: 1)"
+    echo "  -p, --parallel    Number of parallel TCP streams (default: 1)"
+    echo "  -b, --bandwidth   UDP bandwidth limit (default: 100M)"
     echo ""
     echo "Examples:"
     echo "  $0 full"
     echo "  $0 websocket -d 30 -p 4"
     echo "  $0 auto -d 5"
     echo "  $0 compare -d 10"
+    echo "  $0 udp -d 10 -b 50M"
+    echo "  $0 udp-full -d 5"
 }
 
 main() {
@@ -246,6 +290,7 @@ main() {
 
     local duration=10
     local parallel=1
+    local bandwidth="100M"
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -255,6 +300,10 @@ main() {
                 ;;
             -p|--parallel)
                 parallel="$2"
+                shift 2
+                ;;
+            -b|--bandwidth)
+                bandwidth="$2"
                 shift 2
                 ;;
             -h|--help)
@@ -291,6 +340,14 @@ main() {
         compare)
             run_protocol_test "Auto" "$duration" "$parallel" "None"
             run_protocol_test "Auto" "$duration" "$parallel" "Lz4_1024"
+            ;;
+        udp)
+            run_udp_protocol_test "Auto" "$duration" "$bandwidth"
+            ;;
+        udp-full)
+            run_udp_protocol_test "Auto" "$duration" "$bandwidth"
+            run_udp_protocol_test "Http" "$duration" "$bandwidth"
+            run_udp_protocol_test "WebSocket" "$duration" "$bandwidth"
             ;;
         *)
             log_error "Unknown command: $command"
