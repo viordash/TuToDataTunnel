@@ -36,6 +36,11 @@ namespace TuToProxy.Core.Models {
         public override string ToString() {
             return $"port:{Port}, o-port:{OriginPort}";
         }
+
+        public virtual void Reset() {
+            Port = 0;
+            OriginPort = 0;
+        }
     }
 
     public abstract class DataBaseModel : SocketAddressModel {
@@ -71,6 +76,11 @@ namespace TuToProxy.Core.Models {
 
         public override string ToString() {
             return $"{base.ToString()}, {Data.Length} b";
+        }
+
+        public override void Reset() {
+            base.Reset();
+            Data = ReadOnlyMemory<byte>.Empty;
         }
     }
 }
