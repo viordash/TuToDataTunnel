@@ -93,16 +93,12 @@ namespace TutoProxy.Server.Services {
                 throw new ClientConnectionException(clientId, connectionId, "tcp or udp options error");
             }
 
-            var bannedTcpPorts = GetBannedPorts(alowedTcpPorts, tcpPorts);
-            if(bannedTcpPorts.Any()) {
-                var message = $"banned tcp ports [{string.Join(",", bannedTcpPorts)}]";
-                throw new ClientConnectionException(clientId, connectionId, message);
+            if(HasBannedPorts(alowedTcpPorts, tcpPorts)) {
+                throw new ClientConnectionException(clientId, connectionId, "one of tcp ports is not allowed");
             }
 
-            var bannedUdpPorts = GetBannedPorts(alowedUdpPorts, udpPorts);
-            if(bannedUdpPorts.Any()) {
-                var message = $"banned udp ports [{string.Join(",", bannedUdpPorts)}]";
-                throw new ClientConnectionException(clientId, connectionId, message);
+            if(HasBannedPorts(alowedUdpPorts, udpPorts)) {
+                throw new ClientConnectionException(clientId, connectionId, "one of udp ports is not allowed");
             }
 
             if(tcpPorts != null) {
@@ -161,11 +157,16 @@ namespace TutoProxy.Server.Services {
             }
         }
 
-        IEnumerable<int> GetBannedPorts(HashSet<int>? allowedPorts, IEnumerable<int>? ports) {
-            if(allowedPorts != null && ports != null) {
-                return ports.Where(x => !allowedPorts.Contains(x));
+        bool HasBannedPorts(HashSet<int>? allowedPorts, List<int>? ports) {
+            if(allowedPorts == null || ports == null) {
+                return false;
             }
-            return Enumerable.Empty<int>();
+            foreach(var port in ports) {
+                if(!allowedPorts.Contains(port)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public async ValueTask DisposeAsync() {
