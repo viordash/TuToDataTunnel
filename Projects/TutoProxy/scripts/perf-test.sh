@@ -142,7 +142,8 @@ start_tutoproxy_server() {
 }
 
 start_tutoproxy_client() {
-    log_info "Starting TutoProxy.Client (connecting to server, forwarding to Docker iperf3 at $IPERF_SERVER_IP)..."
+    local protocol="${1:-Auto}"
+    log_info "Starting TutoProxy.Client (protocol: $protocol, forwarding to Docker iperf3 at $IPERF_SERVER_IP)..."
 
     # Client connects to our Server and forwards to iperf3 in Docker
     # Using the Docker container's IP address
@@ -152,6 +153,7 @@ start_tutoproxy_client() {
         "$IPERF_SERVER_IP" \
         --tcp="$TUNNEL_PORT" \
         --id="PerfTestClient" \
+        --protocol="$protocol" \
         --daemon &
 
     CLIENT_PID=$!
@@ -167,6 +169,20 @@ start_tutoproxy_client() {
     log_info "TutoProxy.Client started (PID: $CLIENT_PID)"
 }
 
+stop_tutoproxy() {
+    if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+        kill "$SERVER_PID" 2>/dev/null || true
+        wait "$SERVER_PID" 2>/dev/null || true
+        SERVER_PID=""
+    fi
+
+    if [ -n "$CLIENT_PID" ] && kill -0 "$CLIENT_PID" 2>/dev/null; then
+        kill "$CLIENT_PID" 2>/dev/null || true
+        wait "$CLIENT_PID" 2>/dev/null || true
+        CLIENT_PID=""
+    fi
+}
+
 run_iperf_test() {
     local duration=${1:-10}
     local parallel=${2:-1}
@@ -180,25 +196,32 @@ run_iperf_test() {
     echo ""
 }
 
-run_baseline_test() {
-    local duration=${1:-10}
-
-    log_info "Running baseline test (direct to Docker iperf3 at $IPERF_SERVER_IP)..."
-    echo ""
-
-    # Direct connection to iperf3 in Docker (no tunnel)
-    iperf3 -c "$IPERF_SERVER_IP" -p 5201 -t "$duration"
+run_protocol_test() {
+    local protocol="$1"
+    local duration="$2"
+    local parallel="$3"
 
     echo ""
+    echo "========================================="
+    echo "  TUNNEL TEST ($protocol protocol)"
+    echo "========================================="
+
+    start_tutoproxy_server
+    start_tutoproxy_client "$protocol"
+
+    run_iperf_test "$duration" "$parallel"
+
+    stop_tutoproxy
 }
 
 print_usage() {
     echo "Usage: $0 [command] [options]"
     echo ""
     echo "Commands:"
-    echo "  full       Run full test (baseline + tunnel)"
-    echo "  tunnel     Run tunnel test only"
-    echo "  baseline   Run baseline test only (direct to iperf3)"
+    echo "  full       Run full test (Auto + Http + WebSocket)"
+    echo "  auto       Run tunnel test with Auto protocol"
+    echo "  http       Run tunnel test with Http protocol (LongPolling)"
+    echo "  websocket  Run tunnel test with WebSocket protocol (fastest)"
     echo ""
     echo "Options:"
     echo "  -d, --duration    Test duration in seconds (default: 10)"
@@ -206,8 +229,8 @@ print_usage() {
     echo ""
     echo "Examples:"
     echo "  $0 full"
-    echo "  $0 tunnel -d 30 -p 4"
-    echo "  $0 baseline -d 5"
+    echo "  $0 websocket -d 30 -p 4"
+    echo "  $0 auto -d 5"
 }
 
 main() {
@@ -244,43 +267,19 @@ main() {
     setup_docker
 
     case $command in
-        baseline)
-            echo ""
-            echo "========================================="
-            echo "  BASELINE TEST (Direct to iperf3)"
-            echo "========================================="
-            run_baseline_test "$duration"
+        auto)
+            run_protocol_test "Auto" "$duration" "$parallel"
             ;;
-        tunnel)
-            start_tutoproxy_server
-            start_tutoproxy_client
-
-            echo ""
-            echo "========================================="
-            echo "  TUNNEL TEST (Through TutoProxy)"
-            echo "========================================="
-            run_iperf_test "$duration" "$parallel"
+        http)
+            run_protocol_test "Http" "$duration" "$parallel"
+            ;;
+        websocket)
+            run_protocol_test "WebSocket" "$duration" "$parallel"
             ;;
         full)
-            echo ""
-            echo "========================================="
-            echo "  BASELINE TEST (Direct to iperf3)"
-            echo "========================================="
-            run_baseline_test "$duration"
-
-            # Stop iperf server to free port, restart for tunnel test
-            docker stop "$IPERF_SERVER_CONTAINER" 2>/dev/null || true
-            docker rm "$IPERF_SERVER_CONTAINER" 2>/dev/null || true
-            setup_docker
-
-            start_tutoproxy_server
-            start_tutoproxy_client
-
-            echo ""
-            echo "========================================="
-            echo "  TUNNEL TEST (Through TutoProxy)"
-            echo "========================================="
-            run_iperf_test "$duration" "$parallel"
+            run_protocol_test "Auto" "$duration" "$parallel"
+            run_protocol_test "Http" "$duration" "$parallel"
+            run_protocol_test "WebSocket" "$duration" "$parallel"
             ;;
         *)
             log_error "Unknown command: $command"

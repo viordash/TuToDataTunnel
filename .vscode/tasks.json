@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Perf Test: Full (baseline + tunnel)",
+            "label": "Perf Test: Full (Auto + Http + WebSocket)",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
             "args": ["full", "-d", "10"],
@@ -14,10 +14,10 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: Tunnel only",
+            "label": "Perf Test: Auto protocol",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["tunnel", "-d", "10"],
+            "args": ["auto", "-d", "10"],
             "group": "test",
             "presentation": {
                 "reveal": "always",
@@ -26,10 +26,10 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: Baseline only",
+            "label": "Perf Test: Http protocol (LongPolling)",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["baseline", "-d", "10"],
+            "args": ["http", "-d", "10"],
             "group": "test",
             "presentation": {
                 "reveal": "always",
@@ -38,10 +38,22 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: Tunnel (30s, 4 parallel)",
+            "label": "Perf Test: WebSocket protocol (fastest)",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["tunnel", "-d", "30", "-p", "4"],
+            "args": ["websocket", "-d", "10"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: WebSocket (30s, 4 parallel)",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["websocket", "-d", "30", "-p", "4"],
             "group": "test",
             "presentation": {
                 "reveal": "always",

@@ -1,10 +1,10 @@
-﻿using System.Threading.Tasks.Dataflow;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Services;
+using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 
 namespace TutoProxy.Server.Hubs {
-    public class SignalRHub : Hub {
+    public class SignalRHub : Hub<IClientHub> {
         readonly ILogger logger;
         readonly IDataTransferService dataTransferService;
         readonly IHubClientsService clientsService;
@@ -26,7 +26,7 @@ namespace TutoProxy.Server.Hubs {
             try {
                 await dataTransferService.HandleUdpResponse(Context.ConnectionId, model);
             } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
+                await Clients.Caller.Errors(ex.Message);
             }
         }
 
@@ -35,7 +35,7 @@ namespace TutoProxy.Server.Hubs {
             try {
                 await dataTransferService.HandleDisconnectUdpAsync(Context.ConnectionId, socketAddress, totalTransfered);
             } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
+                await Clients.Caller.Errors(ex.Message);
             }
         }
 
@@ -44,7 +44,7 @@ namespace TutoProxy.Server.Hubs {
             try {
                 return await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
             } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
+                await Clients.Caller.Errors(ex.Message);
                 return -1;
             }
         }
@@ -54,7 +54,7 @@ namespace TutoProxy.Server.Hubs {
             try {
                 return await dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress);
             } catch(TuToException ex) {
-                await Clients.Caller.SendAsync("Errors", ex.Message);
+                await Clients.Caller.Errors(ex.Message);
                 return false;
             }
         }
@@ -62,10 +62,10 @@ namespace TutoProxy.Server.Hubs {
         public override async Task OnConnectedAsync() {
             try {
                 var queryString = Context.GetHttpContext()?.Request.QueryString.Value;
-                await clientsService.Connect(Context.ConnectionId, Clients.Caller, queryString);
+                await clientsService.Connect(Context.ConnectionId, queryString);
             } catch(TuToException ex) {
                 logger.Error(ex.Message);
-                await Clients.Caller.SendAsync("Errors", ex.Message);
+                await Clients.Caller.Errors(ex.Message);
             }
             await base.OnConnectedAsync();
         }

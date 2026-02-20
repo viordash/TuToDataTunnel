@@ -1,6 +1,7 @@
 ﻿using System.Net.Sockets;
 using Microsoft.AspNetCore.SignalR;
 using TutoProxy.Server.Hubs;
+using TuToProxy.Core;
 
 namespace TutoProxy.Server.Services {
     public interface IDataTransferService {
@@ -18,32 +19,36 @@ namespace TutoProxy.Server.Services {
 
     public class DataTransferService : IDataTransferService {
         readonly ILogger logger;
-        readonly IHubContext<SignalRHub> signalHub;
+        readonly IHubContext<SignalRHub, IClientHub> typedHub;
+        readonly IHubContext<SignalRHub> rawHub;
         readonly IHubClientsService clientsService;
 
         public DataTransferService(
                 ILogger logger,
-                IHubContext<SignalRHub> hubContext,
+                IHubContext<SignalRHub, IClientHub> typedHubContext,
+                IHubContext<SignalRHub> rawHubContext,
                 IHubClientsService clientsService
             ) {
             Guard.NotNull(logger, nameof(logger));
-            Guard.NotNull(hubContext, nameof(hubContext));
+            Guard.NotNull(typedHubContext, nameof(typedHubContext));
+            Guard.NotNull(rawHubContext, nameof(rawHubContext));
             Guard.NotNull(clientsService, nameof(clientsService));
             this.logger = logger;
-            this.signalHub = hubContext;
+            this.typedHub = typedHubContext;
+            this.rawHub = rawHubContext;
             this.clientsService = clientsService;
         }
 
         public async Task SendUdpRequest(UdpDataRequestModel request, CancellationToken cancellationToken) {
             logger.Debug($"UdpRequest :{request}");
             var connectionId = clientsService.GetConnectionIdForUdp(request.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("UdpRequest", request, cancellationToken);
+            await typedHub.Clients.Client(connectionId).UdpRequest(request);
         }
 
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
             logger.Debug($"DisconnectUdp :{socketAddress}, {totalTransfered}");
             var connectionId = clientsService.GetConnectionIdForUdp(socketAddress.Port);
-            await signalHub.Clients.Client(connectionId).SendAsync("DisconnectUdp", socketAddress, totalTransfered);
+            await typedHub.Clients.Client(connectionId).DisconnectUdp(socketAddress, totalTransfered);
         }
 
         public async Task HandleUdpResponse(string connectionId, UdpDataResponseModel response) {
@@ -59,13 +64,13 @@ namespace TutoProxy.Server.Services {
         public Task<SocketError> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
             logger.Debug($"ConnectTcp :{socketAddress}");
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
-            return signalHub.Clients.Client(connectionId).InvokeAsync<SocketError>("ConnectTcp", socketAddress, cancellationToken);
+            return rawHub.Clients.Client(connectionId).InvokeAsync<SocketError>(ClientMethods.ConnectTcp, socketAddress, cancellationToken);
         }
 
         public async Task<int> SendTcpRequest(TcpDataRequestModel request, CancellationToken cancellationToken) {
             logger.Debug($"TcpRequest :{request}");
             var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
-            return await signalHub.Clients.Client(connectionId).InvokeAsync<int>("TcpRequest", request, cancellationToken);
+            return await rawHub.Clients.Client(connectionId).InvokeAsync<int>(ClientMethods.TcpRequest, request, cancellationToken);
         }
 
         public ValueTask<int> HandleTcpResponse(string connectionId, TcpDataResponseModel response) {
@@ -76,7 +81,7 @@ namespace TutoProxy.Server.Services {
         public Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
             logger.Debug($"DisconnectTcp :{socketAddress}");
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
-            return signalHub.Clients.Client(connectionId).InvokeAsync<bool>("DisconnectTcp", socketAddress, cancellationToken);
+            return rawHub.Clients.Client(connectionId).InvokeAsync<bool>(ClientMethods.DisconnectTcp, socketAddress, cancellationToken);
         }
 
         public ValueTask<bool> HandleDisconnectTcp(string connectionId, SocketAddressModel socketAddress) {
