@@ -3,6 +3,7 @@ using System.Timers;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
+using TuToProxy.Core.Pooling;
 
 namespace TutoProxy.Server.Communication {
 
@@ -64,10 +65,15 @@ namespace TutoProxy.Server.Communication {
         }
 
         public async Task SendRequestAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken) {
-            await dataTransferService.SendUdpRequest(new UdpDataRequestModel() {
-                Port = Port, OriginPort = OriginPort,
-                Data = payload
-            }, cancellationToken);
+            var request = DataModelPool<UdpDataRequestModel>.Rent();
+            request.Port = Port;
+            request.OriginPort = OriginPort;
+            request.Data = payload;
+            try {
+                await dataTransferService.SendUdpRequest(request, cancellationToken);
+            } finally {
+                DataModelPool<UdpDataRequestModel>.Return(request);
+            }
             totalReceived += payload.Length;
             if(UdpSocketParams.TrafficMonitoring && Environment.TickCount64 - requestLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
                 requestLogTicks = Environment.TickCount64;
