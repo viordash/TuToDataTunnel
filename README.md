@@ -70,6 +70,18 @@ TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 \
 
 #### Request Flow (External Client -> Target Host)
 
+```
+┌─────────────┐      ┌─────────────────────────────────────────────┐      ┌─────────────────────────────────────────┐       ┌─────────────┐
+│  EXTERNAL   │      │               TUTOPROXY.SERVER              │      │           TUTOPROXY.CLIENT              │       │   TARGET    │
+│   CLIENT    │      │                                             │      │                                         │       │    HOST     │
+└──────┬──────┘      └─────────────────────────────────────────────┘      └─────────────────────────────────────────┘       └──────▲──────┘
+       │                                                                                                                           │
+       │  ┌──────────┐  ┌──────────┐  ┌────────────────────┐  ┌───────────┐        ┌──────────────┐  ┌──────────────┐  ┌──────────┐│
+       └─►│TcpServer │─►│TcpClient │─►│DataTransferService │─►│SignalRHub │───────►│SignalRClient │─►│ClientsService│─►│TcpClient │┘
+          │UdpServer │  │UdpClient │  │                    │  │           │SignalR │              │  │              │  │UdpClient │
+          └──────────┘  └──────────┘  └────────────────────┘  └───────────┘        └──────────────┘  └──────────────┘  └──────────┘
+```
+
 **TutoProxy.Server side:**
 1. External Client sends data to TutoProxy.Server
 2. `TcpServer` / `UdpServer` receives incoming data
@@ -81,6 +93,19 @@ TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 \
 2. `TcpClient` / `UdpClient` sends data to Target Host
 
 #### Response Flow (Target Host -> External Client)
+
+```
+┌─────────────┐      ┌─────────────────────────────────────────────┐      ┌─────────────────────────────────────────┐       ┌─────────────┐
+│  EXTERNAL   │      │               TUTOPROXY.SERVER              │      │           TUTOPROXY.CLIENT              │       │   TARGET    │
+│   CLIENT    │      │                                             │      │                                         │       │    HOST     │
+└──────▲──────┘      └─────────────────────────────────────────────┘      └─────────────────────────────────────────┘       └──────┬──────┘
+       │                                                                                                                           │
+       │  ┌──────────┐  ┌──────────┐  ┌────────────────────┐  ┌───────────┐        ┌──────────────┐                    ┌──────────┐│
+       └──│TcpServer │◄─│TcpClient │◄─│DataTransferService │◄─│SignalRHub │◄───────│SignalRClient │◄───────────────────│TcpClient │┘
+          │UdpServer │  │UdpClient │  │                    │  │           │SignalR │              │                    │UdpClient │
+          └──────────┘  └──────────┘  └────────────────────┘  └───────────┘        └──────────────┘                    └──────────┘
+
+```
 
 **TutoProxy.Client side:**
 1. Target Host sends response data
