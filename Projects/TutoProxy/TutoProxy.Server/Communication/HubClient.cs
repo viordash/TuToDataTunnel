@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Frozen;
+using System.Net;
 using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,8 +12,8 @@ namespace TutoProxy.Server.Communication {
         public IEnumerable<int>? TcpPorts { get; private set; }
         public IEnumerable<int>? UdpPorts { get; private set; }
 
-        readonly Dictionary<int, ITcpServer> tcpServers = new();
-        readonly Dictionary<int, IUdpServer> udpServers = new();
+        readonly FrozenDictionary<int, ITcpServer> tcpServers;
+        readonly FrozenDictionary<int, IUdpServer> udpServers;
         readonly CancellationTokenSource cts;
 
         public HubClient(IPEndPoint localEndPoint, IClientProxy clientProxy, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
@@ -26,16 +27,16 @@ namespace TutoProxy.Server.Communication {
             var serverFactory = serviceProvider.GetRequiredService<IServerFactory>();
             if(tcpPorts != null) {
                 tcpServers = tcpPorts
-                    .ToDictionary(k => k, v => serverFactory.CreateTcp(v, localEndPoint));
+                    .ToFrozenDictionary(k => k, v => serverFactory.CreateTcp(v, localEndPoint));
             } else {
-                tcpServers = new();
+                tcpServers = FrozenDictionary<int, ITcpServer>.Empty;
             }
 
             if(udpPorts != null) {
                 udpServers = udpPorts
-                    .ToDictionary(k => k, v => serverFactory.CreateUdp(v, localEndPoint, UdpSocketParams.ReceiveTimeout));
+                    .ToFrozenDictionary(k => k, v => serverFactory.CreateUdp(v, localEndPoint, UdpSocketParams.ReceiveTimeout));
             } else {
-                udpServers = new();
+                udpServers = FrozenDictionary<int, IUdpServer>.Empty;
             }
         }
 
@@ -52,13 +53,8 @@ namespace TutoProxy.Server.Communication {
         }
 
         public Task Listen() {
-            var tasks = new List<Task>();
-            if(tcpServers != null) {
-                tasks.AddRange(tcpServers.Values.Select(x => x.Listen()));
-            }
-            if(udpServers != null) {
-                tasks.AddRange(udpServers.Values.Select(x => x.Listen()));
-            }
+            var tasks = tcpServers.Values.Select(x => x.Listen())
+                .Concat(udpServers.Values.Select(x => x.Listen()));
             return Task.WhenAll(tasks);
         }
 
