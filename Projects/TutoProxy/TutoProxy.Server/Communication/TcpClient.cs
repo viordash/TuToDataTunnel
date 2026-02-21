@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Threading.Channels;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
@@ -11,6 +12,7 @@ namespace TutoProxy.Server.Communication {
         long requestLogTicks = Environment.TickCount64;
         long responseLogTicks = Environment.TickCount64;
         readonly Socket socket;
+        readonly Channel<ReadOnlyMemory<byte>> responseChannel;
 
         Int64 totalTransmitted;
         Int64 totalReceived;
@@ -22,6 +24,13 @@ namespace TutoProxy.Server.Communication {
             socket.NoDelay = true;
             socket.ReceiveBufferSize = TcpSocketParams.ReceiveBufferSize;
             socket.SendBufferSize = TcpSocketParams.ReceiveBufferSize;
+
+            responseChannel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(TcpSocketParams.ChannelCapacity) {
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = true,
+                SingleWriter = false
+            });
+
             logger.Information($"{this}, created");
         }
 
@@ -31,6 +40,7 @@ namespace TutoProxy.Server.Communication {
 
         public override async ValueTask DisposeAsync() {
             cancellationTokenSource.Cancel();
+            responseChannel.Writer.TryComplete();
             try {
                 socket.Shutdown(SocketShutdown.Both);
             } catch(SocketException) { }
@@ -72,7 +82,9 @@ namespace TutoProxy.Server.Communication {
                     cts.Token
                 );
 
-                await Task.WhenAll(readerTask, processorTask, senderTask);
+                var responseWriterTask = WriteResponsesToSocket(cts.Token);
+
+                await Task.WhenAll(readerTask, processorTask, senderTask, responseWriterTask);
             } catch(OperationCanceledException) {
             } catch(SocketException ex) {
                 logger.Error($"{this} rx socket ex:{ex.GetBaseException().Message}");
@@ -91,24 +103,35 @@ namespace TutoProxy.Server.Communication {
             }
         }
 
+        async Task WriteResponsesToSocket(CancellationToken cancellationToken) {
+            try {
+                await foreach(var payload in responseChannel.Reader.ReadAllAsync(cancellationToken)) {
+                    var transmitted = await socket.SendAsync(payload, SocketFlags.None, cancellationToken);
+                    totalTransmitted += transmitted;
+                    if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - requestLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
+                        requestLogTicks = Environment.TickCount64;
+                        logger.Information($"{this} response, bytes:{payload.ToShortDescriptions()}");
+                        processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
+                    }
+                }
+            } catch(OperationCanceledException) {
+            } catch(SocketException ex) {
+                logger.Error($"{this} response write socket ex:{ex.GetBaseException().Message}");
+            } catch(Exception ex) {
+                logger.Error($"{this} response write ex:{ex.GetBaseException().Message}");
+            } finally {
+                responseChannel.Writer.TryComplete();
+            }
+        }
+
         public async ValueTask<int> SendDataAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken) {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource.Token);
             try {
-                var transmitted = await socket.SendAsync(payload, SocketFlags.None, cts.Token);
-                if(transmitted != payload.Length) {
-                    logger.Error($"{this} response transmit error ({transmitted} != {payload.Length})");
-                }
-                totalTransmitted += transmitted;
-                if(TcpSocketParams.TrafficMonitoring && Environment.TickCount64 - requestLogTicks >= TcpSocketParams.LogUpdatePeriod * 1000) {
-                    requestLogTicks = Environment.TickCount64;
-                    logger.Information($"{this} response, bytes:{payload.ToShortDescriptions()}");
-                    processMonitor.TcpClientData(this, totalTransmitted, totalReceived);
-                }
-                return transmitted;
-            } catch(SocketException ex) {
-                logger.Error($"{this} send socket ex:{ex.GetBaseException().Message}");
-                return -3;
-            } catch(ObjectDisposedException) {
+                await responseChannel.Writer.WriteAsync(payload, cts.Token);
+                return payload.Length;
+            } catch(ChannelClosedException) {
+                return -2;
+            } catch(OperationCanceledException) {
                 return -2;
             } catch(Exception ex) {
                 logger.Error($"{this} send ex:{ex.GetBaseException().Message}");
