@@ -72,6 +72,18 @@
                 "panel": "new"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: TCP WebSocket + Profile (30s)",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["websocket", "--profile", "-d", "30"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
         }
     ]
 }

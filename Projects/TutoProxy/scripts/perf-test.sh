@@ -21,6 +21,12 @@ SERVER_HTTP_PORT=5088
 DOCKER_NETWORK="tutoproxy-test"
 IPERF_SERVER_CONTAINER="iperf3-server"
 
+# Profiling
+PROFILE_MODE=false
+PROFILE_DIR=""
+SERVER_TRACE_PID=""
+CLIENT_TRACE_PID=""
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,6 +47,9 @@ log_error() {
 
 cleanup() {
     log_info "Cleaning up..."
+
+    # Stop profiling first
+    stop_profiling
 
     # Kill TutoProxy processes
     if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
@@ -86,6 +95,88 @@ check_dependencies() {
     log_info "All dependencies OK"
 }
 
+check_profiling_tools() {
+    if [ "$PROFILE_MODE" = "true" ]; then
+        if ! command -v dotnet-trace &> /dev/null; then
+            log_error "dotnet-trace is not installed. Install with: dotnet tool install -g dotnet-trace"
+            exit 1
+        fi
+        log_info "Profiling tools OK"
+    fi
+}
+
+setup_profiling() {
+    if [ "$PROFILE_MODE" = "true" ]; then
+        PROFILE_DIR="$PROJECT_DIR/profiles/$(date +%Y%m%d_%H%M%S)"
+        mkdir -p "$PROFILE_DIR"
+        log_info "Profile output directory: $PROFILE_DIR"
+    fi
+}
+
+start_profiling() {
+    local test_name="$1"
+    if [ "$PROFILE_MODE" = "true" ] && [ -n "$SERVER_PID" ] && [ -n "$CLIENT_PID" ]; then
+        log_info "Starting profiling for: $test_name"
+
+        # Profile Server (dotnet-sampled-thread-time for CPU sampling)
+        dotnet-trace collect -p "$SERVER_PID" \
+            --output "$PROFILE_DIR/${test_name}_server.nettrace" \
+            --profile dotnet-sampled-thread-time &
+        SERVER_TRACE_PID=$!
+
+        # Profile Client
+        dotnet-trace collect -p "$CLIENT_PID" \
+            --output "$PROFILE_DIR/${test_name}_client.nettrace" \
+            --profile dotnet-sampled-thread-time &
+        CLIENT_TRACE_PID=$!
+
+        # Give trace time to attach
+        sleep 2
+    fi
+}
+
+stop_profiling() {
+    if [ "$PROFILE_MODE" = "true" ]; then
+        log_info "Stopping profiling..."
+
+        # Stop dotnet-trace processes - use SIGTERM, wait briefly, then force kill if needed
+        for trace_pid_var in SERVER_TRACE_PID CLIENT_TRACE_PID; do
+            eval "trace_pid=\$$trace_pid_var"
+            if [ -n "$trace_pid" ] && kill -0 "$trace_pid" 2>/dev/null; then
+                kill -TERM "$trace_pid" 2>/dev/null || true
+                # Wait up to 5 seconds for graceful shutdown
+                for i in 1 2 3 4 5; do
+                    if ! kill -0 "$trace_pid" 2>/dev/null; then
+                        break
+                    fi
+                    sleep 1
+                done
+                # Force kill if still running
+                if kill -0 "$trace_pid" 2>/dev/null; then
+                    kill -9 "$trace_pid" 2>/dev/null || true
+                fi
+                wait "$trace_pid" 2>/dev/null || true
+            fi
+            eval "$trace_pid_var=''"
+        done
+
+        log_info "Profiling stopped"
+    fi
+}
+
+convert_traces() {
+    if [ "$PROFILE_MODE" = "true" ] && [ -n "$PROFILE_DIR" ]; then
+        log_info "Converting traces to speedscope format..."
+        for trace in "$PROFILE_DIR"/*.nettrace; do
+            if [ -f "$trace" ]; then
+                dotnet-trace convert "$trace" --format speedscope 2>/dev/null || true
+            fi
+        done
+        log_info "Traces saved to: $PROFILE_DIR"
+        log_info "Open .speedscope.json files at https://www.speedscope.app/"
+    fi
+}
+
 build_projects() {
     log_info "Building TutoProxy projects..."
 
@@ -125,8 +216,9 @@ setup_docker() {
 start_tutoproxy_server() {
     log_info "Starting TutoProxy.Server on port $SERVER_HTTP_PORT (TCP+UDP:$TUNNEL_PORT)..."
 
-    dotnet run --project "$PROJECT_DIR/TutoProxy.Server/TutoProxy.Server.csproj" \
-        -c Release --no-build -- \
+    # Run DLL directly (not via 'dotnet run') so dotnet-trace can profile the actual app
+    local server_dll="$PROJECT_DIR/TutoProxy.Server/bin/Release/net10.0/TutoProxy.Server.dll"
+    dotnet "$server_dll" \
         "http://127.0.0.1:$SERVER_HTTP_PORT" \
         --tcp="$TUNNEL_PORT" \
         --udp="$TUNNEL_PORT" \
@@ -149,10 +241,9 @@ start_tutoproxy_client() {
     local protocol="${1:-Auto}"
     log_info "Starting TutoProxy.Client (protocol: $protocol, forwarding to Docker iperf3 at $IPERF_SERVER_IP)..."
 
-    # Client connects to our Server and forwards to iperf3 in Docker
-    # Using the Docker container's IP address
-    dotnet run --project "$PROJECT_DIR/TutoProxy.Client/TutoProxy.Client.csproj" \
-        -c Release --no-build -- \
+    # Run DLL directly (not via 'dotnet run') so dotnet-trace can profile the actual app
+    local client_dll="$PROJECT_DIR/TutoProxy.Client/bin/Release/net10.0/TutoProxy.Client.dll"
+    dotnet "$client_dll" \
         "http://127.0.0.1:$SERVER_HTTP_PORT" \
         "$IPERF_SERVER_IP" \
         --tcp="$TUNNEL_PORT" \
@@ -237,9 +328,11 @@ run_tcp_protocol_test() {
     local parallel="$3"
     local reverse="${4:-false}"
     local direction_label=""
+    local reverse_suffix=""
 
     if [ "$reverse" = "true" ]; then
         direction_label=" [REVERSE]"
+        reverse_suffix="_reverse"
     fi
 
     echo ""
@@ -250,8 +343,11 @@ run_tcp_protocol_test() {
     start_tutoproxy_server
     start_tutoproxy_client "$protocol"
 
+    start_profiling "tcp_${protocol}${reverse_suffix}"
+
     run_iperf_tcp_test "$duration" "$parallel" "$reverse"
 
+    stop_profiling
     stop_tutoproxy
 }
 
@@ -261,9 +357,11 @@ run_udp_protocol_test() {
     local bandwidth="$3"
     local reverse="${4:-false}"
     local direction_label=""
+    local reverse_suffix=""
 
     if [ "$reverse" = "true" ]; then
         direction_label=" [REVERSE]"
+        reverse_suffix="_reverse"
     fi
 
     echo ""
@@ -274,8 +372,11 @@ run_udp_protocol_test() {
     start_tutoproxy_server
     start_tutoproxy_client "$protocol"
 
+    start_profiling "udp_${protocol}${reverse_suffix}"
+
     run_iperf_udp_test "$duration" "$bandwidth" "$reverse"
 
+    stop_profiling
     stop_tutoproxy
 }
 
@@ -296,11 +397,13 @@ print_usage() {
     echo "  -d, --duration    Test duration in seconds (default: 10)"
     echo "  -p, --parallel    Number of parallel TCP streams (default: 1)"
     echo "  -b, --bandwidth   UDP bandwidth limit (default: 100M)"
+    echo "  --profile         Enable CPU profiling with dotnet-trace"
     echo ""
     echo "Examples:"
     echo "  $0 full"
     echo "  $0 full-reverse"
     echo "  $0 websocket -d 30 -p 4"
+    echo "  $0 websocket --profile -d 30"
     echo "  $0 udp-full -d 10 -b 1000M"
 }
 
@@ -326,6 +429,10 @@ main() {
                 bandwidth="$2"
                 shift 2
                 ;;
+            --profile)
+                PROFILE_MODE=true
+                shift
+                ;;
             -h|--help)
                 print_usage
                 exit 0
@@ -339,8 +446,10 @@ main() {
     done
 
     check_dependencies
+    check_profiling_tools
     build_projects
     setup_docker
+    setup_profiling
 
     case $command in
         full)
@@ -376,6 +485,7 @@ main() {
             ;;
     esac
 
+    convert_traces
     log_info "Test complete!"
 }
 
