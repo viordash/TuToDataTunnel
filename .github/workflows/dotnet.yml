@@ -29,8 +29,14 @@ jobs:
       run: dotnet build ./Projects/TutoProxy/TutoProxy.sln --no-restore
     - name: Unit Tests
       run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
-    - name: Perfomance Tests
+    - name: Perfomance Tests (1 connection)
       run: ./Projects/TutoProxy/scripts/perf-test.sh full -d 10
+    - name: Perfomance Tests (1 connection, reverse)
+      run: ./Projects/TutoProxy/scripts/perf-test.sh full-reverse -d 10
+    - name: Perfomance Tests (4 parallel connections)
+      run: ./Projects/TutoProxy/scripts/perf-test.sh full -d 10 -p 4 -s 4
+    - name: Perfomance Tests (4 parallel connections, reverse)
+      run: ./Projects/TutoProxy/scripts/perf-test.sh full-reverse -d 10 -p 4 -s 4
 
     - name: Publish
       run: |
