@@ -72,6 +72,7 @@ namespace TutoProxy.Server.CommandLine {
             public Task<int> InvokeAsync(InvocationContext context) {
                 Guard.NotNull(Server, nameof(Server));
                 Guard.NotNullOrEmpty(Sendto, nameof(Sendto));
+                Guard.NotNull(Id, nameof(Id));
                 Guard.NotNull(Tcp ?? Udp, $"Tcp ?? Udp");
 
                 var title = $"Connback proxy client TuTo [{Id}], {Server} >>>> {Sendto}";
@@ -114,7 +115,7 @@ namespace TutoProxy.Server.CommandLine {
                         while(!cancellationToken.IsCancellationRequested) {
                             try {
                                 logStatus("connection to server...");
-                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, Protocol, Math.Clamp(Parallel, 1, 8), cancellationToken);
+                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id!, Protocol, Math.Clamp(Parallel, 1, 8), cancellationToken);
 
                                 logStatus($"{connectionId}");
                                 break;

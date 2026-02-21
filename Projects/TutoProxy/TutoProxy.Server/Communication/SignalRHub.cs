@@ -61,7 +61,7 @@ namespace TutoProxy.Server.Hubs {
 
         public override async Task OnConnectedAsync() {
             try {
-                var queryString = Context.GetHttpContext()?.Request.QueryString.Value;
+                var queryString = (Context.GetHttpContext()?.Request.QueryString.Value) ?? throw new ClientConnectionException(Context.ConnectionId, "QueryString empty");
                 await clientsService.Connect(Context.ConnectionId, queryString);
             } catch(TuToException ex) {
                 logger.Error(ex.Message);
