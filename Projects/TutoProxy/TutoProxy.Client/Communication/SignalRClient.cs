@@ -1,5 +1,4 @@
-﻿using System.CommandLine;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using MessagePack;
 using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Http;
@@ -97,13 +96,13 @@ namespace TutoProxy.Client.Communication {
                 return await client!.DisconnectAsync();
             }
         }
+
+        record ConnectionInfo(HubConnection Connection, IServerHub HubProxy, IDisposable ReceiverSubscription);
         #endregion
 
         readonly ILogger logger;
         readonly IClientsService clientsService;
-        HubConnection? connection = null;
-        IServerHub? hubProxy = null;
-        IDisposable? receiverSubscription = null;
+        ConnectionInfo[]? connections = null;
 
         public SignalRClient(
                 ILogger logger,
@@ -123,17 +122,47 @@ namespace TutoProxy.Client.Communication {
 
             await StopAsync();
 
+            var poolSize = SignalRParams.ConnectionPoolSize;
+            connections = new ConnectionInfo[poolSize];
+
+            for(int i = 0; i < poolSize; i++) {
+                var isWorker = i > 0;
+                var conn = await CreateConnection(server, tcpQuery, udpQuery, clientId, protocol, compression, isWorker, cancellationToken);
+                connections[i] = conn;
+
+                // Small delay after master to ensure server registers it before workers connect
+                if(!isWorker && poolSize > 1) {
+                    await Task.Delay(100, cancellationToken);
+                }
+            }
+
+            logger.Information($"Connection pool started ({poolSize} connections)");
+            return connections[0].Connection.ConnectionId ?? "????";
+        }
+
+        async Task<ConnectionInfo> CreateConnection(string server, string? tcpQuery, string? udpQuery, string? clientId,
+            TransportProtocol protocol, CompressionMode compression, bool isWorker, CancellationToken cancellationToken) {
+
             var ub = new UriBuilder(server);
             ub.Path = SignalRParams.Path;
 
-            var query = QueryString.Create(new[] {
-                KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery),
-                KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery),
-                KeyValuePair.Create(SignalRParams.ClientId, clientId)
-            });
+            var queryParams = new List<KeyValuePair<string, string?>>();
+
+            if(isWorker) {
+                // Worker connections only need clientId and worker flag
+                queryParams.Add(KeyValuePair.Create<string, string?>(SignalRParams.ClientId, clientId));
+                queryParams.Add(KeyValuePair.Create<string, string?>(SignalRParams.WorkerConnection, "true"));
+            } else {
+                // Master connection registers ports
+                queryParams.Add(KeyValuePair.Create<string, string?>(SignalRParams.TcpQuery, tcpQuery));
+                queryParams.Add(KeyValuePair.Create<string, string?>(SignalRParams.UdpQuery, udpQuery));
+                queryParams.Add(KeyValuePair.Create<string, string?>(SignalRParams.ClientId, clientId));
+            }
+
+            var query = QueryString.Create(queryParams);
             ub.Query = query.ToString();
 
-            connection = new HubConnectionBuilder()
+            var connection = new HubConnectionBuilder()
                  .WithUrl(ub.Uri, options => {
                      if(protocol == TransportProtocol.WebSocket) {
                          options.Transports = HttpTransportType.WebSockets;
@@ -148,58 +177,74 @@ namespace TutoProxy.Client.Communication {
                  })
                  .Build();
 
-            hubProxy = connection.CreateHubProxy<IServerHub>();
+            var hubProxy = connection.CreateHubProxy<IServerHub>();
             var receiver = new ClientReceiver(logger, clientsService, this, StopAsync, cancellationToken);
-            receiverSubscription = connection.Register<IClientReceiver>(receiver);
+            var receiverSubscription = connection.Register<IClientReceiver>(receiver);
 
             connection.Reconnecting += e => {
-                logger.Warning($"Connection lost. Reconnecting");
+                logger.Warning($"Connection {(isWorker ? "worker" : "master")} lost. Reconnecting");
                 return Task.CompletedTask;
             };
 
             connection.Reconnected += s => {
-                logger.Information($"Connection reconnected: {s}");
+                logger.Information($"Connection {(isWorker ? "worker" : "master")} reconnected: {s}");
                 return Task.CompletedTask;
             };
 
             await connection.StartAsync(cancellationToken);
-            logger.Information("Connection started");
-            return connection.ConnectionId ?? "????";
+            logger.Information($"Connection {(isWorker ? "worker" : "master")} started: {connection.ConnectionId}");
+
+            return new ConnectionInfo(connection, hubProxy, receiverSubscription);
         }
 
         public async Task StopAsync() {
-            receiverSubscription?.Dispose();
-            receiverSubscription = null;
-            hubProxy = null;
-            if(connection != null) {
-                await connection.DisposeAsync();
-                logger.Information("Connection stopped");
-                connection = null;
+            if(connections != null) {
+                foreach(var conn in connections) {
+                    conn.ReceiverSubscription.Dispose();
+                    await conn.Connection.DisposeAsync();
+                }
+                connections = null;
+                logger.Information("Connection pool stopped");
             }
         }
 
+        ConnectionInfo? GetConnection(int index) {
+            if(connections == null || connections.Length == 0) return null;
+            return connections[index % connections.Length];
+        }
+
+        ConnectionInfo? GetConnectionByHash(int port, int originPort) {
+            if(connections == null || connections.Length == 0) return null;
+            var hash = port ^ originPort;
+            return connections[Math.Abs(hash) % connections.Length];
+        }
+
         public async Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken) {
-            if(hubProxy != null && connection?.State == HubConnectionState.Connected) {
-                await hubProxy.UdpResponse(response);
+            var conn = GetConnectionByHash(response.Port, response.OriginPort);
+            if(conn != null && conn.Connection.State == HubConnectionState.Connected) {
+                await conn.HubProxy.UdpResponse(response);
             }
         }
 
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken) {
-            if(hubProxy != null && connection?.State == HubConnectionState.Connected) {
-                await hubProxy.DisconnectUdp(socketAddress, totalTransfered);
+            var conn = GetConnection(0); // Use master for control messages
+            if(conn != null && conn.Connection.State == HubConnectionState.Connected) {
+                await conn.HubProxy.DisconnectUdp(socketAddress, totalTransfered);
             }
         }
 
         public Task<int> SendTcpResponse(TcpDataResponseModel response, CancellationToken cancellationToken) {
-            if(hubProxy != null && connection?.State == HubConnectionState.Connected) {
-                return hubProxy.TcpResponse(response);
+            var conn = GetConnectionByHash(response.Port, response.OriginPort);
+            if(conn != null && conn.Connection.State == HubConnectionState.Connected) {
+                return conn.HubProxy.TcpResponse(response);
             }
             return Task.FromResult(-1);
         }
 
         public Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
-            if(hubProxy != null && connection?.State == HubConnectionState.Connected) {
-                return hubProxy.DisconnectTcp(socketAddress);
+            var conn = GetConnection(0); // Use master for control messages
+            if(conn != null && conn.Connection.State == HubConnectionState.Connected) {
+                return conn.HubProxy.DisconnectTcp(socketAddress);
             }
             return Task.FromResult(false);
         }

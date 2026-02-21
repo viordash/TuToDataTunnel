@@ -4,5 +4,9 @@
         public const string TcpQuery = "tcpquery";
         public const string UdpQuery = "udpquery";
         public const string ClientId = "clientid";
+        public const string WorkerConnection = "worker";
+
+        // Connection pool size for parallel data transfer
+        public static int ConnectionPoolSize = 4;
     }
 }

@@ -22,6 +22,10 @@ namespace TutoProxy.Server.Services {
         protected readonly ConcurrentDictionary<string, HubClient> connectedClients = new();
         protected readonly ConcurrentDictionary<int, string> tcpPortToConnectionId = new();
         protected readonly ConcurrentDictionary<int, string> udpPortToConnectionId = new();
+        // Maps clientId to master connectionId
+        protected readonly ConcurrentDictionary<string, string> clientIdToMasterConnectionId = new();
+        // Maps worker connectionId to clientId (for cleanup)
+        protected readonly ConcurrentDictionary<string, string> workerConnectionToClientId = new();
         readonly IHostApplicationLifetime applicationLifetime;
         readonly IServiceProvider serviceProvider;
         readonly IProcessMonitor processMonitor;
@@ -63,6 +67,8 @@ namespace TutoProxy.Server.Services {
             var tcpPresent = query.TryGetValue(SignalRParams.TcpQuery, out StringValues tcpQuery);
             var udpPresent = query.TryGetValue(SignalRParams.UdpQuery, out StringValues udpQuery);
             var clientIdPresent = query.TryGetValue(SignalRParams.ClientId, out StringValues clientId);
+            var isWorker = query.TryGetValue(SignalRParams.WorkerConnection, out StringValues workerValue)
+                && workerValue.FirstOrDefault() == "true";
 
             if(alowedClients != null) {
                 if(!clientIdPresent) {
@@ -74,6 +80,32 @@ namespace TutoProxy.Server.Services {
                 }
             }
 
+            // Worker connections link to existing master
+            if(isWorker) {
+                var clientIdStr = clientId.FirstOrDefault();
+                if(string.IsNullOrEmpty(clientIdStr)) {
+                    throw new ClientConnectionException(connectionId, "Worker connection requires clientId");
+                }
+
+                if(!clientIdToMasterConnectionId.TryGetValue(clientIdStr, out var masterConnectionId)) {
+                    throw new ClientConnectionException(clientId, connectionId, "Master connection not found");
+                }
+
+                if(!connectedClients.TryGetValue(masterConnectionId, out var masterHubClient)) {
+                    throw new ClientConnectionException(clientId, connectionId, "Master HubClient not found");
+                }
+
+                // Worker shares the same HubClient as master
+                if(!connectedClients.TryAdd(connectionId, masterHubClient)) {
+                    throw new ClientConnectionException(clientId, connectionId, "Worker already connected");
+                }
+
+                workerConnectionToClientId.TryAdd(connectionId, clientIdStr);
+                logger.Information($"Connect worker [{clientIdStr}] :{connectionId}");
+                return;
+            }
+
+            // Master connection - original logic
             if(!tcpPresent && !udpPresent) {
                 throw new ClientConnectionException(clientId, connectionId, "tcp or udp options requried");
             }
@@ -131,15 +163,37 @@ namespace TutoProxy.Server.Services {
                 }
                 throw new ClientConnectionException(clientId, connectionId, "Client already connected");
             } else {
-                logger.Information($"Connect [{(clientIdPresent ? clientId.FirstOrDefault() : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
+                // Register master connection for workers to find
+                var clientIdStr = clientId.FirstOrDefault();
+                if(!string.IsNullOrEmpty(clientIdStr)) {
+                    clientIdToMasterConnectionId.TryAdd(clientIdStr, connectionId);
+                }
+
+                logger.Information($"Connect master [{(clientIdPresent ? clientIdStr : "")}] :{connectionId} (tcp:{tcpQuery}, udp:{udpQuery})");
                 _ = hubClient.Listen();
                 processMonitor.ConnectHubClient(connectionId, tcpPorts, udpPorts);
             }
         }
 
         public async Task DisconnectAsync(string connectionId) {
-            logger.Information($"Disconnect hubClient :{connectionId}");
-            if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {                
+            // Check if this is a worker connection
+            if(workerConnectionToClientId.TryRemove(connectionId, out var clientId)) {
+                logger.Information($"Disconnect worker [{clientId}] :{connectionId}");
+                connectedClients.TryRemove(connectionId, out _);
+                return;
+            }
+
+            // Master connection
+            logger.Information($"Disconnect master :{connectionId}");
+            if(connectedClients.TryRemove(connectionId, out HubClient? hubClient)) {
+                // Remove clientId mapping
+                foreach(var kvp in clientIdToMasterConnectionId) {
+                    if(kvp.Value == connectionId) {
+                        clientIdToMasterConnectionId.TryRemove(kvp.Key, out _);
+                        break;
+                    }
+                }
+
                 if(hubClient.TcpPorts != null) {
                     foreach(var port in hubClient.TcpPorts) {
                         tcpPortToConnectionId.TryRemove(port, out _);
