@@ -4,6 +4,7 @@
 #
 # Architecture:
 #   TCP/UDP: iperf3-client → TutoProxy.Server:5201 → SignalR → TutoProxy.Client → iperf3-server:5201
+#   Reverse: iperf3-server:5201 → TutoProxy.Client → SignalR → TutoProxy.Server:5201 → iperf3-client
 #
 # We use Docker for iperf3-server to avoid port conflicts on localhost
 
@@ -194,12 +195,20 @@ stop_tutoproxy() {
 run_iperf_tcp_test() {
     local duration=${1:-10}
     local parallel=${2:-1}
+    local reverse=${3:-false}
+    local reverse_flag=""
+    local direction="client → server (upload)"
 
-    log_info "Running iperf3 TCP test (duration: ${duration}s, parallel: ${parallel})..."
+    if [ "$reverse" = "true" ]; then
+        reverse_flag="-R"
+        direction="server → client (download)"
+    fi
+
+    log_info "Running iperf3 TCP test (duration: ${duration}s, parallel: ${parallel}, direction: ${direction})..."
     echo ""
 
     # Connect to TutoProxy.Server which tunnels to iperf3 server
-    iperf3 -c 127.0.0.1 -p "$TUNNEL_PORT" -t "$duration" -P "$parallel"
+    iperf3 -c 127.0.0.1 -p "$TUNNEL_PORT" -t "$duration" -P "$parallel" $reverse_flag
 
     echo ""
 }
@@ -207,32 +216,46 @@ run_iperf_tcp_test() {
 run_iperf_udp_test() {
     local duration=${1:-10}
     local bandwidth=${2:-100M}
+    local reverse=${3:-false}
+    local reverse_flag=""
+    local direction="client → server (upload)"
 
-    log_info "Running iperf3 UDP test (duration: ${duration}s, bandwidth: ${bandwidth})..."
+    if [ "$reverse" = "true" ]; then
+        reverse_flag="-R"
+        direction="server → client (download)"
+    fi
+
+    log_info "Running iperf3 UDP test (duration: ${duration}s, bandwidth: ${bandwidth}, direction: ${direction})..."
     echo ""
 
     # Connect to TutoProxy.Server which tunnels to iperf3 server
     # -u for UDP, -b for bandwidth limit
-    iperf3 -c 127.0.0.1 -p "$TUNNEL_PORT" -u -t "$duration" -b "$bandwidth"
+    iperf3 -c 127.0.0.1 -p "$TUNNEL_PORT" -u -t "$duration" -b "$bandwidth" $reverse_flag
 
     echo ""
 }
 
-run_protocol_test() {
+run_tcp_protocol_test() {
     local protocol="$1"
     local duration="$2"
     local parallel="$3"
     local compression="${4:-None}"
+    local reverse="${5:-false}"
+    local direction_label=""
+
+    if [ "$reverse" = "true" ]; then
+        direction_label=" [REVERSE]"
+    fi
 
     echo ""
     echo "========================================="
-    echo "  TCP TUNNEL TEST ($protocol protocol, compression: $compression)"
+    echo "  TCP TUNNEL TEST ($protocol, compression: $compression)$direction_label"
     echo "========================================="
 
     start_tutoproxy_server "$compression"
     start_tutoproxy_client "$protocol" "$compression"
 
-    run_iperf_tcp_test "$duration" "$parallel"
+    run_iperf_tcp_test "$duration" "$parallel" "$reverse"
 
     stop_tutoproxy
 }
@@ -242,16 +265,22 @@ run_udp_protocol_test() {
     local duration="$2"
     local bandwidth="$3"
     local compression="${4:-None}"
+    local reverse="${5:-false}"
+    local direction_label=""
+
+    if [ "$reverse" = "true" ]; then
+        direction_label=" [REVERSE]"
+    fi
 
     echo ""
     echo "========================================="
-    echo "  UDP TUNNEL TEST ($protocol protocol, compression: $compression)"
+    echo "  UDP TUNNEL TEST ($protocol, compression: $compression)$direction_label"
     echo "========================================="
 
     start_tutoproxy_server "$compression"
     start_tutoproxy_client "$protocol" "$compression"
 
-    run_iperf_udp_test "$duration" "$bandwidth"
+    run_iperf_udp_test "$duration" "$bandwidth" "$reverse"
 
     stop_tutoproxy
 }
@@ -260,15 +289,16 @@ print_usage() {
     echo "Usage: $0 [command] [options]"
     echo ""
     echo "Commands (TCP):"
-    echo "  full       Run full TCP test (Auto + Http + WebSocket)"
-    echo "  auto       Run TCP tunnel test with Auto protocol"
-    echo "  http       Run TCP tunnel test with Http protocol (LongPolling)"
-    echo "  websocket  Run TCP tunnel test with WebSocket protocol (fastest)"
-    echo "  compare    Run compression comparison (Auto: None vs Lz4_1024)"
+    echo "  full            Run full TCP test (Auto + Http + WebSocket)"
+    echo "  full-reverse    Run full TCP test in reverse direction"
+    echo "  websocket       Run TCP test with WebSocket protocol (fastest)"
+    echo "  websocket-reverse  Run TCP WebSocket test in reverse direction"
+    echo "  compare         Run compression comparison (Auto: None vs Lz4_1024)"
+    echo "  compare-reverse Run compression comparison in reverse direction"
     echo ""
     echo "Commands (UDP):"
-    echo "  udp        Run UDP tunnel test with Auto protocol"
-    echo "  udp-full   Run full UDP test (Auto + Http + WebSocket)"
+    echo "  udp-full        Run full UDP test (Auto + Http + WebSocket)"
+    echo "  udp-full-reverse  Run full UDP test in reverse direction"
     echo ""
     echo "Options:"
     echo "  -d, --duration    Test duration in seconds (default: 10)"
@@ -277,11 +307,10 @@ print_usage() {
     echo ""
     echo "Examples:"
     echo "  $0 full"
+    echo "  $0 full-reverse"
     echo "  $0 websocket -d 30 -p 4"
-    echo "  $0 auto -d 5"
     echo "  $0 compare -d 10"
-    echo "  $0 udp -d 10 -b 50M"
-    echo "  $0 udp-full -d 5"
+    echo "  $0 udp-full -d 10 -b 1000M"
 }
 
 main() {
@@ -323,31 +352,39 @@ main() {
     setup_docker
 
     case $command in
-        auto)
-            run_protocol_test "Auto" "$duration" "$parallel"
+        full)
+            run_tcp_protocol_test "Auto" "$duration" "$parallel"
+            run_tcp_protocol_test "Http" "$duration" "$parallel"
+            run_tcp_protocol_test "WebSocket" "$duration" "$parallel"
             ;;
-        http)
-            run_protocol_test "Http" "$duration" "$parallel"
+        full-reverse)
+            run_tcp_protocol_test "Auto" "$duration" "$parallel" "None" "true"
+            run_tcp_protocol_test "Http" "$duration" "$parallel" "None" "true"
+            run_tcp_protocol_test "WebSocket" "$duration" "$parallel" "None" "true"
             ;;
         websocket)
-            run_protocol_test "WebSocket" "$duration" "$parallel"
+            run_tcp_protocol_test "WebSocket" "$duration" "$parallel"
             ;;
-        full)
-            run_protocol_test "Auto" "$duration" "$parallel"
-            run_protocol_test "Http" "$duration" "$parallel"
-            run_protocol_test "WebSocket" "$duration" "$parallel"
+        websocket-reverse)
+            run_tcp_protocol_test "WebSocket" "$duration" "$parallel" "None" "true"
             ;;
         compare)
-            run_protocol_test "Auto" "$duration" "$parallel" "None"
-            run_protocol_test "Auto" "$duration" "$parallel" "Lz4_1024"
+            run_tcp_protocol_test "Auto" "$duration" "$parallel" "None"
+            run_tcp_protocol_test "Auto" "$duration" "$parallel" "Lz4_1024"
             ;;
-        udp)
-            run_udp_protocol_test "Auto" "$duration" "$bandwidth"
+        compare-reverse)
+            run_tcp_protocol_test "Auto" "$duration" "$parallel" "None" "true"
+            run_tcp_protocol_test "Auto" "$duration" "$parallel" "Lz4_1024" "true"
             ;;
         udp-full)
             run_udp_protocol_test "Auto" "$duration" "$bandwidth"
             run_udp_protocol_test "Http" "$duration" "$bandwidth"
             run_udp_protocol_test "WebSocket" "$duration" "$bandwidth"
+            ;;
+        udp-full-reverse)
+            run_udp_protocol_test "Auto" "$duration" "$bandwidth" "None" "true"
+            run_udp_protocol_test "Http" "$duration" "$bandwidth" "None" "true"
+            run_udp_protocol_test "WebSocket" "$duration" "$bandwidth" "None" "true"
             ;;
         *)
             log_error "Unknown command: $command"

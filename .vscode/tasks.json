@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Perf Test: Full (Auto + Http + WebSocket)",
+            "label": "Perf Test: Full TCP (Auto + Http + WebSocket)",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
             "args": ["full", "-d", "10"],
@@ -14,10 +14,10 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: Auto protocol",
+            "label": "Perf Test: Full TCP REVERSE",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["auto", "-d", "10"],
+            "args": ["full-reverse", "-d", "10"],
             "group": "test",
             "presentation": {
                 "reveal": "always",
@@ -26,19 +26,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: Http protocol (LongPolling)",
-            "type": "shell",
-            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["http", "-d", "10"],
-            "group": "test",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Perf Test: WebSocket protocol (fastest)",
+            "label": "Perf Test: WebSocket (fastest)",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
             "args": ["websocket", "-d", "10"],
@@ -50,10 +38,10 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: WebSocket (30s, 4 parallel)",
+            "label": "Perf Test: WebSocket REVERSE",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["websocket", "-d", "30", "-p", "4"],
+            "args": ["websocket-reverse", "-d", "10"],
             "group": "test",
             "presentation": {
                 "reveal": "always",
@@ -74,10 +62,10 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: UDP Auto protocol",
+            "label": "Perf Test: Compression compare REVERSE",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["udp", "-d", "10", "-b", "1000M"],
+            "args": ["compare-reverse", "-d", "10"],
             "group": "test",
             "presentation": {
                 "reveal": "always",
@@ -86,10 +74,22 @@
             "problemMatcher": []
         },
         {
-            "label": "Perf Test: UDP Full (Auto + Http + WebSocket)",
+            "label": "Perf Test: Full UDP (Auto + Http + WebSocket)",
             "type": "shell",
             "command": "./Projects/TutoProxy/scripts/perf-test.sh",
-            "args": ["udp-full", "-d", "10"],
+            "args": ["udp-full", "-d", "10", "-b", "1000M"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: Full UDP REVERSE",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["udp-full-reverse", "-d", "10", "-b", "1000M"],
             "group": "test",
             "presentation": {
                 "reveal": "always",
