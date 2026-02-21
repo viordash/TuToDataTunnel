@@ -67,14 +67,14 @@ namespace TutoProxy.Client.Communication {
             }
 
             public Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
-                logger.Debug($"HandleDisconnectUdp :{socketAddress}, {totalTransfered}");
+                logger.Debug("HandleDisconnectUdp :{socketAddress}, {totalTransfered}", socketAddress, totalTransfered);
                 var client = clientsService.ObtainUdpClient(socketAddress.Port, socketAddress.OriginPort, signalRClient);
                 client.Disconnect(totalTransfered);
                 return Task.CompletedTask;
             }
 
             public async Task<SocketError> ConnectTcp(SocketAddressModel socketAddress) {
-                logger.Debug($"HandleConnectTcp :{socketAddress}");
+                logger.Debug("HandleConnectTcp :{socketAddress}", socketAddress);
                 var client = clientsService.AddTcpClient(socketAddress.Port, socketAddress.OriginPort, signalRClient);
                 var result = await client.Connect(cancellationToken);
                 if(result != SocketError.Success) {

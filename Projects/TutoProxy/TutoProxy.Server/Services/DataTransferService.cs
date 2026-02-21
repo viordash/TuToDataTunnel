@@ -40,13 +40,13 @@ namespace TutoProxy.Server.Services {
         }
 
         public async Task SendUdpRequest(UdpDataRequestModel request, CancellationToken cancellationToken) {
-            logger.Debug($"UdpRequest :{request}");
+            logger.Debug("UdpRequest :{request}", request);
             var connectionId = clientsService.GetConnectionIdForUdp(request.Port);
             await typedHub.Clients.Client(connectionId).UdpRequest(request);
         }
 
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
-            logger.Debug($"DisconnectUdp :{socketAddress}, {totalTransfered}");
+            logger.Debug("DisconnectUdp :{socketAddress}, {totalTransfered}", socketAddress, totalTransfered);
             var connectionId = clientsService.GetConnectionIdForUdp(socketAddress.Port);
             await typedHub.Clients.Client(connectionId).DisconnectUdp(socketAddress, totalTransfered);
         }
@@ -62,13 +62,13 @@ namespace TutoProxy.Server.Services {
         }
 
         public Task<SocketError> ConnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
-            logger.Debug($"ConnectTcp :{socketAddress}");
+            logger.Debug("ConnectTcp :{SocketAddress}", socketAddress);
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
             return rawHub.Clients.Client(connectionId).InvokeAsync<SocketError>(ClientMethods.ConnectTcp, socketAddress, cancellationToken);
         }
 
         public async Task<int> SendTcpRequest(TcpDataRequestModel request, CancellationToken cancellationToken) {
-            logger.Debug($"TcpRequest :{request}");
+            logger.Debug("TcpRequest :{Request}", request);
             var connectionId = clientsService.GetConnectionIdForTcp(request.Port);
             return await rawHub.Clients.Client(connectionId).InvokeAsync<int>(ClientMethods.TcpRequest, request, cancellationToken);
         }
@@ -79,7 +79,7 @@ namespace TutoProxy.Server.Services {
         }
 
         public Task<bool> DisconnectTcp(SocketAddressModel socketAddress, CancellationToken cancellationToken) {
-            logger.Debug($"DisconnectTcp :{socketAddress}");
+            logger.Debug("DisconnectTcp :{SocketAddress}", socketAddress);
             var connectionId = clientsService.GetConnectionIdForTcp(socketAddress.Port);
             return rawHub.Clients.Client(connectionId).InvokeAsync<bool>(ClientMethods.DisconnectTcp, socketAddress, cancellationToken);
         }
