@@ -191,9 +191,9 @@ namespace TutoProxy.Client.Communication {
 
             for(int i = 0; i < parallelCount; i++) {
                 var query = QueryString.Create(new[] {
-                    KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery),
-                    KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery),
-                    KeyValuePair.Create(SignalRParams.ClientId, clientId),
+                    KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery ?? ""),
+                    KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery ?? ""),
+                    KeyValuePair.Create(SignalRParams.ClientId, clientId ?? ""),
                     KeyValuePair.Create(SignalRParams.ConnectionIndex, i.ToString()),
                     KeyValuePair.Create(SignalRParams.TotalConnections, parallelCount.ToString())
                 });
