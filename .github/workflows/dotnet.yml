@@ -30,7 +30,9 @@ jobs:
     - name: Unit Tests
       run: dotnet test ./Projects/TutoProxy/TutoProxy.sln --no-build --verbosity normal
     - name: Perfomance Tests
-      run: ./Projects/TutoProxy/scripts/perf-test.sh full -d 10
+      run: ./Projects/TutoProxy/scripts/perf-test.sh websocket -d 10
+    - name: Perfomance Tests (reverse)
+      run: ./Projects/TutoProxy/scripts/perf-test.sh websocket-reverse -d 10
 
     - name: Publish
       run: |
