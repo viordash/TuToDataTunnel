@@ -21,6 +21,7 @@ namespace TutoProxy.Server.CommandLine {
             Add(tcpOption);
             Add(udpOption);
             Add(new Option<TransportProtocol>("--protocol", () => TransportProtocol.Auto, "Transport protocol: Auto, Http, WebSocket"));
+            Add(new Option<int>("--parallel", () => 1, "Number of parallel SignalR connections (1-8)"));
             Add(new Option<bool>("--daemon", () => false, "Run as a daemon"));
             AddValidator((result) => {
                 try {
@@ -46,6 +47,7 @@ namespace TutoProxy.Server.CommandLine {
             public PortsArgument? Udp { get; set; }
             public PortsArgument? Tcp { get; set; }
             public TransportProtocol Protocol { get; set; }
+            public int Parallel { get; set; }
             public bool? Daemon { get; set; }
 
             public Handler(
@@ -112,7 +114,7 @@ namespace TutoProxy.Server.CommandLine {
                         while(!cancellationToken.IsCancellationRequested) {
                             try {
                                 logStatus("connection to server...");
-                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, Protocol, cancellationToken);
+                                var connectionId = await signalrClient.StartAsync(Server!, Tcp?.Argument, Udp?.Argument, Id, Protocol, Math.Clamp(Parallel, 1, 8), cancellationToken);
 
                                 logStatus($"{connectionId}");
                                 break;

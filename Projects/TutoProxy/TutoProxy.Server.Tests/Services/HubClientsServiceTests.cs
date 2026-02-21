@@ -31,14 +31,6 @@ namespace TutoProxy.Server.Tests.Services {
             public ConcurrentDictionary<string, HubClient> PublicMorozovConnectedClients {
                 get { return connectedClients; }
             }
-
-            public ConcurrentDictionary<int, string> PublicTcpPortToConnectionId {
-                get { return tcpPortToConnectionId; }
-            }
-
-            public ConcurrentDictionary<int, string> PublicUdpPortToConnectionId {
-                get { return udpPortToConnectionId; }
-            }
         }
 
 
@@ -142,13 +134,10 @@ namespace TutoProxy.Server.Tests.Services {
         [Test]
         public async Task GetClient_Test() {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
-                Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4), null);
+                Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535), null);
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, 
-                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
-
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId1", new HubClient(localEndPoint, 
-                            Enumerable.Range(2000, 1).ToList(), Enumerable.Range(2000, 1), serviceProviderMock.Object));
+            await testable.Connect("connectionId0", "tcpquery=1000&udpquery=1000");
+            await testable.Connect("connectionId1", "tcpquery=2000&udpquery=2000");
 
             Assert.That(testable.GetClient("connectionId0")?.TcpPorts, Has.Member(1000));
             Assert.That(testable.GetClient("connectionId1")?.TcpPorts, Has.Member(2000));
@@ -161,8 +150,7 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4), null);
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, 
-                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
+            await testable.Connect("connectionId0", "tcpquery=1000&udpquery=1000");
 
             Assert.Throws<HubClientNotFoundException>(() => testable.GetClient("connectionId19"));
         }
@@ -172,9 +160,7 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4), null);
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, 
-                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
-            testable.PublicTcpPortToConnectionId[1000] = "connectionId0";
+            await testable.Connect("connectionId0", "tcpquery=1000&udpquery=1000");
 
             Assert.That(testable.GetConnectionIdForTcp(1000), Is.EqualTo("connectionId0"));
         }
@@ -184,9 +170,7 @@ namespace TutoProxy.Server.Tests.Services {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
                 Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4), null);
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, 
-                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
-            testable.PublicTcpPortToConnectionId[1000] = "connectionId0";
+            await testable.Connect("connectionId0", "tcpquery=1000&udpquery=1000");
 
             Assert.Throws<HubClientNotFoundException>(() => testable.GetConnectionIdForTcp(1001), "hub-client for Tcp(1001) not found");
         }
@@ -194,11 +178,9 @@ namespace TutoProxy.Server.Tests.Services {
         [Test]
         public async Task GetConnectionIdForUdp_Test() {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
-                Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4), null);
+                Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535), null);
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, 
-                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
-            testable.PublicUdpPortToConnectionId[1000] = "connectionId0";
+            await testable.Connect("connectionId0", "tcpquery=1000&udpquery=1000");
 
             Assert.That(testable.GetConnectionIdForUdp(1000), Is.EqualTo("connectionId0"));
         }
@@ -206,11 +188,9 @@ namespace TutoProxy.Server.Tests.Services {
         [Test]
         public async Task GetConnectionIdForUdp_Throws_HubClientNotFoundException_If_Port_Not_Bound() {
             await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
-                Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4), null);
+                Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1, 65535), null);
 
-            testable.PublicMorozovConnectedClients.TryAdd("connectionId0", new HubClient(localEndPoint, 
-                            Enumerable.Range(1000, 1).ToList(), Enumerable.Range(1000, 1), serviceProviderMock.Object));
-            testable.PublicUdpPortToConnectionId[1000] = "connectionId0";
+            await testable.Connect("connectionId0", "tcpquery=1000&udpquery=1000");
 
             Assert.Throws<HubClientNotFoundException>(() => testable.GetConnectionIdForUdp(1001), "hub-client for Udp(1001) not found");
         }
@@ -300,6 +280,78 @@ namespace TutoProxy.Server.Tests.Services {
                 .Count();
             Assert.That(clientsWithPort, Is.EqualTo(1),
                 $"Race condition: {clientsWithPort} clients registered with port {targetPort}");
+        }
+
+        [Test]
+        public async Task Parallel_Connections_From_Same_Client_Share_HubClient() {
+            await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
+                Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), null);
+
+            // First connection (index 0) creates the HubClient
+            await testable.Connect("connectionId0", "tcpquery=1000&connindex=0&totalconn=4&clientid=client1");
+            // Additional connections join the existing group
+            await testable.Connect("connectionId1", "tcpquery=1000&connindex=1&totalconn=4&clientid=client1");
+            await testable.Connect("connectionId2", "tcpquery=1000&connindex=2&totalconn=4&clientid=client1");
+            await testable.Connect("connectionId3", "tcpquery=1000&connindex=3&totalconn=4&clientid=client1");
+
+            Assert.That(testable.PublicMorozovConnectedClients.Keys.Count, Is.EqualTo(4));
+
+            // All connections should share the same HubClient
+            var hubClient0 = testable.GetClient("connectionId0");
+            var hubClient1 = testable.GetClient("connectionId1");
+            var hubClient2 = testable.GetClient("connectionId2");
+            var hubClient3 = testable.GetClient("connectionId3");
+
+            Assert.That(hubClient0, Is.SameAs(hubClient1));
+            Assert.That(hubClient1, Is.SameAs(hubClient2));
+            Assert.That(hubClient2, Is.SameAs(hubClient3));
+        }
+
+        [Test]
+        public async Task GetConnectionIdForTcp_Returns_Different_Connections_Round_Robin() {
+            await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
+                Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), null);
+
+            // Setup 4 parallel connections
+            await testable.Connect("connectionId0", "tcpquery=1000&connindex=0&totalconn=4&clientid=client1");
+            await testable.Connect("connectionId1", "tcpquery=1000&connindex=1&totalconn=4&clientid=client1");
+            await testable.Connect("connectionId2", "tcpquery=1000&connindex=2&totalconn=4&clientid=client1");
+            await testable.Connect("connectionId3", "tcpquery=1000&connindex=3&totalconn=4&clientid=client1");
+
+            // Get connection IDs in round-robin fashion
+            var ids = new HashSet<string>();
+            for(int i = 0; i < 8; i++) {
+                ids.Add(testable.GetConnectionIdForTcp(1000));
+            }
+
+            // Should have used all 4 connections
+            Assert.That(ids.Count, Is.EqualTo(4));
+            Assert.That(ids, Does.Contain("connectionId0"));
+            Assert.That(ids, Does.Contain("connectionId1"));
+            Assert.That(ids, Does.Contain("connectionId2"));
+            Assert.That(ids, Does.Contain("connectionId3"));
+        }
+
+        [Test]
+        public async Task TcpSession_Registration_Provides_Affinity() {
+            await using var testable = new TestableClientsService(loggerMock.Object, applicationLifetimeMock.Object, serviceProviderMock.Object, processMonitorMock.Object, localEndPoint,
+                Enumerable.Range(1, 65535), Enumerable.Range(1, 65535), null);
+
+            await testable.Connect("connectionId0", "tcpquery=1000&connindex=0&totalconn=2&clientid=client1");
+            await testable.Connect("connectionId1", "tcpquery=1000&connindex=1&totalconn=2&clientid=client1");
+
+            // Register a session with specific connection
+            testable.RegisterTcpSession(1000, 50000, "connectionId1");
+
+            // GetConnectionIdForTcpSession should return the registered connection
+            var connId = testable.GetConnectionIdForTcpSession(1000, 50000);
+            Assert.That(connId, Is.EqualTo("connectionId1"));
+
+            // Unregister and it should fall back to round-robin
+            testable.UnregisterTcpSession(1000, 50000);
+            // Now it will use round-robin (could be either)
+            var connIdAfter = testable.GetConnectionIdForTcpSession(1000, 50000);
+            Assert.That(connIdAfter, Does.StartWith("connectionId"));
         }
     }
 }

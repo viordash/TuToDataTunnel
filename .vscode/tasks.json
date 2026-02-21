@@ -84,6 +84,30 @@
                 "panel": "new"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: TCP WebSocket 4-Channel",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["websocket", "-d", "10", "-s", "4", "-p", "4"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Perf Test: TCP WebSocket 4-Channel Reverse",
+            "type": "shell",
+            "command": "./Projects/TutoProxy/scripts/perf-test.sh",
+            "args": ["websocket-reverse", "-d", "10", "-s", "4", "-p", "4"],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
         }
     ]
 }

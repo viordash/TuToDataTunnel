@@ -8,7 +8,7 @@ using TuToProxy.Core.Exceptions;
 namespace TutoProxy.Client.Services {
     public interface IClientsService {
         Task StartAsync(IPAddress localIpAddress, List<int>? tcpPorts, List<int>? udpPorts);
-        TcpClient AddTcpClient(int port, int originPort, ISignalRClient dataTunnelClient);
+        TcpClient AddTcpClient(int port, int originPort, ISignalRClient dataTunnelClient, ITcpDataChannel tcpChannel);
         bool ObtainTcpClient(int port, int originPort, out TcpClient? client);
         ValueTask<bool> RemoveTcpClient(int port, int originPort);
 
@@ -50,7 +50,7 @@ namespace TutoProxy.Client.Services {
             this.udpPorts = udpPorts;
         }
 
-        public TcpClient AddTcpClient(int port, int originPort, ISignalRClient dataTunnelClient) {
+        public TcpClient AddTcpClient(int port, int originPort, ISignalRClient dataTunnelClient, ITcpDataChannel tcpChannel) {
             var commonPortClients = tcpClients.GetOrAdd(port,
                     _ => {
                         if(tcpPorts == null || !tcpPorts.Contains(port)) {
@@ -64,7 +64,7 @@ namespace TutoProxy.Client.Services {
             var client = commonPortClients.GetOrAdd(originPort,
                 _ => {
                     Debug.WriteLine($"ObtainClient: add tcp for OriginPort {originPort}, {tcpClients.Count}, {commonPortClients.Count}");
-                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, dataTunnelClient, processMonitor);
+                    return clientFactory.CreateTcp(localIpAddress, port, originPort, this, dataTunnelClient, tcpChannel, processMonitor);
                 }
             );
             return client;

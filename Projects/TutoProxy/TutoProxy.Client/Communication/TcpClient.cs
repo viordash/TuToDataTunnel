@@ -13,13 +13,15 @@ namespace TutoProxy.Client.Communication {
         long requestLogTicks = Environment.TickCount64;
         long responseLogTicks = Environment.TickCount64;
         readonly Socket socket;
+        readonly ITcpDataChannel tcpChannel;
 
         Int64 totalTransmitted;
         Int64 totalReceived;
 
-        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, IProcessMonitor processMonitor)
+        public TcpClient(IPEndPoint serverEndPoint, int originPort, ILogger logger, IClientsService clientsService, ISignalRClient dataTunnelClient, ITcpDataChannel tcpChannel, IProcessMonitor processMonitor)
             : base(serverEndPoint, originPort, logger, clientsService, dataTunnelClient, processMonitor) {
 
+            this.tcpChannel = tcpChannel;
             socket = new Socket(serverEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             socket.NoDelay = true;
             socket.ReceiveBufferSize = TcpSocketParams.ReceiveBufferSize;
@@ -93,7 +95,7 @@ namespace TutoProxy.Client.Communication {
                     response.Data = data;
                     int transmitted;
                     try {
-                        transmitted = await dataTunnelClient.SendTcpResponse(response, cancellationToken);
+                        transmitted = await tcpChannel.SendTcpResponse(response, cancellationToken);
                     } finally {
                         DataModelPool<TcpDataResponseModel>.Return(response);
                     }
@@ -117,7 +119,7 @@ namespace TutoProxy.Client.Communication {
             }
             if(!cancellationTokenSource.IsCancellationRequested) {
                 try {
-                    if(!await dataTunnelClient.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
+                    if(!await tcpChannel.DisconnectTcp(new SocketAddressModel() { Port = Port, OriginPort = OriginPort }, cancellationToken)) {
                         logger.Error($"{this} disconnect command error");
                     }
                 } catch(Exception) { }

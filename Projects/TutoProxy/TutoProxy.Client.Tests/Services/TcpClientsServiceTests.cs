@@ -17,6 +17,7 @@ namespace TutoProxy.Client.Tests.Services {
         Mock<IClientFactory> clientFactoryMock;
         Mock<IClientsService> clientsServiceMock;
         Mock<ISignalRClient> signalRClientMock;
+        Mock<ITcpDataChannel> tcpChannelMock;
         Mock<IProcessMonitor> processMonitorMock;
 
         TestableClientsService testable;
@@ -27,12 +28,13 @@ namespace TutoProxy.Client.Tests.Services {
             clientFactoryMock = new();
             clientsServiceMock = new();
             signalRClientMock = new();
+            tcpChannelMock = new();
             processMonitorMock = new();
 
             clientFactoryMock
-                .Setup(x => x.CreateTcp(It.IsAny<IPAddress>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IClientsService>(), It.IsAny<ISignalRClient>(), It.IsAny<IProcessMonitor>()))
-                .Returns<IPAddress, int, int, IClientsService, ISignalRClient, IProcessMonitor>((localIpAddress, port, originPort, clientsService, dataTunnelClient, processMonitor) => {
-                    return new TcpClient(new IPEndPoint(localIpAddress, port), originPort, loggerMock.Object, clientsServiceMock.Object, signalRClientMock.Object,
+                .Setup(x => x.CreateTcp(It.IsAny<IPAddress>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IClientsService>(), It.IsAny<ISignalRClient>(), It.IsAny<ITcpDataChannel>(), It.IsAny<IProcessMonitor>()))
+                .Returns<IPAddress, int, int, IClientsService, ISignalRClient, ITcpDataChannel, IProcessMonitor>((localIpAddress, port, originPort, clientsService, dataTunnelClient, tcpChannel, processMonitor) => {
+                    return new TcpClient(new IPEndPoint(localIpAddress, port), originPort, loggerMock.Object, clientsServiceMock.Object, signalRClientMock.Object, tcpChannelMock.Object,
                         processMonitorMock.Object);
                 });
 
@@ -43,15 +45,15 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task AddTcpClient_With_Banned_TcpPort_Are_Throws_Test() {
             await testable.StartAsync(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
-            Assert.Throws<ClientNotFoundException>(() => testable.AddTcpClient(999, 50999, signalRClientMock.Object));
-            Assert.Throws<ClientNotFoundException>(() => testable.AddTcpClient(1005, 51005, signalRClientMock.Object));
+            Assert.Throws<ClientNotFoundException>(() => testable.AddTcpClient(999, 50999, signalRClientMock.Object, tcpChannelMock.Object));
+            Assert.Throws<ClientNotFoundException>(() => testable.AddTcpClient(1005, 51005, signalRClientMock.Object, tcpChannelMock.Object));
         }
 
         [Test]
         public async Task AddTcpClient_Only_Once_Creating_List_With_Same_Port_Clients_Test() {
             await testable.StartAsync(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
-            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
+            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object, tcpChannelMock.Object);
             Assert.That(client0, Is.Not.Null);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
@@ -60,7 +62,7 @@ namespace TutoProxy.Client.Tests.Services {
             Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo([51000]));
             Assert.That(testable.PublicMorozovTcpClients[1000][51000], Is.SameAs(client0));
 
-            var client1 = testable.AddTcpClient(1000, 51001, signalRClientMock.Object);
+            var client1 = testable.AddTcpClient(1000, 51001, signalRClientMock.Object, tcpChannelMock.Object);
             Assert.That(client1, Is.Not.Null);
             Assert.That(client1.Port, Is.EqualTo(1000));
             Assert.That(client1.OriginPort, Is.EqualTo(51001));
@@ -74,12 +76,12 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task AddTcpClient_Only_Once_Creating_Same_Port_Client_Test() {
             await testable.StartAsync(IPAddress.Any, Enumerable.Range(1, 65535).ToList(), Enumerable.Range(1000, 4).ToList());
 
-            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
+            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object, tcpChannelMock.Object);
             Assert.That(client0, Is.Not.Null);
             Assert.That(client0.Port, Is.EqualTo(1000));
             Assert.That(client0.OriginPort, Is.EqualTo(51000));
 
-            var client1 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
+            var client1 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object, tcpChannelMock.Object);
             Assert.That(client1, Is.SameAs(client0));
 
             Assert.That(testable.PublicMorozovTcpClients.Keys, Is.EquivalentTo([1000]));
@@ -99,8 +101,8 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task ObtainTcpClient_Test() {
             await testable.StartAsync(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
-            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object);
-            var client1 = testable.AddTcpClient(1000, 51001, signalRClientMock.Object);
+            var client0 = testable.AddTcpClient(1000, 51000, signalRClientMock.Object, tcpChannelMock.Object);
+            var client1 = testable.AddTcpClient(1000, 51001, signalRClientMock.Object, tcpChannelMock.Object);
 
             Assert.That(testable.ObtainTcpClient(1000, 50999, out _), Is.False);
 
@@ -117,8 +119,8 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task RemoveTcpClient_Test() {
             await testable.StartAsync(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
-            Assert.That(testable.AddTcpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
-            Assert.That(testable.AddTcpClient(1000, 51001, signalRClientMock.Object), Is.Not.Null);
+            Assert.That(testable.AddTcpClient(1000, 51000, signalRClientMock.Object, tcpChannelMock.Object), Is.Not.Null);
+            Assert.That(testable.AddTcpClient(1000, 51001, signalRClientMock.Object, tcpChannelMock.Object), Is.Not.Null);
 
             Assert.That(await testable.RemoveTcpClient(1000, 50999), Is.False);
             Assert.That(testable.PublicMorozovTcpClients[1000].Keys, Is.EquivalentTo([51000, 51001]));
@@ -134,8 +136,8 @@ namespace TutoProxy.Client.Tests.Services {
         public async Task Stop_Test() {
             await testable.StartAsync(IPAddress.Any, Enumerable.Range(1000, 4).ToList(), Enumerable.Range(1, 65535).ToList());
 
-            Assert.That(testable.AddTcpClient(1000, 51000, signalRClientMock.Object), Is.Not.Null);
-            Assert.That(testable.AddTcpClient(1001, 51001, signalRClientMock.Object), Is.Not.Null);
+            Assert.That(testable.AddTcpClient(1000, 51000, signalRClientMock.Object, tcpChannelMock.Object), Is.Not.Null);
+            Assert.That(testable.AddTcpClient(1001, 51001, signalRClientMock.Object, tcpChannelMock.Object), Is.Not.Null);
 
             await testable.StopAsync();
 
