@@ -13,7 +13,7 @@ namespace TutoProxy.Server.CommandLine {
     public class AppRootCommand : RootCommand {
         public Argument<string> ServerArg { get; }
         public Argument<string> SendtoArg { get; }
-        public Argument<string> IdArg { get; }
+        public Option<string> IdArg { get; }
         public Option<PortsArgument?> TcpOption { get; }
         public Option<PortsArgument?> UdpOption { get; }
         public Option<TransportProtocol> ProtocolOption { get; }
@@ -23,7 +23,7 @@ namespace TutoProxy.Server.CommandLine {
         public AppRootCommand() : base("Connback proxy client TuTo") {
             ServerArg = new Argument<string>("server") { Description = "Remote server address" };
             SendtoArg = new Argument<string>("sendto") { Description = "Sendto IP address" };
-            IdArg = new Argument<string>("--id") { Description = "Client ID" };
+            IdArg = new Option<string>("--id") { Description = "Client ID" };
             TcpOption = PortsArgument.CreateOption("--tcp", $"Tunneling ports, format like '--tcp=80,81,443,8000-8100'");
             UdpOption = PortsArgument.CreateOption("--udp", $"Tunneling ports, format like '--udp=700-900,65500'");
             ProtocolOption = new Option<TransportProtocol>("--protocol") { Description = "Transport protocol: Auto, Http, WebSocket", DefaultValueFactory = _ => TransportProtocol.Auto };
@@ -67,7 +67,6 @@ namespace TutoProxy.Server.CommandLine {
 
                 Guard.NotNull(server, nameof(server));
                 Guard.NotNullOrEmpty(sendto, nameof(sendto));
-                Guard.NotNull(id, nameof(id));
                 Guard.NotNull(tcp ?? udp, $"tcp ?? udp");
 
                 var title = $"Connback proxy client TuTo [{id}], {server} >>>> {sendto}";
@@ -84,7 +83,7 @@ namespace TutoProxy.Server.CommandLine {
                     Program.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Warning;
                     TcpSocketParams.TrafficMonitoring = false;
                     UdpSocketParams.TrafficMonitoring = false;
-                    _ = StartServices(server!, sendto!, id!, tcp, udp, protocol, parallel, logger, signalrClient, clientsService, appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
+                    _ = StartServices(server!, sendto!, id, tcp, udp, protocol, parallel, logger, signalrClient, clientsService, appStoppingReg.Token, (status) => logger.Information($"server: {status}"));
                     _ = appStoppingReg.Token.WaitHandle.WaitOne();
                 } else {
                     Application.IsMouseDisabled = true;
@@ -105,7 +104,7 @@ namespace TutoProxy.Server.CommandLine {
         }
 
         static async Task StartServices(
-            string server, string sendto, string id,
+            string server, string sendto, string? id,
             PortsArgument? tcp, PortsArgument? udp,
             TransportProtocol protocol, int parallel,
             Serilog.ILogger logger,

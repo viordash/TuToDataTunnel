@@ -121,9 +121,9 @@ namespace TutoProxy.Server.Services {
 
         public async Task Connect(string connectionId, string queryString) {
             var query = QueryHelpers.ParseQuery(queryString);
-            var tcpPresent = query.TryGetValue(SignalRParams.TcpQuery, out StringValues tcpQuery);
-            var udpPresent = query.TryGetValue(SignalRParams.UdpQuery, out StringValues udpQuery);
-            var clientIdPresent = query.TryGetValue(SignalRParams.ClientId, out StringValues clientId);
+            var tcpPresent = query.TryGetValue(SignalRParams.TcpQuery, out StringValues tcpQuery) && !string.IsNullOrEmpty(tcpQuery);
+            var udpPresent = query.TryGetValue(SignalRParams.UdpQuery, out StringValues udpQuery) && !string.IsNullOrEmpty(udpQuery);
+            var clientIdPresent = query.TryGetValue(SignalRParams.ClientId, out StringValues clientId) && !string.IsNullOrEmpty(clientId);
             query.TryGetValue(SignalRParams.ConnectionIndex, out StringValues connIndexStr);
             query.TryGetValue(SignalRParams.TotalConnections, out StringValues totalConnStr);
 

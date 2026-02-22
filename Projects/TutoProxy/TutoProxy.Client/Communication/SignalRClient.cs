@@ -12,7 +12,7 @@ using TypedSignalR.Client;
 
 namespace TutoProxy.Client.Communication {
     public interface ISignalRClient : IDisposable {
-        Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string clientId, TransportProtocol protocol, int parallelCount, CancellationToken cancellationToken);
+        Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, int parallelCount, CancellationToken cancellationToken);
         Task StopAsync();
         Task SendUdpResponse(UdpDataResponseModel response, CancellationToken cancellationToken);
         Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered, CancellationToken cancellationToken);
@@ -178,7 +178,7 @@ namespace TutoProxy.Client.Communication {
         public void Dispose() {
         }
 
-        public async Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string clientId, TransportProtocol protocol, int parallelCount, CancellationToken cancellationToken) {
+        public async Task<string> StartAsync(string server, string? tcpQuery, string? udpQuery, string? clientId, TransportProtocol protocol, int parallelCount, CancellationToken cancellationToken) {
             Guard.NotNullOrEmpty(server, nameof(server));
             Guard.NotNull(tcpQuery ?? udpQuery, $"Tcp ?? Udp");
 
@@ -193,7 +193,7 @@ namespace TutoProxy.Client.Communication {
                 var query = QueryString.Create(new[] {
                     KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery ?? ""),
                     KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery ?? ""),
-                    KeyValuePair.Create(SignalRParams.ClientId, clientId),
+                    KeyValuePair.Create(SignalRParams.ClientId, clientId ?? ""),
                     KeyValuePair.Create(SignalRParams.ConnectionIndex, i.ToString()),
                     KeyValuePair.Create(SignalRParams.TotalConnections, parallelCount.ToString())
                 });
