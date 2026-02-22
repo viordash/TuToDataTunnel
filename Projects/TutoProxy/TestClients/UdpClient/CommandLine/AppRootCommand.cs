@@ -1,67 +1,63 @@
 ﻿using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using Microsoft.Extensions.Hosting;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
         const string description = "Тестовый udp-клиент";
+
+        public Argument<string> IpArg { get; }
+        public Argument<int> PortArg { get; }
+        public Argument<int> DelayArg { get; }
+        public Argument<int> PacketArg { get; }
+        public Option<bool> FirenforgetOpt { get; }
+
         public AppRootCommand() : base(description) {
-            Add(new Argument<string>("ip", "Remote UDP IP address"));
-            Add(new Argument<int>("port", "Remote UDP IP port"));
-            var argDelay = new Argument<int>("delay", () => 1000, "Delay before repeat, ms. Min value is 0ms");
-            Add(argDelay);
-            var argPacketSize = new Argument<int>("packet", () => 1400, "Packet size, bytes. Min value is 1");
-            Add(argPacketSize);
-            Add(new Option<bool>("--firenforget", () => false, "Fire'n'Forget"));
-            AddValidator((result) => {
+            IpArg = new Argument<string>("ip") { Description = "Remote UDP IP address" };
+            PortArg = new Argument<int>("port") { Description = "Remote UDP IP port" };
+            DelayArg = new Argument<int>("delay") { Description = "Delay before repeat, ms. Min value is 0ms", DefaultValueFactory = _ => 1000 };
+            PacketArg = new Argument<int>("packet") { Description = "Packet size, bytes. Min value is 1", DefaultValueFactory = _ => 1400 };
+            FirenforgetOpt = new Option<bool>("--firenforget") { Description = "Fire'n'Forget", DefaultValueFactory = _ => false };
+
+            Add(IpArg);
+            Add(PortArg);
+            Add(DelayArg);
+            Add(PacketArg);
+            Add(FirenforgetOpt);
+
+            Validators.Add((result) => {
                 try {
-                    if(result.Children.Any(x => x.GetValueForArgument(argDelay) < 0)) {
-                        result.ErrorMessage = "Delay should be higher or equal than 0ms";
+                    if(result.Children.Any(x => x.GetValue(DelayArg) < 0)) {
+                        result.AddError("Delay should be higher or equal than 0ms");
                         return;
                     }
-                    if(result.Children.Any(x => x.GetValueForArgument(argPacketSize) < 1)) {
-                        result.ErrorMessage = "The packet size must be greater than or equal to 1 byte.";
+                    if(result.Children.Any(x => x.GetValue(PacketArg) < 1)) {
+                        result.AddError("The packet size must be greater than or equal to 1 byte.");
                         return;
                     }
                 } catch(InvalidOperationException) {
-                    result.ErrorMessage = "not valid";
+                    result.AddError("not valid");
                 }
             });
         }
 
-        public new class Handler : ICommandHandler {
-            readonly ILogger logger;
-            readonly IHostApplicationLifetime applicationLifetime;
+        public void ConfigureAction(Serilog.ILogger logger, CancellationToken applicationStopping) {
+            SetAction(async (parseResult, cancellationToken) => {
+                var ip = parseResult.GetValue(IpArg)!;
+                var port = parseResult.GetValue(PortArg);
+                var delay = parseResult.GetValue(DelayArg);
+                var packet = parseResult.GetValue(PacketArg);
+                var firenforget = parseResult.GetValue(FirenforgetOpt);
 
-            public string Ip { get; set; } = string.Empty;
-            public int Port { get; set; }
-            public int Delay { get; set; }
-            public int Packet { get; set; }
-            public bool Firenforget { get; set; }
-
-            public Handler(
-                ILogger logger,
-                IHostApplicationLifetime applicationLifetime
-                ) {
-                Guard.NotNull(logger, nameof(logger));
-                Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
-                this.logger = logger;
-                this.applicationLifetime = applicationLifetime;
-            }
-
-            public async Task<int> InvokeAsync(InvocationContext context) {
-                var serverEndPoint = new IPEndPoint(IPAddress.Parse(Ip), Port);
+                var serverEndPoint = new IPEndPoint(IPAddress.Parse(ip), port);
 
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
+                logger.Information($"{description}, ip: {ip}, порт: {port}, delay: {delay}");
 
-
-                while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
+                while(!applicationStopping.IsCancellationRequested) {
                     using var udpClient = new UdpClient(serverEndPoint.AddressFamily);
                     uint IOC_IN = 0x80000000;
                     uint IOC_VENDOR = 0x18000000;
@@ -72,25 +68,23 @@ namespace TutoProxy.Server.CommandLine {
                     udpClient.Client.SendTimeout = 5000;
                     udpClient.Client.ReceiveTimeout = 30000;
 
-
-
                     var sRateStopWatch = new Stopwatch();
                     var logTimer = DateTime.Now.AddSeconds(1);
                     double sRate = 0;
                     int packetsCount = 0;
                     int errors = 0;
 
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping);
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(applicationStopping);
                     while(!cts.IsCancellationRequested) {
-                        var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (Packet / 16) + 1)
+                        var dataPacket = Enumerable.Repeat(Guid.NewGuid().ToByteArray(), (packet / 16) + 1)
                             .SelectMany(x => x)
-                            .Take(Packet).ToArray();
+                            .Take(packet).ToArray();
                         sRateStopWatch.Restart();
                         var txCount = await udpClient.SendAsync(dataPacket, serverEndPoint, cts.Token);
 
                         var localPort = (udpClient.Client.LocalEndPoint as IPEndPoint)!.Port;
 
-                        if(!Firenforget) {
+                        if(!firenforget) {
                             try {
                                 cts.CancelAfter(TimeSpan.FromMilliseconds(30000));
 
@@ -117,7 +111,7 @@ namespace TutoProxy.Server.CommandLine {
                                     errors = 0;
                                 } else {
                                     logger.Warning($"udp({localPort}) response from {remoteEndPoint}, bytes:{receiveBuffer.ToShortDescriptions()}. Wrong");
-                                    await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationLifetime.ApplicationStopping);
+                                    await Task.Delay(TimeSpan.FromMilliseconds(2000), applicationStopping);
                                     if(errors++ > 3) {
                                         errors = 0;
                                         break;
@@ -130,14 +124,14 @@ namespace TutoProxy.Server.CommandLine {
                             logger.Information($"udp({localPort}) request to {serverEndPoint}, bytes:{dataPacket.ToShortDescriptions()}");
                             await Task.Delay(10);
                         }
-                        if(Delay > 0) {
-                            await Task.Delay(Delay);
+                        if(delay > 0) {
+                            await Task.Delay(delay);
                         }
                     }
                 }
 
                 return 0;
-            }
+            });
         }
     }
 }

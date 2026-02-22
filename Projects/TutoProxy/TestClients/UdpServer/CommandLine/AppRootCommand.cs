@@ -1,55 +1,49 @@
 ﻿using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using Microsoft.Extensions.Hosting;
 using TuToProxy.Core.Extensions;
 
 namespace TutoProxy.Server.CommandLine {
     internal class AppRootCommand : RootCommand {
         const string description = "Тестовый udp-сервер";
+
+        public Argument<string> IpArg { get; }
+        public Argument<int> PortArg { get; }
+        public Argument<int> DelayArg { get; }
+
         public AppRootCommand() : base(description) {
-            Add(new Argument<string>("ip", "Listen UDP IP address"));
-            Add(new Argument<int>("port", "Listen UDP IP port"));
-            var argDelay = new Argument<int>("delay", () => 10, "Delay before response, ms. Min value is 0ms");
-            Add(argDelay);
-            AddValidator((result) => {
+            IpArg = new Argument<string>("ip") { Description = "Listen UDP IP address" };
+            PortArg = new Argument<int>("port") { Description = "Listen UDP IP port" };
+            DelayArg = new Argument<int>("delay") { Description = "Delay before response, ms. Min value is 0ms", DefaultValueFactory = _ => 10 };
+
+            Add(IpArg);
+            Add(PortArg);
+            Add(DelayArg);
+
+            Validators.Add((result) => {
                 try {
-                    if(result.Children.Any(x => x.GetValueForArgument(argDelay) < 0)) {
-                        result.ErrorMessage = "Delay should be higher or equal than 0ms";
+                    if(result.Children.Any(x => x.GetValue(DelayArg) < 0)) {
+                        result.AddError("Delay should be higher or equal than 0ms");
                         return;
                     }
                 } catch(InvalidOperationException) {
-                    result.ErrorMessage = "not valid";
+                    result.AddError("not valid");
                 }
             });
         }
 
-        public new class Handler : ICommandHandler {
-            readonly ILogger logger;
-            readonly IHostApplicationLifetime applicationLifetime;
+        public void ConfigureAction(Serilog.ILogger logger, CancellationToken applicationStopping) {
+            SetAction(async (parseResult, cancellationToken) => {
+                var ip = parseResult.GetValue(IpArg)!;
+                var port = parseResult.GetValue(PortArg);
+                var delay = parseResult.GetValue(DelayArg);
 
-            public string Ip { get; set; } = string.Empty;
-            public int Port { get; set; }
-            public int Delay { get; set; }
-
-            public Handler(
-                ILogger logger,
-                IHostApplicationLifetime applicationLifetime
-                ) {
-                Guard.NotNull(logger, nameof(logger));
-                Guard.NotNull(applicationLifetime, nameof(applicationLifetime));
-                this.logger = logger;
-                this.applicationLifetime = applicationLifetime;
-            }
-
-            public async Task<int> InvokeAsync(InvocationContext context) {
                 logger.Information($"{Assembly.GetExecutingAssembly().GetName().Name} {Assembly.GetExecutingAssembly().GetName().Version}");
-                logger.Information($"{description}, ip: {Ip}, порт: {Port}, delay: {Delay}");
+                logger.Information($"{description}, ip: {ip}, порт: {port}, delay: {delay}");
 
-                while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                    using var udpServer = new UdpClient(new IPEndPoint(IPAddress.Parse(Ip), Port));
+                while(!applicationStopping.IsCancellationRequested) {
+                    using var udpServer = new UdpClient(new IPEndPoint(IPAddress.Parse(ip), port));
                     uint IOC_IN = 0x80000000;
                     uint IOC_VENDOR = 0x18000000;
                     uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
@@ -58,16 +52,16 @@ namespace TutoProxy.Server.CommandLine {
 
                     try {
                         var logTimer = DateTime.Now.AddSeconds(1);
-                        while(!applicationLifetime.ApplicationStopping.IsCancellationRequested) {
-                            var result = await udpServer.ReceiveAsync(applicationLifetime.ApplicationStopping);
+                        while(!applicationStopping.IsCancellationRequested) {
+                            var result = await udpServer.ReceiveAsync(applicationStopping);
                             if(logTimer <= DateTime.Now) {
                                 logTimer = DateTime.Now.AddSeconds(1);
-                                logger.Information($"udp({Port}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}");
+                                logger.Information($"udp({port}) request from {result.RemoteEndPoint}, bytes:{result.Buffer.ToShortDescriptions()}");
                             }
-                            if(Delay > 0) {
-                                await Task.Delay(Delay);
+                            if(delay > 0) {
+                                await Task.Delay(delay);
                             }
-                            var txCount = await udpServer.SendAsync(result.Buffer, result.RemoteEndPoint, applicationLifetime.ApplicationStopping);
+                            var txCount = await udpServer.SendAsync(result.Buffer, result.RemoteEndPoint, applicationStopping);
                         }
                     } catch(SocketException ex) {
                         logger.Error(ex.Message);
@@ -75,7 +69,7 @@ namespace TutoProxy.Server.CommandLine {
                 }
 
                 return 0;
-            }
+            });
         }
     }
 }
