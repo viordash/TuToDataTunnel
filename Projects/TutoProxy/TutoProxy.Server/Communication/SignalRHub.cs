@@ -22,7 +22,7 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public async Task UdpResponse(UdpDataResponseModel model) {
-            logger.Debug($"UdpResponse: {model}");
+            logger.Debug("UdpResponse: {model}", model);
             try {
                 await dataTransferService.HandleUdpResponse(Context.ConnectionId, model);
             } catch(TuToException ex) {
@@ -31,7 +31,7 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public async Task DisconnectUdp(SocketAddressModel socketAddress, Int64 totalTransfered) {
-            logger.Debug($"DisconnectUdp: {socketAddress}, {totalTransfered}");
+            logger.Debug("DisconnectUdp: {socketAddress}, {totalTransfered}", socketAddress, totalTransfered);
             try {
                 await dataTransferService.HandleDisconnectUdpAsync(Context.ConnectionId, socketAddress, totalTransfered);
             } catch(TuToException ex) {
@@ -40,7 +40,7 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public async Task<int> TcpResponse(TcpDataResponseModel model) {
-            logger.Debug($"TcpResponse: {model}");
+            logger.Debug("TcpResponse: {model}", model);
             try {
                 return await dataTransferService.HandleTcpResponse(Context.ConnectionId, model);
             } catch(TuToException ex) {
@@ -50,7 +50,7 @@ namespace TutoProxy.Server.Hubs {
         }
 
         public async Task<bool> DisconnectTcp(SocketAddressModel socketAddress) {
-            logger.Debug($"DisconnectTcp: {socketAddress}");
+            logger.Debug("DisconnectTcp: {socketAddress}", socketAddress);
             try {
                 return await dataTransferService.HandleDisconnectTcp(Context.ConnectionId, socketAddress);
             } catch(TuToException ex) {
@@ -61,7 +61,7 @@ namespace TutoProxy.Server.Hubs {
 
         public override async Task OnConnectedAsync() {
             try {
-                var queryString = Context.GetHttpContext()?.Request.QueryString.Value;
+                var queryString = (Context.GetHttpContext()?.Request.QueryString.Value) ?? throw new ClientConnectionException(Context.ConnectionId, "QueryString empty");
                 await clientsService.Connect(Context.ConnectionId, queryString);
             } catch(TuToException ex) {
                 logger.Error(ex.Message);

@@ -2,7 +2,7 @@
   "profiles": {
     "TutoProxy.Client": {
       "commandName": "Project",
-      "commandLineArgs": "http://127.0.0.1:8088 192.168.244.139 --tcp=8001 --id=ClientSec --daemon",
+      "commandLineArgs": "http://172.31.182.199:8088 127.0.0.1 --tcp=5201 --udp=5201 --id=ClientSec --parallel=1",
       "hotReloadEnabled": false
     }
   }

@@ -17,22 +17,21 @@ namespace TuToProxy.Core.CommandLine {
         }
 
         public static Option<AllowedClientsOption?> Create(string name, string description) {
-            return new Option<AllowedClientsOption?>(
-                     name: name,
-                     parseArgument: (result) => {
-                         if(result.Tokens.Count != 1) {
-                             result.ErrorMessage = "Value only be parsed with single token";
-                             return default;
-                         }
-                         try {
-                             return Parse(result.Tokens[0].Value);
-                         } catch(ArgumentException exception) {
-                             result.ErrorMessage = exception.GetBaseException().Message;
-                             return default;
-                         }
-                     },
-                     description: description
-             );
+            return new Option<AllowedClientsOption?>(name) {
+                Description = description,
+                CustomParser = result => {
+                    if(result.Tokens.Count != 1) {
+                        result.AddError("Value only be parsed with single token");
+                        return default;
+                    }
+                    try {
+                        return Parse(result.Tokens[0].Value);
+                    } catch(ArgumentException exception) {
+                        result.AddError(exception.GetBaseException().Message);
+                        return default;
+                    }
+                }
+            };
         }
 
         public static AllowedClientsOption Parse(string? value) {

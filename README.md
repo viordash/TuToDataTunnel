@@ -46,10 +46,11 @@ TutoProxy.Server http://200.100.10.1:8088 \
 |----------|----------|-------------|
 | `<server>` | Yes | TutoProxy.Server address. Example: `http://200.100.10.1:8088` |
 | `<sendto>` | Yes | Target host IP where traffic will be forwarded. Example: `127.0.0.1` or `192.168.1.100` |
-| `--id <id>` | Yes | Unique client identifier. Must match allowed clients on server if restriction is enabled |
+| `--id <id>` | No  | Unique client identifier. Must match allowed clients on server if restriction is enabled |
 | `--tcp <ports>` | No* | TCP ports to handle. Must be subset of server's TCP ports. Example: `--tcp=80,443` |
 | `--udp <ports>` | No* | UDP ports to handle. Must be subset of server's UDP ports. Example: `--udp=5000-5005` |
 | `--protocol <mode>` | No | Transport protocol: `Auto` (default), `Http`, `WebSocket`. WebSocket mode skips negotiation for faster connection |
+| `--parallel <count>` | No | Number of parallel SignalR connections (1-8, default: 1). Multiple connections increase throughput by distributing TCP sessions across channels |
 | `--daemon` | No | Run in daemon mode without terminal GUI, reduces CPU overhead |
 
 *At least one of `--tcp` or `--udp` must be specified.
@@ -63,78 +64,83 @@ TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 \
     --id=Client0Linux
 ```
 
+**Example - start client with 4 parallel SignalR connections for higher throughput:**
+
+```bash
+TutoProxy.Client http://200.100.10.1:8088 127.0.0.1 \
+    --tcp=8071-8080 \
+    --id=Client0Linux \
+    --protocol=WebSocket \
+    --parallel=4
+```
+
 **Important:** Ports of different TutoProxy.Client instances must not overlap. Each client serves a unique set of ports.
 
 ---
 
 ### Traffic Flow Architecture
 
+#### Parallel SignalR Connections
+
+TutoProxy.Client supports multiple parallel SignalR connections to increase throughput. When `--parallel=N` is specified:
+- Client creates N `SignalRConnection` instances to the server
+- Server groups these connections into a `ClientGroup`
+- New TCP sessions are distributed across connections using round-robin
+- Each TCP session maintains affinity to its assigned connection (session stickiness)
+- UDP traffic is distributed across connections using round-robin
+
 #### Request Flow (External Client -> Target Host)
 
-```
-┌─────────────┐      ┌─────────────────────────────────────────────┐      ┌─────────────────────────────────────────┐       ┌─────────────┐
-│  EXTERNAL   │      │               TUTOPROXY.SERVER              │      │           TUTOPROXY.CLIENT              │       │   TARGET    │
-│   CLIENT    │      │                                             │      │                                         │       │    HOST     │
-└──────┬──────┘      └─────────────────────────────────────────────┘      └─────────────────────────────────────────┘       └──────▲──────┘
-       │                                                                                                                           │
-       │  ┌──────────┐  ┌──────────┐  ┌────────────────────┐  ┌───────────┐        ┌──────────────┐  ┌──────────────┐  ┌──────────┐│
-       └─►│TcpServer │─►│TcpClient │─►│DataTransferService │─►│SignalRHub │───────►│SignalRClient │─►│ClientsService│─►│TcpClient │┘
-          │UdpServer │  │UdpClient │  │                    │  │           │SignalR │              │  │              │  │UdpClient │
-          └──────────┘  └──────────┘  └────────────────────┘  └───────────┘        └──────────────┘  └──────────────┘  └──────────┘
-```
-
 **TutoProxy.Server side:**
-1. External Client sends data to TutoProxy.Server
-2. `TcpServer` / `UdpServer` receives incoming data
-3. `TcpServer` / `UdpServer` passes data to `TcpClient` / `UdpClient`
-4. `TcpClient` / `UdpClient` sends data via `DataTransferService` to `SignalRHub`
+1. External Client connects to `TcpServer.Listen()` / `UdpServer`
+2. `TcpServer` calls `DataTransferService.ConnectTcp()` to establish session
+3. `DataTransferService` selects connection via `HubClientsService.GetConnectionIdForTcp()` (round-robin)
+4. `DataTransferService` registers session affinity via `HubClientsService.RegisterTcpSession()`
+5. `DataTransferService` invokes `ConnectTcp` on selected `SignalRConnection`
+6. On data receive, `TcpClient.ReceivingStream()` calls `DataTransferService.SendTcpRequest()`
+7. `DataTransferService` uses `HubClientsService.GetConnectionIdForTcpSession()` for session affinity
+8. `DataTransferService` invokes `TcpRequest` on the same connection
 
 **TutoProxy.Client side:**
-1. `SignalRClient` receives `TcpRequest` / `UdpRequest` and passes to `TcpClient` / `UdpClient`
-2. `TcpClient` / `UdpClient` sends data to Target Host
+1. `ClientReceiver.ConnectTcp()` receives connection request
+2. `ClientsService.AddTcpClient()` creates `TcpClient` with specific `ITcpDataChannel`
+3. `TcpClient.Connect()` establishes socket to Target Host
+4. `ClientReceiver.TcpRequest()` receives data, passes to `TcpClient.SendRequest()`
+5. `TcpClient` sends data to Target Host via socket
 
 #### Response Flow (Target Host -> External Client)
 
-```
-┌─────────────┐      ┌─────────────────────────────────────────────┐      ┌─────────────────────────────────────────┐       ┌─────────────┐
-│  EXTERNAL   │      │               TUTOPROXY.SERVER              │      │           TUTOPROXY.CLIENT              │       │   TARGET    │
-│   CLIENT    │      │                                             │      │                                         │       │    HOST     │
-└──────▲──────┘      └─────────────────────────────────────────────┘      └─────────────────────────────────────────┘       └──────┬──────┘
-       │                                                                                                                           │
-       │  ┌──────────┐  ┌──────────┐  ┌────────────────────┐  ┌───────────┐        ┌──────────────┐                    ┌──────────┐│
-       └──│TcpServer │◄─│TcpClient │◄─│DataTransferService │◄─│SignalRHub │◄───────│SignalRClient │◄───────────────────│TcpClient │┘
-          │UdpServer │  │UdpClient │  │                    │  │           │SignalR │              │                    │UdpClient │
-          └──────────┘  └──────────┘  └────────────────────┘  └───────────┘        └──────────────┘                    └──────────┘
-
-```
-
 **TutoProxy.Client side:**
 1. Target Host sends response data
-2. `TcpClient` / `UdpClient` receives response
-3. `TcpClient` / `UdpClient` passes response to `SignalRClient` (`SendTcpResponse` / `SendUdpResponse`)
-4. `SignalRClient` sends data to TutoProxy.Server
+2. `TcpClient.ReceivingStream()` receives data from socket
+3. `TcpClient` calls `ITcpDataChannel.SendTcpResponse()` (bound to specific `SignalRConnection`)
+4. `SignalRConnection.SendTcpResponse()` invokes `hubProxy.TcpResponse()`
 
 **TutoProxy.Server side:**
-1. `SignalRHub` receives `TcpResponse` / `UdpResponse`
-2. `DataTransferService` finds corresponding `HubClient` and passes response to it
-3. `HubClient` finds `TcpServer` / `UdpServer` by port
-4. `TcpServer` / `UdpServer` finds `TcpClient` / `UdpClient` by origin port
-5. `TcpClient` / `UdpClient` sends response via socket to External Client
+1. `SignalRHub.TcpResponse()` receives response with `Context.ConnectionId`
+2. `SignalRHub` calls `DataTransferService.HandleTcpResponse()`
+3. `DataTransferService` calls `HubClientsService.GetClient()` to find `HubClient`
+4. `HubClient.SendTcpResponse()` finds `TcpServer` by port
+5. `TcpServer.SendResponse()` finds `TcpClient` by origin port
+6. `TcpClient.SendDataAsync()` sends response via socket to External Client
 
 #### Component Responsibilities
 
 **TutoProxy.Server:**
-- `SignalRHub` - SignalR hub, communication with TutoProxy.Client
-- `DataTransferService` - routes data between SignalRHub and HubClients
-- `HubClient` - represents connected TutoProxy.Client, contains TcpServers/UdpServers
-- `TcpServer` / `UdpServer` - listen on ports, manage client sessions
-- `TcpClient` / `UdpClient` - handle individual external client sessions
-- `HubClientsService` - manage HubClient instances, validate ports and client IDs
+- `SignalRHub` - SignalR hub, handles `TcpResponse`, `UdpResponse`, `DisconnectTcp`, `DisconnectUdp`
+- `HubClientsService` - manages `ClientGroup` instances, handles parallel connections, round-robin distribution, session affinity
+- `ClientGroup` - groups SignalR connections from same client, contains `HubClient` and connection list
+- `DataTransferService` - routes data between SignalRHub and HubClients, manages session registration
+- `HubClient` - represents connected TutoProxy.Client, contains `TcpServer`/`UdpServer` instances
+- `TcpServer` / `UdpServer` - listen on ports, manage `TcpClient`/`UdpClient` sessions
+- `TcpClient` / `UdpClient` - handle individual external client socket sessions
 
 **TutoProxy.Client:**
-- `SignalRClient` - connection to TutoProxy.Server, receives requests, sends responses
-- `TcpClient` / `UdpClient` - connect to target host, forward data
-- `ClientsService` - manage active connections
+- `SignalRClient` - manages multiple `SignalRConnection` instances for parallel connections
+- `SignalRConnection` - implements `ITcpDataChannel`, wraps `HubConnection`, handles TCP session affinity
+- `ClientReceiver` - implements `IClientReceiver`, handles incoming `TcpRequest`, `UdpRequest`, `ConnectTcp`
+- `TcpClient` / `UdpClient` - connect to target host, send requests, receive responses via bound `ITcpDataChannel`
+- `ClientsService` - manages active `TcpClient`/`UdpClient` instances
 
 ---
 
@@ -174,17 +180,20 @@ The project includes a performance testing script that measures tunnel throughpu
 #### Usage
 
 ```bash
-# Full test (Auto + Http + WebSocket protocols)
+# Full TCP test (Auto + Http + WebSocket protocols)
 ./Projects/TutoProxy/scripts/perf-test.sh full
+./Projects/TutoProxy/scripts/perf-test.sh full-reverse
 
-# WebSocket protocol test (fastest, skips negotiation)
+# WebSocket protocol test (fastest)
 ./Projects/TutoProxy/scripts/perf-test.sh websocket -d 10
+./Projects/TutoProxy/scripts/perf-test.sh websocket-reverse -d 10
 
-# Auto protocol test with parallel streams
-./Projects/TutoProxy/scripts/perf-test.sh auto -d 30 -p 4
+# Parallel connections test (4 iperf streams over 4 SignalR connections)
+./Projects/TutoProxy/scripts/perf-test.sh websocket -d 10 -p 4 -s 4
 
-# Http protocol test (LongPolling)
-./Projects/TutoProxy/scripts/perf-test.sh http -d 10
+# Full UDP test (Auto + Http + WebSocket protocols)
+./Projects/TutoProxy/scripts/perf-test.sh udp-full -d 10 -b 1000M
+./Projects/TutoProxy/scripts/perf-test.sh udp-full-reverse -d 10 -b 1000M
 ```
 
 #### VSCode Tasks

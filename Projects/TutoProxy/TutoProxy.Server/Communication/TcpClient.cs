@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using TutoProxy.Server.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Extensions;
+using TuToProxy.Core.Pooling;
 
 namespace TutoProxy.Server.Communication {
 
@@ -62,9 +63,16 @@ namespace TutoProxy.Server.Communication {
                     totalReceived += receivedBytes;
                     var data = receiveBuffer[..receivedBytes];
 
-                    var transmitted = await dataTransferService.SendTcpRequest(new TcpDataRequestModel() {
-                        Port = server.Port, OriginPort = OriginPort, Data = data
-                    }, cancellationToken);
+                    var request = DataModelPool<TcpDataRequestModel>.Rent();
+                    request.Port = server.Port;
+                    request.OriginPort = OriginPort;
+                    request.Data = data;
+                    int transmitted;
+                    try {
+                        transmitted = await dataTransferService.SendTcpRequest(request, cancellationToken);
+                    } finally {
+                        DataModelPool<TcpDataRequestModel>.Return(request);
+                    }
                     if(receivedBytes != transmitted) {
                         logger.Error($"{this} request transmit error ({transmitted})");
                         throw new SocketException((int)SocketError.ConnectionAborted);

@@ -17,4 +17,7 @@ Projects/TutoProxy/TestClients/UdpClient/log*.txt
 out/*
 **/3proxy/*
 **/BenchmarkDotNet.Artifacts/*
+**/profiles/*
+*.nettrace
+*.speedscope.json
 log-*.txt

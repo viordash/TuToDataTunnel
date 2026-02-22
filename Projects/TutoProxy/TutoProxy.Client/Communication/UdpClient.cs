@@ -4,6 +4,7 @@ using TutoProxy.Client.Services;
 using TuToProxy.Core;
 using TuToProxy.Core.Exceptions;
 using TuToProxy.Core.Extensions;
+using TuToProxy.Core.Pooling;
 
 namespace TutoProxy.Client.Communication {
     public class UdpClient : BaseClient {
@@ -68,8 +69,15 @@ namespace TutoProxy.Client.Communication {
                             break;
                         }
                         totalReceived += result.Buffer.Length;
-                        var response = new UdpDataResponseModel() { Port = request.Port, OriginPort = request.OriginPort, Data = result.Buffer };
-                        await dataTunnelClient.SendUdpResponse(response, cancellationToken);
+                        var response = DataModelPool<UdpDataResponseModel>.Rent();
+                        response.Port = request.Port;
+                        response.OriginPort = request.OriginPort;
+                        response.Data = result.Buffer;
+                        try {
+                            await dataTunnelClient.SendUdpResponse(response, cancellationToken);
+                        } finally {
+                            DataModelPool<UdpDataResponseModel>.Return(response);
+                        }
 
                         if(UdpSocketParams.TrafficMonitoring && Environment.TickCount64 - responseLogTicks >= UdpSocketParams.LogUpdatePeriod * 1000) {
                             responseLogTicks = Environment.TickCount64;

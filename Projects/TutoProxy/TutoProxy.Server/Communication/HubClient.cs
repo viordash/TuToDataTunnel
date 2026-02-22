@@ -13,6 +13,7 @@ namespace TutoProxy.Server.Communication {
         readonly FrozenDictionary<int, ITcpServer> tcpServers;
         readonly FrozenDictionary<int, IUdpServer> udpServers;
         readonly CancellationTokenSource cts;
+        int disposed = 0;
 
         public HubClient(IPEndPoint localEndPoint, IEnumerable<int>? tcpPorts, IEnumerable<int>? udpPorts,
                     IServiceProvider serviceProvider) {
@@ -38,6 +39,10 @@ namespace TutoProxy.Server.Communication {
         }
 
         public async ValueTask DisposeAsync() {
+            if(Interlocked.Exchange(ref disposed, 1) == 1) {
+                return;
+            }
+
             cts.Cancel();
             cts.Dispose();
 
