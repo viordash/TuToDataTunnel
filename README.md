@@ -46,7 +46,7 @@ TutoProxy.Server http://200.100.10.1:8088 \
 |----------|----------|-------------|
 | `<server>` | Yes | TutoProxy.Server address. Example: `http://200.100.10.1:8088` |
 | `<sendto>` | Yes | Target host IP where traffic will be forwarded. Example: `127.0.0.1` or `192.168.1.100` |
-| `--id <id>` | Yes | Unique client identifier. Must match allowed clients on server if restriction is enabled |
+| `--id <id>` | No  | Unique client identifier. Must match allowed clients on server if restriction is enabled |
 | `--tcp <ports>` | No* | TCP ports to handle. Must be subset of server's TCP ports. Example: `--tcp=80,443` |
 | `--udp <ports>` | No* | UDP ports to handle. Must be subset of server's UDP ports. Example: `--udp=5000-5005` |
 | `--protocol <mode>` | No | Transport protocol: `Auto` (default), `Http`, `WebSocket`. WebSocket mode skips negotiation for faster connection |
