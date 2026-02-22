@@ -24,11 +24,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/Projects/TutoProxy/TutoProxy.Client/bin/Debug/net10.0/TutoProxy.Client.dll",
             "args": [
-                "http://127.0.0.1:5088",
+                "http://192.168.0.107:8088",
                 "127.0.0.1",
-                "--tcp=5201",
-                "--udp=5201",
-                "--id=TestClient",
+                "--tcp=8001",
+                "--id=ClientSec",
                 "--protocol=Auto",
                 "--parallel=4"
             ],
