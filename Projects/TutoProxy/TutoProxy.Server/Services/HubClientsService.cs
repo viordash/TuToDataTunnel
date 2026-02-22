@@ -121,14 +121,21 @@ namespace TutoProxy.Server.Services {
 
         public async Task Connect(string connectionId, string queryString) {
             var query = QueryHelpers.ParseQuery(queryString);
-            var tcpPresent = query.TryGetValue(SignalRParams.TcpQuery, out StringValues tcpQuery) && !string.IsNullOrEmpty(tcpQuery);
-            var udpPresent = query.TryGetValue(SignalRParams.UdpQuery, out StringValues udpQuery) && !string.IsNullOrEmpty(udpQuery);
-            var clientIdPresent = query.TryGetValue(SignalRParams.ClientId, out StringValues clientId) && !string.IsNullOrEmpty(clientId);
-            query.TryGetValue(SignalRParams.ConnectionIndex, out StringValues connIndexStr);
-            query.TryGetValue(SignalRParams.TotalConnections, out StringValues totalConnStr);
+            var tcpPresent = query.TryGetValue(SignalRParams.TcpQuery, out StringValues tcpQuery);
+            var udpPresent = query.TryGetValue(SignalRParams.UdpQuery, out StringValues udpQuery);
+            var clientIdPresent = query.TryGetValue(SignalRParams.ClientId, out StringValues clientId);
 
-            int connIndex = int.TryParse(connIndexStr.FirstOrDefault(), out var ci) ? ci : 0;
-            int totalConn = int.TryParse(totalConnStr.FirstOrDefault(), out var tc) ? tc : 1;
+            if (!query.TryGetValue(SignalRParams.ConnectionIndex, out StringValues connIndexStr) 
+                || !int.TryParse(connIndexStr.FirstOrDefault(), out var connIndex)) {       
+                connIndex = 0; 
+                logger.Information($"Connect use default connIndex param value = {connIndex}");        
+            }
+
+            if (!query.TryGetValue(SignalRParams.TotalConnections, out StringValues totalConnStr)
+                || !int.TryParse(totalConnStr.FirstOrDefault(), out var totalConn)) {        
+                totalConn = 1;      
+                logger.Information($"Connect use default totalConn param value = {totalConn}");      
+            }
 
             if(alowedClients != null) {
                 if(!clientIdPresent) {

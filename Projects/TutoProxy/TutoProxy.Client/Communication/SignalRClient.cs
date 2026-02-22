@@ -189,14 +189,23 @@ namespace TutoProxy.Client.Communication {
 
             string? firstConnectionId = null;
 
+            var queryParams = new List<KeyValuePair<string, string>>();
+            if (!string.IsNullOrEmpty(tcpQuery)) {
+                queryParams.Add(KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery));
+            }
+            if (!string.IsNullOrEmpty(udpQuery)) {
+                queryParams.Add(KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery));
+            }
+            if (!string.IsNullOrEmpty(clientId)) {
+                queryParams.Add(KeyValuePair.Create(SignalRParams.ClientId, clientId));
+            }
+
             for(int i = 0; i < parallelCount; i++) {
-                var query = QueryString.Create(new[] {
-                    KeyValuePair.Create(SignalRParams.TcpQuery, tcpQuery ?? ""),
-                    KeyValuePair.Create(SignalRParams.UdpQuery, udpQuery ?? ""),
-                    KeyValuePair.Create(SignalRParams.ClientId, clientId ?? ""),
+                var query = QueryString.Create(queryParams.Concat([
                     KeyValuePair.Create(SignalRParams.ConnectionIndex, i.ToString()),
                     KeyValuePair.Create(SignalRParams.TotalConnections, parallelCount.ToString())
-                });
+                ]));
+
                 ub.Query = query.ToString();
 
                 var hubConnection = new HubConnectionBuilder()

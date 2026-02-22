@@ -26,10 +26,11 @@
             "args": [
                 "http://192.168.0.107:8088",
                 "127.0.0.1",
-                "--tcp=8001",
+                "--tcp=5201",
+                "--udp=5201",
                 "--id=ClientSec",
                 "--protocol=Auto",
-                "--parallel=4"
+                "--parallel=1"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
