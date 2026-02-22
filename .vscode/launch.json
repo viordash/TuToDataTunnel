@@ -1,0 +1,40 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Server",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/Projects/TutoProxy/TutoProxy.Server/bin/Debug/net10.0/TutoProxy.Server.dll",
+            "args": [
+                "http://127.0.0.1:5088",
+                "--tcp=5201",
+                "--udp=5201"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Client",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/Projects/TutoProxy/TutoProxy.Client/bin/Debug/net10.0/TutoProxy.Client.dll",
+            "args": [
+                "http://127.0.0.1:5088",
+                "127.0.0.1",
+                "--tcp=5201",
+                "--udp=5201",
+                "--id=TestClient",
+                "--protocol=Auto",
+                "--parallel=4"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        }
+    ]
+}
