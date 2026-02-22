@@ -10,9 +10,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/Projects/TutoProxy/TutoProxy.Server/bin/Debug/net10.0/TutoProxy.Server.dll",
             "args": [
-                "http://127.0.0.1:5088",
+                "http://172.31.182.199:8088",
                 "--tcp=5201",
-                "--udp=5201"
+                "--udp=5201",
+                "--clients=ClientSec"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -30,7 +31,7 @@
                 "--udp=5201",
                 "--id=ClientSec",
                 "--protocol=Auto",
-                "--parallel=1"
+                "--parallel=8"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
